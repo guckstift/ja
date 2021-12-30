@@ -1,0 +1,2 @@
+
+static int i;
