@@ -10,6 +10,7 @@
 #define PUNCTS(_) \
 	_("=", ASSIGN) \
 	_(";", SEMICOLON) \
+	_(",", COMMA) \
 
 typedef enum {
 	TK_EOF,
@@ -27,7 +28,7 @@ typedef enum {
 
 } TokenType;
 
-typedef struct {
+typedef struct Token {
 	TokenType type;
 	int64_t line;
 	char *start;
@@ -35,9 +36,12 @@ typedef struct {
 	union {
 		int64_t ival;
 		double fval;
+		struct Token *id;
 	};
+	struct Token *next_id;
 } Token;
 
+char *get_token_type_name(TokenType type);
 Token *lex(char *src);
 
 #endif

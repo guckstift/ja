@@ -1,0 +1,13 @@
+var x : int;
+
+var y = 90;
+
+function foo()
+{
+	print "Hello World!";
+}
+
+foo();
+
+struct {
+}

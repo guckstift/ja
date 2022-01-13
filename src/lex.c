@@ -5,6 +5,32 @@
 #include <inttypes.h>
 #include "lex.h"
 
+char *get_token_type_name(TokenType type)
+{
+	switch(type) {
+		case TK_EOF:
+			return "end of file";
+		case TK_IDENT:
+			return "identifier";
+		case TK_INT:
+			return "integer literal";
+		
+		#define F(x) \
+			case TK_ ## x: \
+				return "keyword " #x;
+		
+		KEYWORDS(F)
+		#undef F
+		
+		#define F(x, y) \
+			case TK_ ## y: \
+				return "'" x "'";
+		
+		PUNCTS(F)
+		#undef F
+	}
+}
+
 Token *lex(char *src)
 {
 	Token *tokens = 0;
@@ -34,6 +60,11 @@ Token *lex(char *src)
 		(x) >= 'a' && (x) <= 'f' ? x - 'a' + 10 : \
 		(x) >= 'A' && (x) <= 'F' ? x - 'A' + 10 : \
 	0)
+	
+	#define tokequ(a, b) ( \
+		(a)->length == (b)->length && \
+		memcmp((a)->start, (b)->start, (a)->length) == 0 \
+	)
 	
 	while(*pos) {
 		char *start = pos;
@@ -104,6 +135,8 @@ Token *lex(char *src)
 					ival += hex2int(*pos);
 					pos ++;
 				}
+				emit(TK_INT);
+				last_token->ival = ival;
 			}
 			else {
 				while(isdigit(*pos)) {
@@ -111,16 +144,28 @@ Token *lex(char *src)
 					ival += *pos - '0';
 					pos ++;
 				}
+				if(*pos == '.') {
+					pos ++;
+					while(isdigit(*pos)) pos ++;
+					int64_t len = pos - start;
+					char buf[len + 1];
+					buf[len] = 0;
+					memcpy(buf, start, len);
+					double fval = strtod(buf, 0);
+					emit(TK_FLOAT);
+					last_token->fval = fval;
+				}
+				else {
+					emit(TK_INT);
+					last_token->ival = ival;
+				}
 			}
-			
-			emit(TK_INT);
-			last_token->ival = ival;
 		}
 		
 		// punctuators
 		
 		#define F(x, y) \
-			else if(memcmp(start, x, strlen(x)) == 0) { \
+			else if(match(x)) { \
 				pos += strlen(x); \
 				emit(TK_ ## y); \
 			}
@@ -138,5 +183,27 @@ Token *lex(char *src)
 	
 	char *start = pos;
 	emit(TK_EOF);
+	
+	Token *first_id = 0;
+	Token *last_id = 0;
+	
+	for(Token *token = tokens; token->type != TK_EOF; token ++) {
+		if(token->type == TK_IDENT) {
+			token->id = 0;
+			token->next_id = 0;
+			for(Token *id = first_id; id; id = id->next_id) {
+				if(tokequ(token, id)) {
+					token->id = id;
+					break;
+				}
+			}
+			if(token->id == 0) {
+				token->id = token;
+				if(last_id) last_id = last_id->next_id = token;
+				else first_id = last_id = token;
+			}
+		}
+	}
+	
 	return tokens;
 }

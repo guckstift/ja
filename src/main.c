@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "lex.h"
+#include "parse.h"
 #include "print.h"
 
 static void error(char *msg)
@@ -34,6 +35,9 @@ int main(int argc, char *argv[])
 	
 	Token *tokens = lex(src);
 	print_tokens(tokens);
+	
+	Unit *unit = parse(tokens);
+	print_unit(unit);
 	
 	return 0;
 }

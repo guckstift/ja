@@ -1,3 +1,0 @@
-print hello 0xff
-var foo; # comment
-world 90

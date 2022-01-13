@@ -10,21 +10,36 @@ typedef enum {
 
 typedef struct Expr {
 	ExprType type;
+	Token *start;
 	struct Expr *next; // next in a list
+	
 	union {
 		int64_t ival;
+		Token *id;
 	};
 } Expr;
 
 typedef enum {
 	ST_PRINT, // exprs
+	ST_DECL, // id, expr
 } StmtType;
 
-typedef struct {
+typedef struct Stmt {
 	StmtType type;
-	Expr *exprs;
+	Token *start;
+	struct Stmt *next; // next in a list
+	
+	union {
+		Expr *expr;
+		Expr *exprs;
+	};
+	Token *id;
 } Stmt;
 
-void parse(Token *tokens);
+typedef struct {
+	Stmt *stmts;
+} Unit;
+
+Unit *parse(Token *tokens);
 
 #endif
