@@ -1,2 +1,7 @@
 var x : int;
-print x;
+
+if 1 {
+	var z : int = x;
+	print z;
+	print x;
+}

@@ -6,11 +6,19 @@
 static FILE *ofs;
 static int64_t level;
 
+static void gen_stmts(Stmt *stmts);
+static void gen_vardecls(Stmt *stmts);
+static void gen_vardecl(Stmt *stmt);
+
 static void write(char *msg, ...)
 {
 	va_list args;
 	va_start(args, msg);
 	vfprintf(ofs, msg, args);
+	va_end(args);
+	
+	va_start(args, msg);
+	vfprintf(stdout, msg, args);
 	va_end(args);
 }
 
@@ -23,6 +31,8 @@ static void gen_ident(Token *id)
 {
 	write("ja_");
 	fwrite(id->start, 1, id->length, ofs);
+	
+	fwrite(id->start, 1, id->length, stdout);
 }
 
 static void gen_expr(Expr *expr)
@@ -46,23 +56,61 @@ static void gen_stmt(Stmt *stmt)
 			gen_expr(stmt->expr);
 			write(");\n");
 			break;
+		case ST_VARDECL:
+			if(stmt->scope->parent) {
+				gen_vardecl(stmt);
+			}
+			else if(stmt->expr && !stmt->expr->isconst) {
+				gen_indent();
+				gen_ident(stmt->id);
+				write(" = ");
+				gen_expr(stmt->expr);
+				write(";\n");
+			}
+			break;
+		case ST_IFSTMT:
+			gen_indent();
+			write("if(");
+			gen_expr(stmt->expr);
+			write(") {\n");
+			gen_stmts(stmt->body);
+			gen_indent();
+			write("}\n");
+			break;
 	}
 }
 
 static void gen_stmts(Stmt *stmts)
 {
+	if(!stmts) return;
+	
 	level ++;
+	
 	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
 		gen_stmt(stmt);
 	}
+	
 	level --;
 }
 
 static void gen_vardecl(Stmt *stmt)
 {
+	gen_indent();
 	write("int64_t ");
 	gen_ident(stmt->id);
-	write(" = INT64_C(0);\n");
+	
+	if(stmt->expr) {
+		if(stmt->expr->isconst || stmt->scope->parent) {
+			write(" = ");
+			gen_expr(stmt->expr);
+		}
+	}
+	else {
+		write(" = ");
+		write("INT64_C(0)");
+	}
+	
+	write(";\n");
 }
 
 static void gen_vardecls(Stmt *stmts)

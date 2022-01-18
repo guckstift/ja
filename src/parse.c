@@ -7,15 +7,12 @@
 #define match(t) (cur->type == (t))
 #define eat(t) (match(t) ? (last = cur++) : 0)
 
-typedef struct {
-	Stmt *first_decl;
-	Stmt *last_decl;
-} Scope;
-
 static Token *cur;
 static Token *last;
 static char *src_end;
 static Scope *scope;
+
+static Stmt *p_stmts();
 
 static void error_at(Token *token, char *msg, ...)
 {
@@ -53,7 +50,7 @@ static void error_after_last(char *msg, ...)
 	exit(EXIT_FAILURE);
 }
 
-static Stmt *lookup(Token *id)
+static Stmt *lookup_flat_in(Token *id, Scope *scope)
 {
 	for(Stmt *decl = scope->first_decl; decl; decl = decl->next_decl) {
 		if(decl->id == id) return decl;
@@ -62,9 +59,34 @@ static Stmt *lookup(Token *id)
 	return 0;
 }
 
+static Stmt *lookup_in(Token *id, Scope *scope)
+{
+	Stmt *decl = lookup_flat_in(id, scope);
+	
+	if(decl) {
+		return decl;
+	}
+	
+	if(scope->parent) {
+		return lookup_in(id, scope->parent);
+	}
+	
+	return 0;
+}
+
+static Stmt *lookup_flat(Token *id)
+{
+	return lookup_flat_in(id, scope);
+}
+
+static Stmt *lookup(Token *id)
+{
+	return lookup_in(id, scope);
+}
+
 static int declare(Stmt *new_decl)
 {
-	if(lookup(new_decl->id))
+	if(lookup_flat(new_decl->id))
 		return 0;
 	
 	if(scope->first_decl)
@@ -106,12 +128,14 @@ static Expr *p_atom()
 	if(eat(TK_INT)) {
 		expr = new_expr(EX_INT);
 		expr->ival = last->ival;
+		expr->isconst = 1;
 	}
 	else if(eat(TK_IDENT)) {
 		expr = new_expr(EX_VAR);
 		expr->id = last->id;
 		if(!lookup(expr->id))
 			error_at_last("variable not declared");
+		expr->isconst = 0;
 	}
 	
 	return expr;
@@ -127,6 +151,8 @@ static Stmt *new_stmt(StmtType type)
 	Stmt *stmt = malloc(sizeof(Stmt));
 	stmt->type = type;
 	stmt->start = last;
+	stmt->next = 0;
+	stmt->scope = scope;
 	return stmt;
 }
 
@@ -156,6 +182,14 @@ static Stmt *p_vardecl()
 	stmt->dtype = p_type();
 	if(!stmt->dtype)
 		error_after_last("expected type after colon");
+	if(eat(TK_ASSIGN)) {
+		stmt->expr = p_expr();
+		if(!stmt->expr)
+			error_after_last("expected initializer after equals");
+	}
+	else {
+		stmt->expr = 0;
+	}
 	if(!declare(stmt))
 		error_at(id, "variable already declared");
 	if(!eat(TK_SEMICOLON))
@@ -163,18 +197,35 @@ static Stmt *p_vardecl()
 	return stmt;
 }
 
+static Stmt *p_ifstmt()
+{
+	if(!eat(TK_if)) return 0;
+	Stmt *stmt = new_stmt(ST_IFSTMT);
+	stmt->expr = p_expr();
+	if(!stmt->expr)
+		error_at_last("expected condition after if");
+	if(!eat(TK_LCURLY))
+		error_after_last("expected { after condition");
+	stmt->body = p_stmts();
+	if(!eat(TK_RCURLY))
+		error_after_last("expected } after if-body");
+	return stmt;
+}
+
 static Stmt *p_stmt()
 {
 	Stmt *stmt = 0;
 	(stmt = p_print()) ||
-	(stmt = p_vardecl()) ;
+	(stmt = p_vardecl()) ||
+	(stmt = p_ifstmt()) ;
 	return stmt;
 }
 
 static Stmt *p_stmts()
 {
-	Scope new_scope;
-	scope = &new_scope;
+	Scope *new_scope = malloc(sizeof(Scope));
+	new_scope->parent = scope;
+	scope = new_scope;
 	scope->first_decl = 0;
 	scope->last_decl = 0;
 	Stmt *first_stmt = 0;
@@ -184,8 +235,8 @@ static Stmt *p_stmts()
 		if(!stmt) break;
 		if(first_stmt) last_stmt = last_stmt->next = stmt;
 		else first_stmt = last_stmt = stmt;
-		stmt->next = 0;
 	}
+	scope = scope->parent;
 	return first_stmt;
 }
 
@@ -194,6 +245,7 @@ Unit *parse(Tokens *tokens)
 	cur = tokens->first;
 	last = 0;
 	src_end = tokens->last->start + tokens->last->length;
+	scope = 0;
 	Stmt *stmts = p_stmts();
 	Unit *unit = malloc(sizeof(Unit));
 	unit->stmts = stmts;

@@ -4,11 +4,15 @@
 #include <stdint.h>
 
 #define KEYWORDS(_) \
+	_(if) \
 	_(int) \
 	_(print) \
 	_(var) \
 
 #define PUNCTS(_) \
+	_("{", LCURLY) \
+	_("}", RCURLY) \
+	_("=", ASSIGN) \
 	_(":", COLON) \
 	_(";", SEMICOLON) \
 

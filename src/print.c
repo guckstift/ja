@@ -13,6 +13,10 @@
 
 #define COL_YELLOW_BG "\x1b[43m"
 
+static int64_t level;
+
+static void print_stmts(Stmt *stmts);
+
 void vprint_error(
 	int64_t line, char *linep, char *src_end, char *err_pos, char *msg,
 	va_list args
@@ -169,6 +173,11 @@ void print_tokens(Tokens *tokens)
 	}
 }
 
+static void print_indent()
+{
+	for(int64_t i=0; i<level; i++) printf("  ");
+}
+
 static void print_expr(Expr *expr)
 {
 	switch(expr->type) {
@@ -202,6 +211,20 @@ static void print_stmt(Stmt *stmt)
 			print_ident(stmt->id);
 			printf(" : ");
 			print_type(stmt->dtype);
+			if(stmt->expr) {
+				printf(" = ");
+				print_expr(stmt->expr);
+			}
+			break;
+		case ST_IFSTMT:
+			print_keyword_cstr("if ");
+			print_expr(stmt->expr);
+			printf(" {\n");
+			level ++;
+			print_stmts(stmt->body);
+			level --;
+			print_indent();
+			printf("}");
 			break;
 	}
 }
@@ -209,6 +232,7 @@ static void print_stmt(Stmt *stmt)
 static void print_stmts(Stmt *stmts)
 {
 	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
+		print_indent();
 		print_stmt(stmt);
 		printf("\n");
 	}
@@ -216,6 +240,7 @@ static void print_stmts(Stmt *stmts)
 
 void print_unit(Unit *unit)
 {
+	level = 0;
 	printf(COL_YELLOW "=== ast ===" COL_RESET "\n");
 	print_stmts(unit->stmts);
 }
