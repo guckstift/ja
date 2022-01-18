@@ -16,6 +16,8 @@
 #define PUNCTS(_) \
 	_("{", LCURLY) \
 	_("}", RCURLY) \
+	_("<", LOWER) \
+	_(">", GREATER) \
 	_("=", ASSIGN) \
 	_(":", COLON) \
 	_(";", SEMICOLON) \

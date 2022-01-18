@@ -7,16 +7,19 @@
 typedef enum {
 	TY_INT64,
 	TY_BOOL,
+	TY_PTR,
 } Type;
 
-typedef struct {
+typedef struct TypeDesc {
 	Type type;
+	struct TypeDesc *subtype;
 } TypeDesc;
 
 typedef enum {
 	EX_INT,
 	EX_BOOL,
 	EX_VAR,
+	EX_PTR,
 } ExprType;
 
 typedef struct Expr {
@@ -29,6 +32,7 @@ typedef struct Expr {
 		int64_t ival;
 		bool bval;
 		Token *id;
+		struct Expr *expr;
 	};
 } Expr;
 

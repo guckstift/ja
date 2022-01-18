@@ -44,6 +44,10 @@ static void gen_type(TypeDesc *dtype)
 		case TY_BOOL:
 			write("jabool");
 			break;
+		case TY_PTR:
+			gen_type(dtype->subtype);
+			write("*");
+			break;
 	}
 }
 
@@ -58,6 +62,10 @@ static void gen_expr(Expr *expr)
 			break;
 		case EX_VAR:
 			gen_ident(expr->id);
+			break;
+		case EX_PTR:
+			write("&");
+			gen_expr(expr->expr);
 			break;
 	}
 }
@@ -144,8 +152,7 @@ static void gen_vardecl(Stmt *stmt)
 		}
 	}
 	else {
-		write(" = ");
-		write("INT64_C(0)");
+		write(" = 0");
 	}
 	
 	write(";\n");

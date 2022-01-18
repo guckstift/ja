@@ -104,8 +104,20 @@ static TypeDesc *new_type(Type type)
 	return dtype;
 }
 
+static TypeDesc *new_ptr_type(TypeDesc *subtype)
+{
+	TypeDesc *dtype = malloc(sizeof(TypeDesc));
+	dtype->type = TY_PTR;
+	dtype->subtype = subtype;
+	return dtype;
+}
+
 static int type_equ(TypeDesc *dtype1, TypeDesc *dtype2)
 {
+	if(dtype1->type == TY_PTR && dtype1->type == dtype2->type) {
+		return type_equ(dtype1->subtype, dtype2->subtype);
+	}
+	
 	return dtype1->type == dtype2->type;
 }
 
@@ -116,6 +128,12 @@ static TypeDesc *p_type()
 	}
 	else if(eat(TK_bool)) {
 		return new_type(TY_BOOL);
+	}
+	else if(eat(TK_GREATER)) {
+		TypeDesc *subtype = p_type();
+		if(!subtype)
+			error_at_last("expected target type");
+		return new_ptr_type(subtype);
 	}
 	
 	return 0;
@@ -158,9 +176,26 @@ static Expr *p_atom()
 	return expr;
 }
 
+static Expr *p_prefix()
+{
+	if(eat(TK_GREATER)) {
+		Expr *expr = new_expr(EX_PTR);
+		expr->expr = p_atom();
+		if(!expr->expr)
+			error_at_last("expected expression after >");
+		if(expr->expr->type != EX_VAR)
+			error_at_last("expected variable to point to");
+		expr->isconst = 0;
+		expr->dtype = new_ptr_type(expr->expr->dtype);
+		return expr;
+	}
+	
+	return p_atom();
+}
+
 static Expr *p_expr()
 {
-	return p_atom();
+	return p_prefix();
 }
 
 static Stmt *new_stmt(StmtType type)

@@ -193,6 +193,10 @@ static void print_expr(Expr *expr)
 		case EX_VAR:
 			print_ident(expr->id);
 			break;
+		case EX_PTR:
+			printf(">");
+			print_expr(expr->expr);
+			break;
 	}
 }
 
@@ -204,6 +208,10 @@ static void print_type(TypeDesc *dtype)
 			break;
 		case TY_BOOL:
 			print_keyword_cstr("bool");
+			break;
+		case TY_PTR:
+			printf(">");
+			print_type(dtype->subtype);
 			break;
 	}
 }

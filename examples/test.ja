@@ -1,3 +1,6 @@
-var x = true;
-var y = x;
-var z = 10;
+var x = 0;
+var y = >x;
+var z : >int = y;
+var a: bool;
+
+var b = >a;
