@@ -42,7 +42,7 @@ static void gen_type(TypeDesc *dtype)
 			write("int64_t");
 			break;
 		case TY_BOOL:
-			write("bool");
+			write("jabool");
 			break;
 	}
 }
@@ -54,7 +54,7 @@ static void gen_expr(Expr *expr)
 			write("INT64_C(%" PRId64 ")", expr->ival);
 			break;
 		case EX_BOOL:
-			write(expr->bval ? "true" : "false");
+			write(expr->bval ? "jatrue" : "jafalse");
 			break;
 		case EX_VAR:
 			gen_ident(expr->id);
@@ -168,7 +168,9 @@ void gen(Unit *unit)
 	write("#include <stdio.h>\n");
 	write("#include <stdint.h>\n");
 	write("#include <inttypes.h>\n");
-	write("#include <stdbool.h>\n");
+	write("#define jafalse ((jabool)0)\n");
+	write("#define jatrue ((jabool)1)\n");
+	write("typedef uint8_t jabool;\n");
 	gen_vardecls(unit->stmts);
 	write("int main(int argc, char **argv) {\n");
 	gen_stmts(unit->stmts);
