@@ -194,21 +194,29 @@ static Stmt *p_vardecl()
 	if(!id)
 		error_after_last("expected identifier after keyword var");
 	stmt->id = id->id;
-	if(!eat(TK_COLON))
-		error_after_last("expected colon after identifier");
-	stmt->dtype = p_type();
-	if(!stmt->dtype)
-		error_after_last("expected type after colon");
+	
+	if(eat(TK_COLON)) {
+		stmt->dtype = p_type();
+		if(!stmt->dtype)
+			error_after_last("expected type after colon");
+	}
+	else {
+		stmt->dtype = 0;
+	}
+	
 	if(eat(TK_ASSIGN)) {
 		stmt->expr = p_expr();
 		if(!stmt->expr)
 			error_after_last("expected initializer after equals");
-		if(!type_equ(stmt->expr->dtype, stmt->dtype))
-			error_at_last("type mismatch");
+		if(stmt->dtype == 0)
+			stmt->dtype = stmt->expr->dtype;
+		else if(!type_equ(stmt->expr->dtype, stmt->dtype))
+			error_at(stmt->expr->start, "type mismatch");
 	}
 	else {
 		stmt->expr = 0;
 	}
+	
 	if(!declare(stmt))
 		error_at(id, "variable already declared");
 	if(!eat(TK_SEMICOLON))
