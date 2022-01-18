@@ -104,10 +104,18 @@ static TypeDesc *new_type(Type type)
 	return dtype;
 }
 
+static int type_equ(TypeDesc *dtype1, TypeDesc *dtype2)
+{
+	return dtype1->type == dtype2->type;
+}
+
 static TypeDesc *p_type()
 {
 	if(eat(TK_int)) {
 		return new_type(TY_INT64);
+	}
+	else if(eat(TK_bool)) {
+		return new_type(TY_BOOL);
 	}
 	
 	return 0;
@@ -129,13 +137,22 @@ static Expr *p_atom()
 		expr = new_expr(EX_INT);
 		expr->ival = last->ival;
 		expr->isconst = 1;
+		expr->dtype = new_type(TY_INT64);
+	}
+	else if(eat(TK_false) || eat(TK_true)) {
+		expr = new_expr(EX_BOOL);
+		expr->bval = last->type == TK_true ? true : false;
+		expr->isconst = 1;
+		expr->dtype = new_type(TY_BOOL);
 	}
 	else if(eat(TK_IDENT)) {
 		expr = new_expr(EX_VAR);
 		expr->id = last->id;
-		if(!lookup(expr->id))
+		Stmt *decl = lookup(expr->id);
+		if(!decl)
 			error_at_last("variable not declared");
 		expr->isconst = 0;
+		expr->dtype = decl->dtype;
 	}
 	
 	return expr;
@@ -186,6 +203,8 @@ static Stmt *p_vardecl()
 		stmt->expr = p_expr();
 		if(!stmt->expr)
 			error_after_last("expected initializer after equals");
+		if(!type_equ(stmt->expr->dtype, stmt->dtype))
+			error_at_last("type mismatch");
 	}
 	else {
 		stmt->expr = 0;

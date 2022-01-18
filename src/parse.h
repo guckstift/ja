@@ -1,10 +1,12 @@
 #ifndef PARSE_H
 #define PARSE_H
 
+#include <stdbool.h>
 #include "lex.h"
 
 typedef enum {
 	TY_INT64,
+	TY_BOOL,
 } Type;
 
 typedef struct {
@@ -13,6 +15,7 @@ typedef struct {
 
 typedef enum {
 	EX_INT,
+	EX_BOOL,
 	EX_VAR,
 } ExprType;
 
@@ -20,9 +23,11 @@ typedef struct Expr {
 	ExprType type;
 	Token *start;
 	int isconst;
+	TypeDesc *dtype;
 	
 	union {
 		int64_t ival;
+		bool bval;
 		Token *id;
 	};
 } Expr;

@@ -184,6 +184,12 @@ static void print_expr(Expr *expr)
 		case EX_INT:
 			print_int(expr->ival);
 			break;
+		case EX_BOOL:
+			if(expr->bval)
+				print_keyword_cstr("true");
+			else
+				print_keyword_cstr("false");
+			break;
 		case EX_VAR:
 			print_ident(expr->id);
 			break;
@@ -195,6 +201,9 @@ static void print_type(TypeDesc *dtype)
 	switch(dtype->type) {
 		case TY_INT64:
 			print_keyword_cstr("int64");
+			break;
+		case TY_BOOL:
+			print_keyword_cstr("bool");
 			break;
 	}
 }

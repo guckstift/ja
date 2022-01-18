@@ -1,8 +1,8 @@
-var x : int = 0;
+var x : int = 1;
+var y : int = x;
 
-if x {
-	print x;
-}
-else {
-	print 666;
-}
+print true;
+print x;
+
+print 9;
+print y;

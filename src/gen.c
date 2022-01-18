@@ -35,11 +35,26 @@ static void gen_ident(Token *id)
 	fwrite(id->start, 1, id->length, stdout);
 }
 
+static void gen_type(TypeDesc *dtype)
+{
+	switch(dtype->type) {
+		case TY_INT64:
+			write("int64_t");
+			break;
+		case TY_BOOL:
+			write("bool");
+			break;
+	}
+}
+
 static void gen_expr(Expr *expr)
 {
 	switch(expr->type) {
 		case EX_INT:
 			write("INT64_C(%" PRId64 ")", expr->ival);
+			break;
+		case EX_BOOL:
+			write(expr->bval ? "true" : "false");
 			break;
 		case EX_VAR:
 			gen_ident(expr->id);
@@ -52,8 +67,23 @@ static void gen_stmt(Stmt *stmt)
 	switch(stmt->type) {
 		case ST_PRINT:
 			gen_indent();
-			write("printf(\"%\" PRId64 \"\\n\", ");
+			write("printf(");
+			
+			switch(stmt->expr->dtype->type) {
+				case TY_INT64:
+					write("\"%\" PRId64");
+					break;
+				case TY_BOOL:
+					write("\"%%s\"");
+					break;
+			}
+			
+			write(" \"\\n\", ");
 			gen_expr(stmt->expr);
+			
+			if(stmt->expr->dtype->type == TY_BOOL)
+				write(" ? \"true\" : \"false\"");
+			
 			write(");\n");
 			break;
 		case ST_VARDECL:
@@ -103,7 +133,8 @@ static void gen_stmts(Stmt *stmts)
 static void gen_vardecl(Stmt *stmt)
 {
 	gen_indent();
-	write("int64_t ");
+	gen_type(stmt->dtype);
+	write(" ");
 	gen_ident(stmt->id);
 	
 	if(stmt->expr) {
@@ -137,6 +168,7 @@ void gen(Unit *unit)
 	write("#include <stdio.h>\n");
 	write("#include <stdint.h>\n");
 	write("#include <inttypes.h>\n");
+	write("#include <stdbool.h>\n");
 	gen_vardecls(unit->stmts);
 	write("int main(int argc, char **argv) {\n");
 	gen_stmts(unit->stmts);

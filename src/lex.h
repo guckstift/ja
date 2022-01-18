@@ -4,10 +4,13 @@
 #include <stdint.h>
 
 #define KEYWORDS(_) \
+	_(bool) \
 	_(else) \
+	_(false) \
 	_(if) \
 	_(int) \
 	_(print) \
+	_(true) \
 	_(var) \
 
 #define PUNCTS(_) \
