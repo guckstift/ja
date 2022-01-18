@@ -1,55 +1,94 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdarg.h>
 #include <inttypes.h>
 #include "parse.h"
+#include "print.h"
 
 #define match(t) (cur->type == (t))
-#define eat(t) (match(t) ? (line = cur[1].line, last = cur++) : 0)
+#define eat(t) (match(t) ? (last = cur++) : 0)
 
-#define expected(w) do { \
-	error("expected %s", (w)); \
-	exit(EXIT_FAILURE); \
-} while(0)
-
-#define expected_after(w, a) do { \
-	error("expected %s after %s", (w), (a)); \
-	exit(EXIT_FAILURE); \
-} while(0)
+typedef struct {
+	Stmt *first_decl;
+	Stmt *last_decl;
+} Scope;
 
 static Token *cur;
 static Token *last;
-static int64_t line;
+static char *src_end;
+static Scope *scope;
 
-static void error(char *msg, ...)
+static void error_at(Token *token, char *msg, ...)
 {
+	int64_t line = token->line;
+	char *linep = token->linep;
+	char *err_pos = token->start;
 	va_list args;
 	va_start(args, msg);
-	fprintf(stderr, "%" PRId64 ": error: ", line);
-	vfprintf(stderr, msg, args);
-	fprintf(stderr, "\n");
+	vprint_error(line, linep, src_end, err_pos, msg, args);
 	va_end(args);
 	exit(EXIT_FAILURE);
 }
 
-static Token *expect(TokenType type)
+static void error_at_last(char *msg, ...)
 {
-	Token *token = eat(type);
-	if(!token) expected(get_token_type_name(type));
-	return token;
+	int64_t line = last->line;
+	char *linep = last->linep;
+	char *err_pos = last->start;
+	va_list args;
+	va_start(args, msg);
+	vprint_error(line, linep, src_end, err_pos, msg, args);
+	va_end(args);
+	exit(EXIT_FAILURE);
 }
 
-static Token *expect_after(TokenType type)
+static void error_after_last(char *msg, ...)
 {
-	Token *token = eat(type);
-	if(!token) {
-		line = last->line;
-		expected_after(
-			get_token_type_name(type),
-			get_token_type_name(last->type)
-		);
+	int64_t line = last->line;
+	char *linep = last->linep;
+	char *err_pos = last->start + last->length;
+	va_list args;
+	va_start(args, msg);
+	vprint_error(line, linep, src_end, err_pos, msg, args);
+	va_end(args);
+	exit(EXIT_FAILURE);
+}
+
+static Stmt *lookup(Token *id)
+{
+	for(Stmt *decl = scope->first_decl; decl; decl = decl->next_decl) {
+		if(decl->id == id) return decl;
 	}
-	return token;
+	
+	return 0;
+}
+
+static int declare(Stmt *new_decl)
+{
+	if(lookup(new_decl->id))
+		return 0;
+	
+	if(scope->first_decl)
+		scope->last_decl = scope->last_decl->next_decl = new_decl;
+	else
+		scope->first_decl = scope->last_decl = new_decl;
+	
+	return 1;
+}
+
+static TypeDesc *new_type(Type type)
+{
+	TypeDesc *dtype = malloc(sizeof(TypeDesc));
+	dtype->type = type;
+	return dtype;
+}
+
+static TypeDesc *p_type()
+{
+	if(eat(TK_int)) {
+		return new_type(TY_INT64);
+	}
+	
+	return 0;
 }
 
 static Expr *new_expr(ExprType type)
@@ -71,6 +110,8 @@ static Expr *p_atom()
 	else if(eat(TK_IDENT)) {
 		expr = new_expr(EX_VAR);
 		expr->id = last->id;
+		if(!lookup(expr->id))
+			error_at_last("variable not declared");
 	}
 	
 	return expr;
@@ -91,40 +132,34 @@ static Stmt *new_stmt(StmtType type)
 
 static Stmt *p_print()
 {
-	Token *start = eat(TK_print);
-	if(!start) return 0;
-	Expr *first_expr = 0;
-	Expr *last_expr = 0;
-	while(1) {
-		Expr *expr = p_expr();
-		if(!expr) break;
-		if(first_expr) last_expr = last_expr->next = expr;
-		else first_expr = last_expr = expr;
-		expr->next = 0;
-		if(!eat(TK_COMMA)) break;
-	}
-	expect_after(TK_SEMICOLON);
+	if(!eat(TK_print)) return 0;
 	Stmt *stmt = new_stmt(ST_PRINT);
-	stmt->start = start;
-	stmt->exprs = first_expr;
+	stmt->expr = p_expr();
+	if(!stmt->expr)
+		error_after_last("expected expression to print");
+	if(!eat(TK_SEMICOLON))
+		error_after_last("expected semicolon after print statement");
 	return stmt;
 }
 
 static Stmt *p_vardecl()
 {
-	Token *start = eat(TK_var);
-	if(!start) return 0;
-	Token *id = expect(TK_IDENT)->id;
-	Expr *expr = 0;
-	if(eat(TK_ASSIGN)) {
-		expr = p_expr();
-		if(!expr) expected_after("expression", TK_ASSIGN);
-	}
-	expect(TK_SEMICOLON);
-	Stmt *stmt = new_stmt(ST_DECL);
-	stmt->start = start;
-	stmt->id = id;
-	stmt->expr = expr;
+	if(!eat(TK_var)) return 0;
+	Stmt *stmt = new_stmt(ST_VARDECL);
+	stmt->next_decl = 0;
+	Token *id = eat(TK_IDENT);
+	if(!id)
+		error_after_last("expected identifier after keyword var");
+	stmt->id = id->id;
+	if(!eat(TK_COLON))
+		error_after_last("expected colon after identifier");
+	stmt->dtype = p_type();
+	if(!stmt->dtype)
+		error_after_last("expected type after colon");
+	if(!declare(stmt))
+		error_at(id, "variable already declared");
+	if(!eat(TK_SEMICOLON))
+		error_after_last("expected semicolon after variable declaration");
 	return stmt;
 }
 
@@ -138,6 +173,10 @@ static Stmt *p_stmt()
 
 static Stmt *p_stmts()
 {
+	Scope new_scope;
+	scope = &new_scope;
+	scope->first_decl = 0;
+	scope->last_decl = 0;
 	Stmt *first_stmt = 0;
 	Stmt *last_stmt = 0;
 	while(1) {
@@ -150,11 +189,11 @@ static Stmt *p_stmts()
 	return first_stmt;
 }
 
-Unit *parse(Token *tokens)
+Unit *parse(Tokens *tokens)
 {
-	cur = tokens;
+	cur = tokens->first;
 	last = 0;
-	line = 1;
+	src_end = tokens->last->start + tokens->last->length;
 	Stmt *stmts = p_stmts();
 	Unit *unit = malloc(sizeof(Unit));
 	unit->stmts = stmts;

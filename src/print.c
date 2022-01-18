@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <inttypes.h>
+#include <ctype.h>
 #include "print.h"
 
 #define COL_RESET   "\x1b[0m"
@@ -8,42 +9,116 @@
 #define COL_MAGENTA "\x1b[38;2;255;64;255m"
 #define COL_AQUA    "\x1b[38;2;64;255;255m"
 #define COL_YELLOW  "\x1b[38;2;255;255;0m"
+#define COL_RED     "\x1b[1;31m"
 
-void print_ident(Token *token)
+#define COL_YELLOW_BG "\x1b[43m"
+
+void vprint_error(
+	int64_t line, char *linep, char *src_end, char *err_pos, char *msg,
+	va_list args
+) {
+	fprintf(stderr, COL_RED "error: " COL_RESET);
+	vfprintf(stderr, msg, args);
+	fprintf(stderr, "\n");
+	
+	if(linep == 0) return;
+	
+	fprintf(stderr, COL_GREY);
+	int64_t white_len = fprintf(stderr, "%" PRId64 ": ", line);
+	fprintf(stderr, COL_RESET);
+	int64_t col = 0;
+	
+	for(char *p = linep; p < src_end; p++) {
+		if(*p == '\n') {
+			break;
+		}
+		else if(isprint(*p)) {
+			fprintf(stderr, "%c", *p);
+			col ++;
+			if(p < err_pos) white_len ++;
+		}
+		else if(*p == '\t') {
+			do {
+				fprintf(stderr, " ");
+				col ++;
+				if(p < err_pos) white_len ++;
+			} while(col % 4 != 0);
+		}
+		else {
+			fprintf(stderr, COL_YELLOW_BG " " COL_RESET);
+			col ++;
+			if(p < err_pos) white_len ++;
+		}
+	}
+	
+	fprintf(stderr, "\n");
+	for(int64_t i = 0; i < white_len; i++) fprintf(stderr, " ");
+	fprintf(stderr, COL_RED "^" COL_RESET);
+	fprintf(stderr, "\n");
+}
+
+void print_error(
+	int64_t line, char *linep, char *src_end, char *err_pos, char *msg, ...
+) {
+	va_list args;
+	va_start(args, msg);
+	vprint_error(line, linep, src_end, err_pos, msg, args);
+	va_end(args);
+}
+
+static void print_ident(Token *token)
 {
 	printf(COL_AQUA);
 	fwrite(token->start, 1, token->length, stdout);
 	printf(COL_RESET);
 }
 
-void print_keyword_raw(char *start, uint64_t length)
+static int64_t dec_len(int64_t val)
 {
-	printf(COL_BLUE);
-	fwrite(start, 1, length, stdout);
-	printf(COL_RESET);
+	int64_t count = 1;
+	while(val >= 10) {
+		val /= 10;
+		count ++;
+	}
+	return count;
 }
 
-void print_keyword_cstr(char *str)
+static int64_t print_line_num(int64_t line, int64_t max_line)
+{
+	int64_t line_dec_len = dec_len(line);
+	int64_t max_line_dec_len = dec_len(max_line);
+	int64_t printf_len = 0;
+	printf(COL_GREY);
+	for(int64_t i = line_dec_len; i < max_line_dec_len; i++)
+		printf_len += printf(" ");
+	printf_len += printf("%" PRId64 ": ", line);
+	printf(COL_RESET);
+	return printf_len;
+}
+
+static void print_keyword_cstr(char *str)
 {
 	printf(COL_BLUE "%s" COL_RESET, str);
 }
 
-void print_keyword(Token *token)
+static void print_keyword(Token *token)
 {
-	print_keyword_raw(token->start, token->length);
+	printf(COL_BLUE);
+	fwrite(token->start, 1, token->length, stdout);
+	printf(COL_RESET);
 }
 
-void print_int(int64_t val)
+static void print_int(int64_t val)
 {
 	printf(COL_MAGENTA "%" PRId64 COL_RESET, val);
 }
 
-void print_float(double val)
+static void print_float(double val)
 {
 	printf(COL_MAGENTA "%f" COL_RESET, val);
 }
 
-void print_token(Token *token)
+static void print_token(Token *token)
 {
 	switch(token->type) {
 		case TK_IDENT:
@@ -53,10 +128,6 @@ void print_token(Token *token)
 		case TK_INT:
 			printf("INT     ");
 			print_int(token->ival);
-			break;
-		case TK_FLOAT:
-			printf("FLOAT   ");
-			print_float(token->fval);
 			break;
 		
 		#define F(x) \
@@ -78,18 +149,16 @@ void print_token(Token *token)
 	}
 }
 
-void print_tokens(Token *tokens)
+void print_tokens(Tokens *tokens)
 {
 	int64_t line_pref_len = 0;
 	int64_t last_line = 0;
 	
 	printf(COL_YELLOW "=== tokens ===" COL_RESET "\n");
 	
-	for(Token *token = tokens; token->type != TK_EOF; token ++) {
+	for(Token *token = tokens->first; token->type != TK_EOF; token ++) {
 		if(last_line != token->line) {
-			printf(COL_GREY);
-			line_pref_len = printf("%" PRId64 ": ", token->line);
-			printf(COL_RESET);
+			line_pref_len = print_line_num(token->line, tokens->last[-1].line);
 			last_line = token->line;
 		}
 		else {
@@ -112,11 +181,12 @@ static void print_expr(Expr *expr)
 	}
 }
 
-static void print_exprs(Expr *exprs)
+static void print_type(TypeDesc *dtype)
 {
-	for(Expr *expr = exprs; expr; expr = expr->next) {
-		if(expr != exprs) printf(", ");
-		print_expr(expr);
+	switch(dtype->type) {
+		case TY_INT64:
+			print_keyword_cstr("int64");
+			break;
 	}
 }
 
@@ -125,11 +195,13 @@ static void print_stmt(Stmt *stmt)
 	switch(stmt->type) {
 		case ST_PRINT:
 			print_keyword_cstr("print ");
-			print_exprs(stmt->exprs);
+			print_expr(stmt->expr);
 			break;
-		case ST_DECL:
+		case ST_VARDECL:
 			print_keyword_cstr("var ");
 			print_ident(stmt->id);
+			printf(" : ");
+			print_type(stmt->dtype);
 			break;
 	}
 }
@@ -147,8 +219,3 @@ void print_unit(Unit *unit)
 	printf(COL_YELLOW "=== ast ===" COL_RESET "\n");
 	print_stmts(unit->stmts);
 }
-
-void print_error_line(char *linep, int64_t line, char *pos)
-{
-}
-

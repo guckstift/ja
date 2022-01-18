@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include "lex.h"
+#include "print.h"
 
 char *get_token_type_name(TokenType type)
 {
@@ -31,9 +32,10 @@ char *get_token_type_name(TokenType type)
 	}
 }
 
-Token *lex(char *src)
+Tokens *lex(char *src, int64_t src_len)
 {
-	Token *tokens = 0;
+	char *src_end = src + src_len;
+	Token *token_array = 0;
 	int64_t token_count = 0;
 	Token *last_token = 0;
 	char *pos = src;
@@ -42,10 +44,11 @@ Token *lex(char *src)
 	
 	#define emit(t) do { \
 		token_count ++; \
-		tokens = realloc(tokens, sizeof(Token) * token_count); \
-		last_token = tokens + token_count - 1; \
+		token_array = realloc(token_array, sizeof(Token) * token_count); \
+		last_token = token_array + token_count - 1; \
 		last_token->type = (t); \
 		last_token->line = line; \
+		last_token->linep = linep; \
 		last_token->start = start; \
 		last_token->length = pos - start; \
 	} while(0)
@@ -66,7 +69,7 @@ Token *lex(char *src)
 		memcmp((a)->start, (b)->start, (a)->length) == 0 \
 	)
 	
-	while(*pos) {
+	while(pos < src_end) {
 		char *start = pos;
 	
 		// whitespace
@@ -85,11 +88,13 @@ Token *lex(char *src)
 		// comments
 		
 		else if(*pos == '#') {
-			while(*pos && *pos != '\n') pos ++;
+			while(pos < src_end && *pos != '\n') pos ++;
 		}
 		else if(match("/*")) {
+			int64_t start_line = line;
+			char *start_linep = linep;
 			pos += 2;
-			while(*pos) {
+			while(pos < src_end) {
 				if(match("*/")) {
 					pos += 2;
 					break;
@@ -102,6 +107,13 @@ Token *lex(char *src)
 				else {
 					pos ++;
 				}
+			}
+			if(pos == src_end) {
+				print_error(
+					start_line, start_linep, src_end, start_linep,
+					"unterminated multi line comment"
+				);
+				exit(EXIT_FAILURE);
 			}
 		}
 		
@@ -144,21 +156,8 @@ Token *lex(char *src)
 					ival += *pos - '0';
 					pos ++;
 				}
-				if(*pos == '.') {
-					pos ++;
-					while(isdigit(*pos)) pos ++;
-					int64_t len = pos - start;
-					char buf[len + 1];
-					buf[len] = 0;
-					memcpy(buf, start, len);
-					double fval = strtod(buf, 0);
-					emit(TK_FLOAT);
-					last_token->fval = fval;
-				}
-				else {
-					emit(TK_INT);
-					last_token->ival = ival;
-				}
+				emit(TK_INT);
+				last_token->ival = ival;
 			}
 		}
 		
@@ -173,10 +172,24 @@ Token *lex(char *src)
 		PUNCTS(F)
 		#undef F
 		
-		// error
+		// unrecognized punctuator
+		
+		else if(ispunct(*pos)) {
+			print_error(
+				line, linep, src_end, pos, "unrecognized punctuator",
+				(uint8_t)*pos
+			);
+			exit(EXIT_FAILURE);
+		}
+		
+		// unrecognized character
 		
 		else {
-			fprintf(stderr, "error(%" PRId64 "): unrecognized token\n", line);
+			print_error(
+				line, linep, src_end, pos,
+				"unrecognized character (byte value: 0x%02x)",
+				(uint8_t)*pos
+			);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -187,7 +200,7 @@ Token *lex(char *src)
 	Token *first_id = 0;
 	Token *last_id = 0;
 	
-	for(Token *token = tokens; token->type != TK_EOF; token ++) {
+	for(Token *token = token_array; token->type != TK_EOF; token ++) {
 		if(token->type == TK_IDENT) {
 			token->id = 0;
 			token->next_id = 0;
@@ -205,5 +218,8 @@ Token *lex(char *src)
 		}
 	}
 	
+	Tokens *tokens = malloc(sizeof(Tokens));
+	tokens->first = token_array;
+	tokens->last = last_token;
 	return tokens;
 }

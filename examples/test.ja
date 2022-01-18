@@ -1,3 +1,2 @@
-print 1, x;
-print 41;
-var x;
+var x : int;
+print x;

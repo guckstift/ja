@@ -4,19 +4,18 @@
 #include <stdint.h>
 
 #define KEYWORDS(_) \
+	_(int) \
 	_(print) \
 	_(var) \
 
 #define PUNCTS(_) \
-	_("=", ASSIGN) \
+	_(":", COLON) \
 	_(";", SEMICOLON) \
-	_(",", COMMA) \
 
 typedef enum {
 	TK_EOF,
 	TK_IDENT,
 	TK_INT,
-	TK_FLOAT,
 	
 	#define F(x) TK_ ## x,
 	KEYWORDS(F)
@@ -31,17 +30,22 @@ typedef enum {
 typedef struct Token {
 	TokenType type;
 	int64_t line;
+	char *linep;
 	char *start;
 	int64_t length;
 	union {
 		int64_t ival;
-		double fval;
 		struct Token *id;
 	};
 	struct Token *next_id;
 } Token;
 
+typedef struct {
+	Token *first;
+	Token *last;
+} Tokens;
+
 char *get_token_type_name(TokenType type);
-Token *lex(char *src);
+Tokens *lex(char *src, int64_t src_len);
 
 #endif
