@@ -67,6 +67,10 @@ static void gen_expr(Expr *expr)
 			write("&");
 			gen_expr(expr->expr);
 			break;
+		case EX_DEREF:
+			write("*");
+			gen_expr(expr->expr);
+			break;
 	}
 }
 
@@ -84,9 +88,16 @@ static void gen_stmt(Stmt *stmt)
 				case TY_BOOL:
 					write("\"%%s\"");
 					break;
+				case TY_PTR:
+					write("\"%%p\"");
+					break;
 			}
 			
 			write(" \"\\n\", ");
+			
+			if(stmt->expr->dtype->type == TY_PTR)
+				write("(void*)");
+			
 			gen_expr(stmt->expr);
 			
 			if(stmt->expr->dtype->type == TY_BOOL)

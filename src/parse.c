@@ -189,6 +189,17 @@ static Expr *p_prefix()
 		expr->dtype = new_ptr_type(expr->expr->dtype);
 		return expr;
 	}
+	else if(eat(TK_LOWER)) {
+		Expr *expr = new_expr(EX_DEREF);
+		expr->expr = p_prefix();
+		if(!expr->expr)
+			error_at_last("expected expression after <");
+		if(expr->expr->dtype->type != TY_PTR)
+			error_at_last("expectd pointer to dereference");
+		expr->isconst = 0;
+		expr->dtype = expr->expr->dtype->subtype;
+		return expr;
+	}
 	
 	return p_atom();
 }

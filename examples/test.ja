@@ -1,6 +1,9 @@
-var x = 0;
+var x = 10;
 var y = >x;
-var z : >int = y;
-var a: bool;
+var z = <y;
 
-var b = >a;
+print <y;
+
+print <>x;
+
+print <x;

@@ -197,6 +197,10 @@ static void print_expr(Expr *expr)
 			printf(">");
 			print_expr(expr->expr);
 			break;
+		case EX_DEREF:
+			printf("<");
+			print_expr(expr->expr);
+			break;
 	}
 }
 

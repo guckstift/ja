@@ -20,6 +20,7 @@ typedef enum {
 	EX_BOOL,
 	EX_VAR,
 	EX_PTR,
+	EX_DEREF,
 } ExprType;
 
 typedef struct Expr {
