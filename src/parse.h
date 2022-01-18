@@ -30,7 +30,7 @@ typedef struct Expr {
 typedef enum {
 	ST_PRINT, // expr
 	ST_VARDECL, // id, dtype, expr, next_decl
-	ST_IFSTMT, // expr, body
+	ST_IFSTMT, // expr, body, else_body
 } StmtType;
 
 typedef struct Stmt {
@@ -44,7 +44,10 @@ typedef struct Stmt {
 		Token *id;
 		struct Stmt *body;
 	};
-	TypeDesc *dtype;
+	union {
+		TypeDesc *dtype;
+		struct Stmt *else_body;
+	};
 	struct Stmt *next_decl; // next declaration in scope
 } Stmt;
 

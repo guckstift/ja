@@ -225,6 +225,17 @@ static void print_stmt(Stmt *stmt)
 			level --;
 			print_indent();
 			printf("}");
+			if(stmt->else_body) {
+				printf("\n");
+				print_indent();
+				print_keyword_cstr("else");
+				printf(" {\n");
+				level ++;
+				print_stmts(stmt->else_body);
+				level --;
+				print_indent();
+				printf("}");
+			}
 			break;
 	}
 }

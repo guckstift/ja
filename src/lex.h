@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #define KEYWORDS(_) \
+	_(else) \
 	_(if) \
 	_(int) \
 	_(print) \

@@ -76,6 +76,13 @@ static void gen_stmt(Stmt *stmt)
 			gen_stmts(stmt->body);
 			gen_indent();
 			write("}\n");
+			if(stmt->else_body) {
+				gen_indent();
+				write("else {\n");
+				gen_stmts(stmt->else_body);
+				gen_indent();
+				write("}\n");
+			}
 			break;
 	}
 }

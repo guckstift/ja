@@ -1,7 +1,8 @@
-var x : int;
+var x : int = 0;
 
-if 1 {
-	var z : int = x;
-	print z;
+if x {
 	print x;
+}
+else {
+	print 666;
 }
