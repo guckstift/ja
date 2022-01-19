@@ -41,6 +41,9 @@ static void gen_type(TypeDesc *dtype)
 		case TY_INT64:
 			write("int64_t");
 			break;
+		case TY_UINT64:
+			write("uint64_t");
+			break;
 		case TY_BOOL:
 			write("jabool");
 			break;
@@ -71,6 +74,12 @@ static void gen_expr(Expr *expr)
 			write("*");
 			gen_expr(expr->expr);
 			break;
+		case EX_CAST:
+			write("(");
+			gen_type(expr->dtype);
+			write(")");
+			gen_expr(expr->expr);
+			break;
 	}
 }
 
@@ -84,6 +93,9 @@ static void gen_stmt(Stmt *stmt)
 			switch(stmt->expr->dtype->type) {
 				case TY_INT64:
 					write("\"%\" PRId64");
+					break;
+				case TY_UINT64:
+					write("\"%\" PRIu64");
 					break;
 				case TY_BOOL:
 					write("\"%%s\"");

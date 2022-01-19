@@ -6,6 +6,7 @@
 
 typedef enum {
 	TY_INT64,
+	TY_UINT64,
 	TY_BOOL,
 	TY_PTR,
 } Type;
@@ -21,6 +22,7 @@ typedef enum {
 	EX_VAR,
 	EX_PTR,
 	EX_DEREF,
+	EX_CAST,
 } ExprType;
 
 typedef struct Expr {

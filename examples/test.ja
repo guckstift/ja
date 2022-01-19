@@ -1,9 +1,3 @@
-var x = 23;
-var y = 42;
-var z = >x;
-
-print <z;
-z = >y;
-print <z;
-<z = 16;
-print <z;
+var a = 9;
+var y = 10 as uint;
+var x = a as bool;

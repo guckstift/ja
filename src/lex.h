@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #define KEYWORDS(_) \
+	_(as) \
 	_(bool) \
 	_(else) \
 	_(false) \
@@ -11,6 +12,7 @@
 	_(int) \
 	_(print) \
 	_(true) \
+	_(uint) \
 	_(var) \
 
 #define PUNCTS(_) \
@@ -45,6 +47,7 @@ typedef struct Token {
 	int64_t length;
 	union {
 		int64_t ival;
+		uint64_t uval;
 		struct Token *id;
 	};
 	struct Token *next_id;

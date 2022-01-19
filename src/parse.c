@@ -16,36 +16,38 @@ static Stmt *p_stmts();
 
 static void error_at(Token *token, char *msg, ...)
 {
-	int64_t line = token->line;
-	char *linep = token->linep;
-	char *err_pos = token->start;
 	va_list args;
 	va_start(args, msg);
-	vprint_error(line, linep, src_end, err_pos, msg, args);
+	vprint_error(token->line, token->linep, src_end, token->start, msg, args);
 	va_end(args);
 	exit(EXIT_FAILURE);
 }
 
 static void error_at_last(char *msg, ...)
 {
-	int64_t line = last->line;
-	char *linep = last->linep;
-	char *err_pos = last->start;
 	va_list args;
 	va_start(args, msg);
-	vprint_error(line, linep, src_end, err_pos, msg, args);
+	vprint_error(last->line, last->linep, src_end, last->start, msg, args);
+	va_end(args);
+	exit(EXIT_FAILURE);
+}
+
+static void error_at_cur(char *msg, ...)
+{
+	va_list args;
+	va_start(args, msg);
+	vprint_error(cur->line, cur->linep, src_end, cur->start, msg, args);
 	va_end(args);
 	exit(EXIT_FAILURE);
 }
 
 static void error_after_last(char *msg, ...)
 {
-	int64_t line = last->line;
-	char *linep = last->linep;
-	char *err_pos = last->start + last->length;
 	va_list args;
 	va_start(args, msg);
-	vprint_error(line, linep, src_end, err_pos, msg, args);
+	vprint_error(
+		last->line, last->linep, src_end, last->start + last->length, msg, args
+	);
 	va_end(args);
 	exit(EXIT_FAILURE);
 }
@@ -125,6 +127,9 @@ static TypeDesc *p_type()
 {
 	if(eat(TK_int)) {
 		return new_type(TY_INT64);
+	}
+	else if(eat(TK_uint)) {
+		return new_type(TY_UINT64);
 	}
 	else if(eat(TK_bool)) {
 		return new_type(TY_BOOL);
@@ -209,9 +214,25 @@ static Expr *p_prefix()
 	return p_atom();
 }
 
+static Expr *p_cast()
+{
+	Expr *subexpr = p_prefix();
+	if(!subexpr) return 0;
+	if(!eat(TK_as)) return subexpr;
+	Expr *expr = new_expr(EX_CAST);
+	expr->start = subexpr->start;
+	expr->isconst = subexpr->isconst;
+	expr->islvalue = 0;
+	expr->expr = subexpr;
+	expr->dtype = p_type();
+	if(!expr->dtype)
+		error_after_last("expected type after as");
+	return expr;
+}
+
 static Expr *p_expr()
 {
-	return p_prefix();
+	return p_cast();
 }
 
 static Stmt *new_stmt(StmtType type)
@@ -307,7 +328,7 @@ static Stmt *p_assign()
 	Expr *target = p_expr();
 	if(!target) return 0;
 	if(!target->islvalue)
-		error_at_last("left side is not assignable");
+		error_at(target->start, "left side is not assignable");
 	Stmt *stmt = new_stmt(ST_ASSIGN);
 	stmt->start = target->start;
 	stmt->target = target;
@@ -359,6 +380,8 @@ Unit *parse(Tokens *tokens)
 	src_end = tokens->last->start + tokens->last->length;
 	scope = 0;
 	Stmt *stmts = p_stmts();
+	if(!eat(TK_EOF))
+		error_at_cur("invalid statement");
 	Unit *unit = malloc(sizeof(Unit));
 	unit->stmts = stmts;
 	return unit;

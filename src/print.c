@@ -178,6 +178,25 @@ static void print_indent()
 	for(int64_t i=0; i<level; i++) printf("  ");
 }
 
+static void print_type(TypeDesc *dtype)
+{
+	switch(dtype->type) {
+		case TY_INT64:
+			print_keyword_cstr("int64");
+			break;
+		case TY_UINT64:
+			print_keyword_cstr("uint64");
+			break;
+		case TY_BOOL:
+			print_keyword_cstr("bool");
+			break;
+		case TY_PTR:
+			printf(">");
+			print_type(dtype->subtype);
+			break;
+	}
+}
+
 static void print_expr(Expr *expr)
 {
 	switch(expr->type) {
@@ -201,21 +220,10 @@ static void print_expr(Expr *expr)
 			printf("<");
 			print_expr(expr->expr);
 			break;
-	}
-}
-
-static void print_type(TypeDesc *dtype)
-{
-	switch(dtype->type) {
-		case TY_INT64:
-			print_keyword_cstr("int64");
-			break;
-		case TY_BOOL:
-			print_keyword_cstr("bool");
-			break;
-		case TY_PTR:
-			printf(">");
-			print_type(dtype->subtype);
+		case EX_CAST:
+			print_expr(expr->expr);
+			printf(" as ");
+			print_type(expr->dtype);
 			break;
 	}
 }
