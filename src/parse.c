@@ -214,20 +214,26 @@ static Expr *p_prefix()
 	return p_atom();
 }
 
-static Expr *p_cast()
+static Expr *new_cast(Expr *subexpr, TypeDesc *dtype)
 {
-	Expr *subexpr = p_prefix();
-	if(!subexpr) return 0;
-	if(!eat(TK_as)) return subexpr;
 	Expr *expr = new_expr(EX_CAST);
 	expr->start = subexpr->start;
 	expr->isconst = subexpr->isconst;
 	expr->islvalue = 0;
 	expr->expr = subexpr;
-	expr->dtype = p_type();
-	if(!expr->dtype)
-		error_after_last("expected type after as");
+	expr->dtype = dtype;
 	return expr;
+}
+
+static Expr *p_cast()
+{
+	Expr *subexpr = p_prefix();
+	if(!subexpr) return 0;
+	if(!eat(TK_as)) return subexpr;
+	TypeDesc *dtype = p_type();
+	if(!dtype)
+		error_after_last("expected type after as");
+	return new_cast(subexpr, dtype);
 }
 
 static Expr *p_expr()
@@ -283,7 +289,7 @@ static Stmt *p_vardecl()
 		if(stmt->dtype == 0)
 			stmt->dtype = stmt->expr->dtype;
 		else if(!type_equ(stmt->expr->dtype, stmt->dtype))
-			error_at(stmt->expr->start, "type mismatch");
+			stmt->expr = new_cast(stmt->expr, stmt->dtype);
 	}
 	else {
 		stmt->expr = 0;
@@ -338,7 +344,7 @@ static Stmt *p_assign()
 	if(!stmt->expr)
 		error_at_last("expected right side after =");
 	if(!type_equ(stmt->target->dtype, stmt->expr->dtype))
-		error_at(stmt->expr->start, "type mismatch");
+		stmt->expr = new_cast(stmt->expr, stmt->target->dtype);
 	if(!eat(TK_SEMICOLON))
 		error_after_last("expected semicolon after variable declaration");
 	return stmt;

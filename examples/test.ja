@@ -1,6 +1,9 @@
-var a = 9;
-var b = a as bool;
-var c = b as int;
-print a;
-print b;
-print c;
+var x : bool;
+
+x = 9;
+
+print x;
+
+var y = x as int;
+
+print y;
