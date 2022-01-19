@@ -87,6 +87,11 @@ static void gen_expr(Expr *expr)
 				gen_expr(expr->expr);
 			}
 			break;
+		case EX_BINOP:
+			gen_expr(expr->left);
+			write(" + ");
+			gen_expr(expr->right);
+			break;
 	}
 }
 
@@ -178,6 +183,10 @@ static void gen_stmts(Stmt *stmts)
 static void gen_vardecl(Stmt *stmt)
 {
 	gen_indent();
+	
+	if(!stmt->scope->parent)
+		write("static ");
+	
 	gen_type(stmt->dtype);
 	write(" ");
 	gen_ident(stmt->id);

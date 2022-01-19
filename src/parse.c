@@ -13,6 +13,7 @@ static char *src_end;
 static Scope *scope;
 
 static Stmt *p_stmts();
+static Expr *p_expr();
 
 static void error_at(Token *token, char *msg, ...)
 {
@@ -214,8 +215,9 @@ static Expr *p_prefix()
 	return p_atom();
 }
 
-static Expr *new_cast(Expr *subexpr, TypeDesc *dtype)
+static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
 {
+	if(type_equ(subexpr->dtype, dtype)) return subexpr;
 	Expr *expr = new_expr(EX_CAST);
 	expr->start = subexpr->start;
 	expr->isconst = subexpr->isconst;
@@ -233,12 +235,51 @@ static Expr *p_cast()
 	TypeDesc *dtype = p_type();
 	if(!dtype)
 		error_after_last("expected type after as");
-	return new_cast(subexpr, dtype);
+	return cast_expr(subexpr, dtype);
+}
+
+static int is_integral_type(TypeDesc *dtype)
+{
+	Type type = dtype->type;
+	return type == TY_INT64 || type == TY_UINT64 || type == TY_BOOL;
+}
+
+static Expr *p_binop()
+{
+	Expr *left = p_cast();
+	if(!left) return 0;
+	if(!eat(TK_PLUS)) return left;
+	Expr *right = p_cast();
+	if(!right)
+		error_after_last("expected right side after +");
+	Expr *expr = new_expr(EX_BINOP);
+	expr->start = left->start;
+	expr->left = left;
+	expr->right = right;
+	expr->isconst = left->isconst && right->isconst;
+	expr->islvalue = 0;
+	
+	TypeDesc *ltype = left->dtype;
+	TypeDesc *rtype = right->dtype;
+	
+	if(is_integral_type(ltype) && is_integral_type(rtype)) {
+		expr->dtype = new_type(TY_INT64);
+		expr->left = cast_expr(expr->left, expr->dtype);
+		expr->right = cast_expr(expr->right, expr->dtype);
+	}
+	else {
+		error_at(
+			left->start,
+			"left side or right side has incompatible type with +"
+		);
+	}
+	
+	return expr;
 }
 
 static Expr *p_expr()
 {
-	return p_cast();
+	return p_binop();
 }
 
 static Stmt *new_stmt(StmtType type)
@@ -288,8 +329,8 @@ static Stmt *p_vardecl()
 			error_after_last("expected initializer after equals");
 		if(stmt->dtype == 0)
 			stmt->dtype = stmt->expr->dtype;
-		else if(!type_equ(stmt->expr->dtype, stmt->dtype))
-			stmt->expr = new_cast(stmt->expr, stmt->dtype);
+		else
+			stmt->expr = cast_expr(stmt->expr, stmt->dtype);
 	}
 	else {
 		stmt->expr = 0;
@@ -343,8 +384,7 @@ static Stmt *p_assign()
 	stmt->expr = p_expr();
 	if(!stmt->expr)
 		error_at_last("expected right side after =");
-	if(!type_equ(stmt->target->dtype, stmt->expr->dtype))
-		stmt->expr = new_cast(stmt->expr, stmt->target->dtype);
+	stmt->expr = cast_expr(stmt->expr, stmt->target->dtype);
 	if(!eat(TK_SEMICOLON))
 		error_after_last("expected semicolon after variable declaration");
 	return stmt;

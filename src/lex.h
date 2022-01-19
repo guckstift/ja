@@ -23,6 +23,7 @@
 	_("=", ASSIGN) \
 	_(":", COLON) \
 	_(";", SEMICOLON) \
+	_("+", PLUS) \
 
 typedef enum {
 	TK_EOF,

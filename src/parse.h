@@ -23,6 +23,7 @@ typedef enum {
 	EX_PTR,
 	EX_DEREF,
 	EX_CAST,
+	EX_BINOP,
 } ExprType;
 
 typedef struct Expr {
@@ -37,7 +38,9 @@ typedef struct Expr {
 		bool bval;
 		Token *id;
 		struct Expr *expr;
+		struct Expr *left;
 	};
+	struct Expr *right;
 } Expr;
 
 typedef enum {
