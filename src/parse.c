@@ -155,12 +155,14 @@ static Expr *p_atom()
 		expr = new_expr(EX_INT);
 		expr->ival = last->ival;
 		expr->isconst = 1;
+		expr->islvalue = 0;
 		expr->dtype = new_type(TY_INT64);
 	}
 	else if(eat(TK_false) || eat(TK_true)) {
 		expr = new_expr(EX_BOOL);
 		expr->bval = last->type == TK_true ? true : false;
 		expr->isconst = 1;
+		expr->islvalue = 0;
 		expr->dtype = new_type(TY_BOOL);
 	}
 	else if(eat(TK_IDENT)) {
@@ -170,6 +172,7 @@ static Expr *p_atom()
 		if(!decl)
 			error_at_last("variable not declared");
 		expr->isconst = 0;
+		expr->islvalue = 1;
 		expr->dtype = decl->dtype;
 	}
 	
@@ -182,10 +185,11 @@ static Expr *p_prefix()
 		Expr *expr = new_expr(EX_PTR);
 		expr->expr = p_atom();
 		if(!expr->expr)
-			error_at_last("expected expression after >");
+			error_after_last("expected target to point to");
 		if(expr->expr->type != EX_VAR)
-			error_at_last("expected variable to point to");
+			error_at_last("expected target to point to");
 		expr->isconst = 0;
+		expr->islvalue = 0;
 		expr->dtype = new_ptr_type(expr->expr->dtype);
 		return expr;
 	}
@@ -195,8 +199,9 @@ static Expr *p_prefix()
 		if(!expr->expr)
 			error_at_last("expected expression after <");
 		if(expr->expr->dtype->type != TY_PTR)
-			error_at_last("expectd pointer to dereference");
+			error_at_last("expected pointer to dereference");
 		expr->isconst = 0;
+		expr->islvalue = 1;
 		expr->dtype = expr->expr->dtype->subtype;
 		return expr;
 	}
@@ -297,12 +302,34 @@ static Stmt *p_ifstmt()
 	return stmt;
 }
 
+static Stmt *p_assign()
+{
+	Expr *target = p_expr();
+	if(!target) return 0;
+	if(!target->islvalue)
+		error_at_last("left side is not assignable");
+	Stmt *stmt = new_stmt(ST_ASSIGN);
+	stmt->start = target->start;
+	stmt->target = target;
+	if(!eat(TK_ASSIGN))
+		error_after_last("expected = after left side");
+	stmt->expr = p_expr();
+	if(!stmt->expr)
+		error_at_last("expected right side after =");
+	if(!type_equ(stmt->target->dtype, stmt->expr->dtype))
+		error_at(stmt->expr->start, "type mismatch");
+	if(!eat(TK_SEMICOLON))
+		error_after_last("expected semicolon after variable declaration");
+	return stmt;
+}
+
 static Stmt *p_stmt()
 {
 	Stmt *stmt = 0;
 	(stmt = p_print()) ||
 	(stmt = p_vardecl()) ||
-	(stmt = p_ifstmt()) ;
+	(stmt = p_ifstmt()) ||
+	(stmt = p_assign()) ;
 	return stmt;
 }
 

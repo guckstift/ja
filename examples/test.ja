@@ -1,9 +1,9 @@
-var x = 10;
-var y = >x;
-var z = <y;
+var x = 23;
+var y = 42;
+var z = >x;
 
-print <y;
-
-print <>x;
-
-print <x;
+print <z;
+z = >y;
+print <z;
+<z = 16;
+print <z;

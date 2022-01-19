@@ -133,6 +133,13 @@ static void gen_stmt(Stmt *stmt)
 				write("}\n");
 			}
 			break;
+		case ST_ASSIGN:
+			gen_indent();
+			gen_expr(stmt->target);
+			write(" = ");
+			gen_expr(stmt->expr);
+			write(";\n");
+			break;
 	}
 }
 

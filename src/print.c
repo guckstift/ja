@@ -258,6 +258,11 @@ static void print_stmt(Stmt *stmt)
 				printf("}");
 			}
 			break;
+		case ST_ASSIGN:
+			print_expr(stmt->target);
+			printf(" = ");
+			print_expr(stmt->expr);
+			break;
 	}
 }
 

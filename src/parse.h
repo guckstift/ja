@@ -27,6 +27,7 @@ typedef struct Expr {
 	ExprType type;
 	Token *start;
 	int isconst;
+	int islvalue;
 	TypeDesc *dtype;
 	
 	union {
@@ -41,6 +42,7 @@ typedef enum {
 	ST_PRINT, // expr
 	ST_VARDECL, // id, dtype, expr, next_decl
 	ST_IFSTMT, // expr, body, else_body
+	ST_ASSIGN, // target, expr
 } StmtType;
 
 typedef struct Stmt {
@@ -53,6 +55,7 @@ typedef struct Stmt {
 	union {
 		Token *id;
 		struct Stmt *body;
+		Expr *target;
 	};
 	union {
 		TypeDesc *dtype;
