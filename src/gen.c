@@ -75,10 +75,17 @@ static void gen_expr(Expr *expr)
 			gen_expr(expr->expr);
 			break;
 		case EX_CAST:
-			write("(");
-			gen_type(expr->dtype);
-			write(")");
-			gen_expr(expr->expr);
+			if(expr->dtype->type == TY_BOOL) {
+				write("(");
+				gen_expr(expr->expr);
+				write(" ? jatrue : jafalse)");
+			}
+			else {
+				write("(");
+				gen_type(expr->dtype);
+				write(")");
+				gen_expr(expr->expr);
+			}
 			break;
 	}
 }

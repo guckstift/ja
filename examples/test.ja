@@ -1,3 +1,6 @@
 var a = 9;
-var y = 10 as uint;
-var x = a as bool;
+var b = a as bool;
+var c = b as int;
+print a;
+print b;
+print c;

@@ -222,7 +222,7 @@ static void print_expr(Expr *expr)
 			break;
 		case EX_CAST:
 			print_expr(expr->expr);
-			printf(" as ");
+			print_keyword_cstr(" as ");
 			print_type(expr->dtype);
 			break;
 	}
