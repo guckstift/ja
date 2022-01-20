@@ -248,33 +248,37 @@ static Expr *p_binop()
 {
 	Expr *left = p_cast();
 	if(!left) return 0;
-	if(!eat(TK_PLUS)) return left;
-	Expr *right = p_cast();
-	if(!right)
-		error_after_last("expected right side after +");
-	Expr *expr = new_expr(EX_BINOP);
-	expr->start = left->start;
-	expr->left = left;
-	expr->right = right;
-	expr->isconst = left->isconst && right->isconst;
-	expr->islvalue = 0;
 	
-	TypeDesc *ltype = left->dtype;
-	TypeDesc *rtype = right->dtype;
-	
-	if(is_integral_type(ltype) && is_integral_type(rtype)) {
-		expr->dtype = new_type(TY_INT64);
-		expr->left = cast_expr(expr->left, expr->dtype);
-		expr->right = cast_expr(expr->right, expr->dtype);
+	while(1) {
+		if(!eat(TK_PLUS)) break;
+		Expr *right = p_cast();
+		if(!right)
+			error_after_last("expected right side after +");
+		Expr *expr = new_expr(EX_BINOP);
+		expr->start = left->start;
+		expr->left = left;
+		expr->right = right;
+		expr->isconst = left->isconst && right->isconst;
+		expr->islvalue = 0;
+		TypeDesc *ltype = left->dtype;
+		TypeDesc *rtype = right->dtype;
+		
+		if(is_integral_type(ltype) && is_integral_type(rtype)) {
+			expr->dtype = new_type(TY_INT64);
+			expr->left = cast_expr(expr->left, expr->dtype);
+			expr->right = cast_expr(expr->right, expr->dtype);
+		}
+		else {
+			error_at(
+				left->start,
+				"left side or right side has incompatible type with +"
+			);
+		}
+		
+		left = expr;
 	}
-	else {
-		error_at(
-			left->start,
-			"left side or right side has incompatible type with +"
-		);
-	}
 	
-	return expr;
+	return left;
 }
 
 static Expr *p_expr()

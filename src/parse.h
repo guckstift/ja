@@ -17,13 +17,13 @@ typedef struct TypeDesc {
 } TypeDesc;
 
 typedef enum {
-	EX_INT,
-	EX_BOOL,
-	EX_VAR,
-	EX_PTR,
-	EX_DEREF,
-	EX_CAST,
-	EX_BINOP,
+	EX_INT, // ival
+	EX_BOOL, // bval
+	EX_VAR, // id
+	EX_PTR, // expr
+	EX_DEREF, // expr
+	EX_CAST, // expr, (dtype)
+	EX_BINOP, // left, right
 } ExprType;
 
 typedef struct Expr {
@@ -32,6 +32,7 @@ typedef struct Expr {
 	int isconst;
 	int islvalue;
 	TypeDesc *dtype;
+	struct Expr *next; // next in a list
 	
 	union {
 		int64_t ival;
