@@ -227,7 +227,7 @@ static void print_expr(Expr *expr)
 			break;
 		case EX_BINOP:
 			print_expr(expr->left);
-			printf(" + ");
+			printf(" %s ", expr->operator->punct);
 			print_expr(expr->right);
 			break;
 	}
@@ -270,6 +270,16 @@ static void print_stmt(Stmt *stmt)
 				print_indent();
 				printf("}");
 			}
+			break;
+		case ST_WHILESTMT:
+			print_keyword_cstr("while ");
+			print_expr(stmt->expr);
+			printf(" {\n");
+			level ++;
+			print_stmts(stmt->body);
+			level --;
+			print_indent();
+			printf("}");
 			break;
 		case ST_ASSIGN:
 			print_expr(stmt->target);

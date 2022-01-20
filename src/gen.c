@@ -89,7 +89,7 @@ static void gen_expr(Expr *expr)
 			break;
 		case EX_BINOP:
 			gen_expr(expr->left);
-			write(" + ");
+			write(" %s ", expr->operator->punct);
 			gen_expr(expr->right);
 			break;
 	}
@@ -156,6 +156,15 @@ static void gen_stmt(Stmt *stmt)
 				gen_indent();
 				write("}\n");
 			}
+			break;
+		case ST_WHILESTMT:
+			gen_indent();
+			write("while(");
+			gen_expr(stmt->expr);
+			write(") {\n");
+			gen_stmts(stmt->body);
+			gen_indent();
+			write("}\n");
 			break;
 		case ST_ASSIGN:
 			gen_indent();

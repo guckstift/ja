@@ -167,6 +167,7 @@ Tokens *lex(char *src, int64_t src_len)
 			else if(match(x)) { \
 				pos += strlen(x); \
 				emit(TK_ ## y); \
+				last_token->punct = x; \
 			}
 		
 		PUNCTS(F)

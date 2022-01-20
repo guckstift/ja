@@ -244,13 +244,22 @@ static int is_integral_type(TypeDesc *dtype)
 	return type == TY_INT64 || type == TY_UINT64 || type == TY_BOOL;
 }
 
+static Token *p_operator()
+{
+	Token *op = 0;
+	(op = eat(TK_PLUS)) ||
+	(op = eat(TK_MINUS)) ;
+	return op;
+}
+
 static Expr *p_binop()
 {
 	Expr *left = p_cast();
 	if(!left) return 0;
 	
 	while(1) {
-		if(!eat(TK_PLUS)) break;
+		Token *operator = p_operator();
+		if(!operator) break;
 		Expr *right = p_cast();
 		if(!right)
 			error_after_last("expected right side after +");
@@ -258,6 +267,7 @@ static Expr *p_binop()
 		expr->start = left->start;
 		expr->left = left;
 		expr->right = right;
+		expr->operator = operator;
 		expr->isconst = left->isconst && right->isconst;
 		expr->islvalue = 0;
 		TypeDesc *ltype = left->dtype;
@@ -271,7 +281,7 @@ static Expr *p_binop()
 		else {
 			error_at(
 				left->start,
-				"left side or right side has incompatible type with +"
+				"left side or right side has incompatible type with operator"
 			);
 		}
 		
@@ -374,6 +384,21 @@ static Stmt *p_ifstmt()
 	return stmt;
 }
 
+static Stmt *p_whilestmt()
+{
+	if(!eat(TK_while)) return 0;
+	Stmt *stmt = new_stmt(ST_WHILESTMT);
+	stmt->expr = p_expr();
+	if(!stmt->expr)
+		error_at_last("expected condition after while");
+	if(!eat(TK_LCURLY))
+		error_after_last("expected { after condition");
+	stmt->body = p_stmts();
+	if(!eat(TK_RCURLY))
+		error_after_last("expected } after while-body");
+	return stmt;
+}
+
 static Stmt *p_assign()
 {
 	Expr *target = p_expr();
@@ -400,6 +425,7 @@ static Stmt *p_stmt()
 	(stmt = p_print()) ||
 	(stmt = p_vardecl()) ||
 	(stmt = p_ifstmt()) ||
+	(stmt = p_whilestmt()) ||
 	(stmt = p_assign()) ;
 	return stmt;
 }

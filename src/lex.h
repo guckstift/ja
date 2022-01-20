@@ -14,6 +14,7 @@
 	_(true) \
 	_(uint) \
 	_(var) \
+	_(while) \
 
 #define PUNCTS(_) \
 	_("{", LCURLY) \
@@ -24,6 +25,7 @@
 	_(":", COLON) \
 	_(";", SEMICOLON) \
 	_("+", PLUS) \
+	_("-", MINUS) \
 
 typedef enum {
 	TK_EOF,
@@ -50,6 +52,7 @@ typedef struct Token {
 		int64_t ival;
 		uint64_t uval;
 		struct Token *id;
+		char *punct;
 	};
 	struct Token *next_id;
 } Token;

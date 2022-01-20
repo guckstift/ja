@@ -23,7 +23,7 @@ typedef enum {
 	EX_PTR, // expr
 	EX_DEREF, // expr
 	EX_CAST, // expr, (dtype)
-	EX_BINOP, // left, right
+	EX_BINOP, // left, right, operator
 } ExprType;
 
 typedef struct Expr {
@@ -42,12 +42,14 @@ typedef struct Expr {
 		struct Expr *left;
 	};
 	struct Expr *right;
+	Token *operator;
 } Expr;
 
 typedef enum {
 	ST_PRINT, // expr
 	ST_VARDECL, // id, dtype, expr, next_decl
 	ST_IFSTMT, // expr, body, else_body
+	ST_WHILESTMT, // expr, body
 	ST_ASSIGN, // target, expr
 } StmtType;
 
