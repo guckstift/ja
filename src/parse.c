@@ -229,13 +229,16 @@ static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
 
 static Expr *p_cast()
 {
-	Expr *subexpr = p_prefix();
-	if(!subexpr) return 0;
-	if(!eat(TK_as)) return subexpr;
-	TypeDesc *dtype = p_type();
-	if(!dtype)
-		error_after_last("expected type after as");
-	return cast_expr(subexpr, dtype);
+	Expr *expr = p_prefix();
+	if(!expr) return 0;
+	while(1) {
+		if(!eat(TK_as)) break;
+		TypeDesc *dtype = p_type();
+		if(!dtype)
+			error_after_last("expected type after as");
+		expr = cast_expr(expr, dtype);
+	}
+	return subexpr;
 }
 
 static int is_integral_type(TypeDesc *dtype)

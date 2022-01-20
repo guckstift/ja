@@ -3,9 +3,6 @@
 #include "gen.h"
 #include "print.h"
 
-#define COL_YELLOW  "\x1b[38;2;255;255;0m"
-#define COL_RESET   "\x1b[0m"
-
 static void error(char *msg)
 {
 	print_error(0, 0, 0, 0, msg);
@@ -34,7 +31,6 @@ int main(int argc, char *argv[])
 	Unit *unit = parse(tokens);
 	print_unit(unit);
 	
-	printf(COL_YELLOW "=== code ===" COL_RESET "\n");
 	gen(unit);
 	
 	return 0;

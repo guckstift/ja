@@ -1,6 +1,1 @@
-var x = 10;
-
-while x {
-	print x;
-	x = x - 1;
-}
+print 9 as bool as int;

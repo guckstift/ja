@@ -3,6 +3,9 @@
 #include <inttypes.h>
 #include "gen.h"
 
+#define COL_YELLOW  "\x1b[38;2;255;255;0m"
+#define COL_RESET   "\x1b[0m"
+
 static FILE *ofs;
 static int64_t level;
 
@@ -224,6 +227,7 @@ static void gen_vardecls(Stmt *stmts)
 
 void gen(Unit *unit)
 {
+	printf(COL_YELLOW "=== code ===" COL_RESET "\n");
 	ofs = stdout;
 	ofs = fopen("./output.c", "wb");
 	level = 0;
