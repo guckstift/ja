@@ -9,11 +9,13 @@ typedef enum {
 	TY_UINT64,
 	TY_BOOL,
 	TY_PTR,
+	TY_ARRAY,
 } Type;
 
 typedef struct TypeDesc {
 	Type type;
 	struct TypeDesc *subtype;
+	uint64_t length;
 } TypeDesc;
 
 typedef enum {
@@ -32,7 +34,6 @@ typedef struct Expr {
 	int isconst;
 	int islvalue;
 	TypeDesc *dtype;
-	struct Expr *next; // next in a list
 	
 	union {
 		int64_t ival;

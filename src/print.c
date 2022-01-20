@@ -117,6 +117,11 @@ static void print_int(int64_t val)
 	printf(COL_MAGENTA "%" PRId64 COL_RESET, val);
 }
 
+static void print_uint(uint64_t val)
+{
+	printf(COL_MAGENTA "%" PRIu64 COL_RESET, val);
+}
+
 static void print_float(double val)
 {
 	printf(COL_MAGENTA "%f" COL_RESET, val);
@@ -192,6 +197,12 @@ static void print_type(TypeDesc *dtype)
 			break;
 		case TY_PTR:
 			printf(">");
+			print_type(dtype->subtype);
+			break;
+		case TY_ARRAY:
+			printf("[");
+			print_uint(dtype->length);
+			printf("]");
 			print_type(dtype->subtype);
 			break;
 	}

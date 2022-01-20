@@ -115,13 +115,36 @@ static TypeDesc *new_ptr_type(TypeDesc *subtype)
 	return dtype;
 }
 
+static TypeDesc *new_array_type(uint64_t length, TypeDesc *subtype)
+{
+	TypeDesc *dtype = malloc(sizeof(TypeDesc));
+	dtype->type = TY_ARRAY;
+	dtype->subtype = subtype;
+	dtype->length = length;
+	return dtype;
+}
+
 static int type_equ(TypeDesc *dtype1, TypeDesc *dtype2)
 {
-	if(dtype1->type == TY_PTR && dtype1->type == dtype2->type) {
+	if(dtype1->type == TY_PTR && dtype2->type == TY_PTR) {
 		return type_equ(dtype1->subtype, dtype2->subtype);
 	}
 	
+	if(
+		dtype1->type == TY_ARRAY && dtype2->type == TY_ARRAY
+	) {
+		return
+			dtype1->length == dtype2->length &&
+			type_equ(dtype1->subtype, dtype2->subtype);
+	}
+	
 	return dtype1->type == dtype2->type;
+}
+
+static int is_integral_type(TypeDesc *dtype)
+{
+	Type type = dtype->type;
+	return type == TY_INT64 || type == TY_UINT64 || type == TY_BOOL;
 }
 
 static TypeDesc *p_type()
@@ -140,6 +163,17 @@ static TypeDesc *p_type()
 		if(!subtype)
 			error_at_last("expected target type");
 		return new_ptr_type(subtype);
+	}
+	else if(eat(TK_LBRACK)) {
+		Token *length = eat(TK_INT);
+		if(!length)
+			error_at_cur("expected integer literal for array length");
+		if(!eat(TK_RBRACK))
+			error_after_last("expected ] after array length");
+		TypeDesc *subtype = p_type();
+		if(!subtype)
+			error_at_last("expected element type");
+		return new_array_type(length->uval, subtype);
 	}
 	
 	return 0;
@@ -217,14 +251,20 @@ static Expr *p_prefix()
 
 static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
 {
-	if(type_equ(subexpr->dtype, dtype)) return subexpr;
-	Expr *expr = new_expr(EX_CAST);
-	expr->start = subexpr->start;
-	expr->isconst = subexpr->isconst;
-	expr->islvalue = 0;
-	expr->subexpr = subexpr;
-	expr->dtype = dtype;
-	return expr;
+	TypeDesc *src_type = subexpr->dtype;
+	if(type_equ(src_type, dtype)) return subexpr;
+	
+	if(is_integral_type(src_type) && is_integral_type(dtype)) {
+		Expr *expr = new_expr(EX_CAST);
+		expr->start = subexpr->start;
+		expr->isconst = subexpr->isconst;
+		expr->islvalue = 0;
+		expr->subexpr = subexpr;
+		expr->dtype = dtype;
+		return expr;
+	}
+	
+	error_at(subexpr->start, "invalid cast");
 }
 
 static Expr *p_cast()
@@ -239,12 +279,6 @@ static Expr *p_cast()
 		expr = cast_expr(expr, dtype);
 	}
 	return expr;
-}
-
-static int is_integral_type(TypeDesc *dtype)
-{
-	Type type = dtype->type;
-	return type == TY_INT64 || type == TY_UINT64 || type == TY_BOOL;
 }
 
 static Token *p_operator()

@@ -54,6 +54,20 @@ static void gen_type(TypeDesc *dtype)
 			gen_type(dtype->subtype);
 			write("*");
 			break;
+		case TY_ARRAY:
+			gen_type(dtype->subtype);
+			break;
+	}
+}
+
+static void gen_type_postfix(TypeDesc *dtype)
+{
+	switch(dtype->type) {
+		case TY_ARRAY:
+			write("[");
+			write("UINT64_C(%" PRIu64 ")", dtype->length);
+			write("]");
+			break;
 	}
 }
 
@@ -98,6 +112,28 @@ static void gen_expr(Expr *expr)
 	}
 }
 
+static void gen_assign(Expr *target, Expr *expr)
+{
+	gen_indent();
+	
+	if(target->dtype->type == TY_ARRAY) {
+		TypeDesc *dtype = target->dtype;
+		write("memcpy(");
+		gen_expr(target);
+		write(", ");
+		gen_expr(expr);
+		write(", sizeof(");
+		gen_expr(target);
+		write("));\n", dtype->length);
+	}
+	else {
+		gen_expr(target);
+		write(" = ");
+		gen_expr(expr);
+		write(";\n");
+	}
+}
+
 static void gen_stmt(Stmt *stmt)
 {
 	switch(stmt->type) {
@@ -137,11 +173,11 @@ static void gen_stmt(Stmt *stmt)
 				gen_vardecl(stmt);
 			}
 			else if(stmt->expr && !stmt->expr->isconst) {
-				gen_indent();
-				gen_ident(stmt->id);
-				write(" = ");
-				gen_expr(stmt->expr);
-				write(";\n");
+				Expr target;
+				target.type = EX_VAR;
+				target.dtype = stmt->dtype;
+				target.id = stmt->id;
+				gen_assign(&target, stmt->expr);
 			}
 			break;
 		case ST_IFSTMT:
@@ -170,11 +206,7 @@ static void gen_stmt(Stmt *stmt)
 			write("}\n");
 			break;
 		case ST_ASSIGN:
-			gen_indent();
-			gen_expr(stmt->target);
-			write(" = ");
-			gen_expr(stmt->expr);
-			write(";\n");
+			gen_assign(stmt->target, stmt->expr);
 			break;
 	}
 }
@@ -202,12 +234,16 @@ static void gen_vardecl(Stmt *stmt)
 	gen_type(stmt->dtype);
 	write(" ");
 	gen_ident(stmt->id);
+	gen_type_postfix(stmt->dtype);
 	
 	if(stmt->expr) {
 		if(stmt->expr->isconst || stmt->scope->parent) {
 			write(" = ");
 			gen_expr(stmt->expr);
 		}
+	}
+	else if(stmt->dtype->type == TY_ARRAY) {
+		write(" = {0}");
 	}
 	else {
 		write(" = 0");
@@ -234,6 +270,7 @@ void gen(Unit *unit)
 	write("#include <stdio.h>\n");
 	write("#include <stdint.h>\n");
 	write("#include <inttypes.h>\n");
+	write("#include <string.h>\n");
 	write("#define jafalse ((jabool)0)\n");
 	write("#define jatrue ((jabool)1)\n");
 	write("typedef uint8_t jabool;\n");

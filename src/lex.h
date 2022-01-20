@@ -21,6 +21,8 @@
 	_("}", RCURLY) \
 	_("<", LOWER) \
 	_(">", GREATER) \
+	_("[", LBRACK) \
+	_("]", RBRACK) \
 	_("=", ASSIGN) \
 	_(":", COLON) \
 	_(";", SEMICOLON) \

@@ -1,6 +1,7 @@
-var x = 9;
-var y = >x;
+var x : [8]int;
+var y : [8]int = x;
 
-var z = ><y;
+x = y;
 
-print <<y;
+var a = 9;
+var b = a;
