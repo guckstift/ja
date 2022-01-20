@@ -38,7 +38,7 @@ typedef struct Expr {
 		int64_t ival;
 		bool bval;
 		Token *id;
-		struct Expr *expr;
+		struct Expr *subexpr;
 		struct Expr *left;
 	};
 	struct Expr *right;

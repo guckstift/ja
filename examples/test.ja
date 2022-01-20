@@ -1,1 +1,6 @@
-print 9 as bool as int;
+var x = 9;
+var y = >x;
+
+var z = ><y;
+
+print <<y;

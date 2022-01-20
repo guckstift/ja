@@ -71,23 +71,23 @@ static void gen_expr(Expr *expr)
 			break;
 		case EX_PTR:
 			write("&");
-			gen_expr(expr->expr);
+			gen_expr(expr->subexpr);
 			break;
 		case EX_DEREF:
 			write("*");
-			gen_expr(expr->expr);
+			gen_expr(expr->subexpr);
 			break;
 		case EX_CAST:
 			if(expr->dtype->type == TY_BOOL) {
 				write("(");
-				gen_expr(expr->expr);
+				gen_expr(expr->subexpr);
 				write(" ? jatrue : jafalse)");
 			}
 			else {
 				write("(");
 				gen_type(expr->dtype);
 				write(")");
-				gen_expr(expr->expr);
+				gen_expr(expr->subexpr);
 			}
 			break;
 		case EX_BINOP:

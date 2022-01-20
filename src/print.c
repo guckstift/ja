@@ -214,14 +214,14 @@ static void print_expr(Expr *expr)
 			break;
 		case EX_PTR:
 			printf(">");
-			print_expr(expr->expr);
+			print_expr(expr->subexpr);
 			break;
 		case EX_DEREF:
 			printf("<");
-			print_expr(expr->expr);
+			print_expr(expr->subexpr);
 			break;
 		case EX_CAST:
-			print_expr(expr->expr);
+			print_expr(expr->subexpr);
 			print_keyword_cstr(" as ");
 			print_type(expr->dtype);
 			break;

@@ -189,26 +189,26 @@ static Expr *p_prefix()
 {
 	if(eat(TK_GREATER)) {
 		Expr *expr = new_expr(EX_PTR);
-		expr->expr = p_atom();
-		if(!expr->expr)
+		expr->subexpr = p_prefix();
+		if(!expr->subexpr)
 			error_after_last("expected target to point to");
-		if(expr->expr->type != EX_VAR)
-			error_at_last("expected target to point to");
+		if(!expr->subexpr->islvalue)
+			error_at(expr->subexpr->start, "expected target to point to");
 		expr->isconst = 0;
 		expr->islvalue = 0;
-		expr->dtype = new_ptr_type(expr->expr->dtype);
+		expr->dtype = new_ptr_type(expr->subexpr->dtype);
 		return expr;
 	}
 	else if(eat(TK_LOWER)) {
 		Expr *expr = new_expr(EX_DEREF);
-		expr->expr = p_prefix();
-		if(!expr->expr)
+		expr->subexpr = p_prefix();
+		if(!expr->subexpr)
 			error_at_last("expected expression after <");
-		if(expr->expr->dtype->type != TY_PTR)
-			error_at_last("expected pointer to dereference");
+		if(expr->subexpr->dtype->type != TY_PTR)
+			error_at(expr->subexpr->start, "expected pointer to dereference");
 		expr->isconst = 0;
 		expr->islvalue = 1;
-		expr->dtype = expr->expr->dtype->subtype;
+		expr->dtype = expr->subexpr->dtype->subtype;
 		return expr;
 	}
 	
@@ -222,7 +222,7 @@ static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
 	expr->start = subexpr->start;
 	expr->isconst = subexpr->isconst;
 	expr->islvalue = 0;
-	expr->expr = subexpr;
+	expr->subexpr = subexpr;
 	expr->dtype = dtype;
 	return expr;
 }
@@ -238,7 +238,7 @@ static Expr *p_cast()
 			error_after_last("expected type after as");
 		expr = cast_expr(expr, dtype);
 	}
-	return subexpr;
+	return expr;
 }
 
 static int is_integral_type(TypeDesc *dtype)
