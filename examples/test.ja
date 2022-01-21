@@ -1,9 +1,14 @@
-var a : int;
-var b : >int;
-var c : [2]int;
-var d : [3][2]int;
-var e : >[3][2]int;
-var f : [3][2]>int;
-var g : [3]>[2]int;
+var a : [2]int;
 
-print 1 -;
+a[0] = 23;
+a[1] = 42;
+
+var b = a;
+
+print b[0];
+
+var c = >b[1];
+
+print a[0] as bool as int;
+
+print c;

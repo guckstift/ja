@@ -284,6 +284,12 @@ static void print_expr(Expr *expr)
 			print_keyword_cstr(" as ");
 			print_type(expr->dtype);
 			break;
+		case EX_SUBSCRIPT:
+			print_expr(expr->subexpr);
+			printf("[");
+			print_expr(expr->index);
+			printf("]");
+			break;
 		case EX_BINOP:
 			print_expr(expr->left);
 			printf(" %s ", expr->operator->punct);

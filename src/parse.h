@@ -22,9 +22,10 @@ typedef enum {
 	EX_INT, // ival
 	EX_BOOL, // bval
 	EX_VAR, // id
-	EX_PTR, // expr
-	EX_DEREF, // expr
-	EX_CAST, // expr, (dtype)
+	EX_PTR, // subexpr
+	EX_DEREF, // subexpr
+	EX_CAST, // subexpr, (dtype)
+	EX_SUBSCRIPT, // subexpr, index
 	EX_BINOP, // left, right, operator
 } ExprType;
 
@@ -42,7 +43,10 @@ typedef struct Expr {
 		struct Expr *subexpr;
 		struct Expr *left;
 	};
-	struct Expr *right;
+	union {
+		struct Expr *right;
+		struct Expr *index;
+	};
 	Token *operator;
 } Expr;
 

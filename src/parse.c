@@ -219,6 +219,61 @@ static Expr *p_atom()
 	return expr;
 }
 
+static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
+{
+	TypeDesc *src_type = subexpr->dtype;
+	if(type_equ(src_type, dtype)) return subexpr;
+	
+	if(is_integral_type(src_type) && is_integral_type(dtype)) {
+		Expr *expr = new_expr(EX_CAST);
+		expr->start = subexpr->start;
+		expr->isconst = subexpr->isconst;
+		expr->islvalue = 0;
+		expr->subexpr = subexpr;
+		expr->dtype = dtype;
+		return expr;
+	}
+	
+	error_at(
+		subexpr->start, "can not convert type  %y  to  %y", src_type, dtype
+	);
+}
+
+static Expr *p_postfix()
+{
+	Expr *expr = p_atom();
+	if(!expr) return 0;
+	while(1) {
+		if(eat(TK_as)) {
+			TypeDesc *dtype = p_type();
+			if(!dtype)
+				error_after_last("expected type after as");
+			expr = cast_expr(expr, dtype);
+		}
+		else if(eat(TK_LBRACK)) {
+			if(expr->dtype->type != TY_ARRAY)
+				error_after_last("need array to subscript");
+			Expr *index = p_expr();
+			if(!index)
+				error_after_last("expected index expression after [");
+			if(!eat(TK_RBRACK))
+				error_after_last("expected ] after index expression");
+			Expr *subscript = new_expr(EX_SUBSCRIPT);
+			subscript->start = expr->start;
+			subscript->subexpr = expr;
+			subscript->index = index;
+			subscript->isconst = 0;
+			subscript->islvalue = 1;
+			subscript->dtype = expr->dtype->subtype;
+			expr = subscript;
+		}
+		else {
+			break;
+		}
+	}
+	return expr;
+}
+
 static Expr *p_prefix()
 {
 	if(eat(TK_GREATER)) {
@@ -246,41 +301,7 @@ static Expr *p_prefix()
 		return expr;
 	}
 	
-	return p_atom();
-}
-
-static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
-{
-	TypeDesc *src_type = subexpr->dtype;
-	if(type_equ(src_type, dtype)) return subexpr;
-	
-	if(is_integral_type(src_type) && is_integral_type(dtype)) {
-		Expr *expr = new_expr(EX_CAST);
-		expr->start = subexpr->start;
-		expr->isconst = subexpr->isconst;
-		expr->islvalue = 0;
-		expr->subexpr = subexpr;
-		expr->dtype = dtype;
-		return expr;
-	}
-	
-	error_at(
-		subexpr->start, "can not convert type  %y  to  %y", src_type, dtype
-	);
-}
-
-static Expr *p_cast()
-{
-	Expr *expr = p_prefix();
-	if(!expr) return 0;
-	while(1) {
-		if(!eat(TK_as)) break;
-		TypeDesc *dtype = p_type();
-		if(!dtype)
-			error_after_last("expected type after as");
-		expr = cast_expr(expr, dtype);
-	}
-	return expr;
+	return p_postfix();
 }
 
 static Token *p_operator()
@@ -293,13 +314,13 @@ static Token *p_operator()
 
 static Expr *p_binop()
 {
-	Expr *left = p_cast();
+	Expr *left = p_prefix();
 	if(!left) return 0;
 	
 	while(1) {
 		Token *operator = p_operator();
 		if(!operator) break;
-		Expr *right = p_cast();
+		Expr *right = p_prefix();
 		if(!right)
 			error_after_last("expected right side after %t", operator);
 		Expr *expr = new_expr(EX_BINOP);

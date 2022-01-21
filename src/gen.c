@@ -107,6 +107,12 @@ static void gen_expr(Expr *expr)
 				gen_expr(expr->subexpr);
 			}
 			break;
+		case EX_SUBSCRIPT:
+			gen_expr(expr->subexpr);
+			write("[");
+			gen_expr(expr->index);
+			write("]");
+			break;
 		case EX_BINOP:
 			gen_expr(expr->left);
 			write(" %s ", expr->operator->punct);
