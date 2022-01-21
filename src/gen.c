@@ -33,9 +33,7 @@ static void gen_indent()
 static void gen_ident(Token *id)
 {
 	write("ja_");
-	fwrite(id->start, 1, id->length, ofs);
-	
-	fwrite(id->start, 1, id->length, stdout);
+	for(int64_t i=0; i < id->length; i++) write("%c", id->start[i]);
 }
 
 static void gen_type(TypeDesc *dtype)
@@ -52,7 +50,7 @@ static void gen_type(TypeDesc *dtype)
 			break;
 		case TY_PTR:
 			gen_type(dtype->subtype);
-			write("*");
+			write("(*");
 			break;
 		case TY_ARRAY:
 			gen_type(dtype->subtype);
@@ -63,10 +61,15 @@ static void gen_type(TypeDesc *dtype)
 static void gen_type_postfix(TypeDesc *dtype)
 {
 	switch(dtype->type) {
+		case TY_PTR:
+			write(")");
+			gen_type_postfix(dtype->subtype);
+			break;
 		case TY_ARRAY:
 			write("[");
 			write("UINT64_C(%" PRIu64 ")", dtype->length);
 			write("]");
+			gen_type_postfix(dtype->subtype);
 			break;
 	}
 }
