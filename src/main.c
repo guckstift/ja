@@ -3,9 +3,12 @@
 #include "gen.h"
 #include "print.h"
 
-static void error(char *msg)
+static void error(char *msg, ...)
 {
-	print_error(0, 0, 0, 0, msg);
+	va_list args;
+	va_start(args, msg);
+	vprint_error(0, 0, 0, 0, msg, args);
+	va_end(args);
 	exit(EXIT_FAILURE);
 }
 
@@ -16,7 +19,7 @@ int main(int argc, char *argv[])
 	char *filename = argv[1];
 	
 	FILE *fs = fopen(filename, "rb");
-	if(!fs) error("can not open input file");
+	if(!fs) error("can not open input file '%s'", filename);
 	fseek(fs, 0, SEEK_END);
 	int64_t src_len = ftell(fs);
 	rewind(fs);

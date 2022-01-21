@@ -177,7 +177,7 @@ Tokens *lex(char *src, int64_t src_len)
 		
 		else if(ispunct(*pos)) {
 			print_error(
-				line, linep, src_end, pos, "unrecognized punctuator",
+				line, linep, src_end, pos, "unrecognized punctuator '%c'",
 				(uint8_t)*pos
 			);
 			exit(EXIT_FAILURE);
@@ -188,7 +188,7 @@ Tokens *lex(char *src, int64_t src_len)
 		else {
 			print_error(
 				line, linep, src_end, pos,
-				"unrecognized character (byte value: 0x%02x)",
+				"unrecognized character (byte value: 0x%b)",
 				(uint8_t)*pos
 			);
 			exit(EXIT_FAILURE);

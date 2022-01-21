@@ -16,13 +16,46 @@
 static int64_t level;
 
 static void print_stmts(Stmt *stmts);
+static void fprint_type(FILE *fs, TypeDesc *dtype);
 
 void vprint_error(
 	int64_t line, char *linep, char *src_end, char *err_pos, char *msg,
 	va_list args
 ) {
 	fprintf(stderr, COL_RED "error: " COL_RESET);
-	vfprintf(stderr, msg, args);
+	
+	while(*msg) {
+		if(*msg == '%') {
+			msg++;
+			if(*msg == 'b') {
+				msg++;
+				fprintf(stderr, "%02x", va_arg(args, int));
+			}
+			else if(*msg == 'c') {
+				msg++;
+				fprintf(stderr, "%c", va_arg(args, int));
+			}
+			else if(*msg == 's') {
+				msg++;
+				fprintf(stderr, "%s", va_arg(args, char*));
+			}
+			else if(*msg == 't') {
+				msg++;
+				Token *token = va_arg(args, Token*);
+				fwrite(token->start, 1, token->length, stderr);
+			}
+			else if(*msg == 'y') {
+				msg++;
+				TypeDesc *dtype = va_arg(args, TypeDesc*);
+				fprint_type(stderr, dtype);
+			}
+		}
+		else {
+			fprintf(stderr, "%c", *msg);
+			msg++;
+		}
+	}
+	
 	fprintf(stderr, "\n");
 	
 	if(linep == 0) return;
@@ -100,9 +133,14 @@ static int64_t print_line_num(int64_t line, int64_t max_line)
 	return printf_len;
 }
 
+static void fprint_keyword_cstr(FILE *fs, char *str)
+{
+	fprintf(fs, COL_BLUE "%s" COL_RESET, str);
+}
+
 static void print_keyword_cstr(char *str)
 {
-	printf(COL_BLUE "%s" COL_RESET, str);
+	fprint_keyword_cstr(stdout, str);
 }
 
 static void print_keyword(Token *token)
@@ -117,9 +155,14 @@ static void print_int(int64_t val)
 	printf(COL_MAGENTA "%" PRId64 COL_RESET, val);
 }
 
+static void fprint_uint(FILE *fs, uint64_t val)
+{
+	fprintf(fs, COL_MAGENTA "%" PRIu64 COL_RESET, val);
+}
+
 static void print_uint(uint64_t val)
 {
-	printf(COL_MAGENTA "%" PRIu64 COL_RESET, val);
+	fprint_uint(stdout, val);
 }
 
 static void print_float(double val)
@@ -183,29 +226,34 @@ static void print_indent()
 	for(int64_t i=0; i<level; i++) printf("  ");
 }
 
-static void print_type(TypeDesc *dtype)
+static void fprint_type(FILE *fs, TypeDesc *dtype)
 {
 	switch(dtype->type) {
 		case TY_INT64:
-			print_keyword_cstr("int64");
+			fprint_keyword_cstr(fs, "int64");
 			break;
 		case TY_UINT64:
-			print_keyword_cstr("uint64");
+			fprint_keyword_cstr(fs, "uint64");
 			break;
 		case TY_BOOL:
-			print_keyword_cstr("bool");
+			fprint_keyword_cstr(fs, "bool");
 			break;
 		case TY_PTR:
-			printf(">");
-			print_type(dtype->subtype);
+			fprintf(fs, ">");
+			fprint_type(fs, dtype->subtype);
 			break;
 		case TY_ARRAY:
-			printf("[");
-			print_uint(dtype->length);
-			printf("]");
-			print_type(dtype->subtype);
+			fprintf(fs, "[");
+			fprint_uint(fs, dtype->length);
+			fprintf(fs, "]");
+			fprint_type(fs, dtype->subtype);
 			break;
 	}
+}
+
+static void print_type(TypeDesc *dtype)
+{
+	fprint_type(stdout, dtype);
 }
 
 static void print_expr(Expr *expr)

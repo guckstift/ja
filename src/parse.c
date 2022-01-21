@@ -210,7 +210,7 @@ static Expr *p_atom()
 		expr->id = last->id;
 		Stmt *decl = lookup(expr->id);
 		if(!decl)
-			error_at_last("variable not declared");
+			error_at_last("variable %t not declared", expr->id);
 		expr->isconst = 0;
 		expr->islvalue = 1;
 		expr->dtype = decl->dtype;
@@ -264,7 +264,9 @@ static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
 		return expr;
 	}
 	
-	error_at(subexpr->start, "invalid cast");
+	error_at(
+		subexpr->start, "can not convert type  %y  to  %y", src_type, dtype
+	);
 }
 
 static Expr *p_cast()
@@ -299,7 +301,7 @@ static Expr *p_binop()
 		if(!operator) break;
 		Expr *right = p_cast();
 		if(!right)
-			error_after_last("expected right side after +");
+			error_after_last("expected right side after %t", operator);
 		Expr *expr = new_expr(EX_BINOP);
 		expr->start = left->start;
 		expr->left = left;
@@ -317,8 +319,9 @@ static Expr *p_binop()
 		}
 		else {
 			error_at(
-				left->start,
-				"left side or right side has incompatible type with operator"
+				expr->operator,
+				"can not use types  %y  and  %y  with operator %t",
+				ltype, rtype, expr->operator
 			);
 		}
 		
@@ -388,7 +391,7 @@ static Stmt *p_vardecl()
 	}
 	
 	if(!declare(stmt))
-		error_at(id, "variable already declared");
+		error_at(id, "variable %t already declared", id);
 	if(!eat(TK_SEMICOLON))
 		error_after_last("expected semicolon after variable declaration");
 	return stmt;

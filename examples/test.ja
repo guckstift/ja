@@ -1,7 +1,9 @@
-var x : [8]int;
-var y : [8]int = x;
+var a : int;
+var b : >int;
+var c : [2]int;
+var d : [3][2]int;
+var e : >[3][2]int;
+var f : [3][2]>int;
+var g : [3]>[2]int;
 
-x = y;
-
-var a = 9;
-var b = a;
+print 1 -;
