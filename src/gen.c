@@ -118,6 +118,35 @@ static void gen_expr(Expr *expr)
 			write(" %s ", expr->operator->punct);
 			gen_expr(expr->right);
 			break;
+		case EX_ARRAY:
+			write("(");
+			gen_type(expr->dtype);
+			gen_type_postfix(expr->dtype);
+			write(")");
+			write("{");
+			for(Expr *item = expr->exprs; item; item = item->next) {
+				if(item != expr->exprs)
+					write(", ");
+				gen_expr(item);
+			}
+			write("}");
+			break;
+	}
+}
+
+static void gen_init_expr(Expr *expr)
+{
+	if(expr->type == EX_ARRAY) {
+		write("{");
+		for(Expr *item = expr->exprs; item; item = item->next) {
+			if(item != expr->exprs)
+				write(", ");
+			gen_expr(item);
+		}
+		write("}");
+	}
+	else {
+		gen_expr(expr);
 	}
 }
 
@@ -143,39 +172,44 @@ static void gen_assign(Expr *target, Expr *expr)
 	}
 }
 
+static void gen_print(Expr *expr)
+{
+	gen_indent();
+	write("printf(");
+	
+	switch(expr->dtype->type) {
+		case TY_INT64:
+			write("\"%\" PRId64");
+			break;
+		case TY_UINT64:
+			write("\"%\" PRIu64");
+			break;
+		case TY_BOOL:
+			write("\"%%s\"");
+			break;
+		case TY_PTR:
+			write("\"%%p\"");
+			break;
+	}
+	
+	write(" \"\\n\", ");
+	
+	if(expr->dtype->type == TY_PTR)
+		write("(void*)");
+	
+	gen_expr(expr);
+	
+	if(expr->dtype->type == TY_BOOL)
+		write(" ? \"true\" : \"false\"");
+	
+	write(");\n");
+}
+
 static void gen_stmt(Stmt *stmt)
 {
 	switch(stmt->type) {
 		case ST_PRINT:
-			gen_indent();
-			write("printf(");
-			
-			switch(stmt->expr->dtype->type) {
-				case TY_INT64:
-					write("\"%\" PRId64");
-					break;
-				case TY_UINT64:
-					write("\"%\" PRIu64");
-					break;
-				case TY_BOOL:
-					write("\"%%s\"");
-					break;
-				case TY_PTR:
-					write("\"%%p\"");
-					break;
-			}
-			
-			write(" \"\\n\", ");
-			
-			if(stmt->expr->dtype->type == TY_PTR)
-				write("(void*)");
-			
-			gen_expr(stmt->expr);
-			
-			if(stmt->expr->dtype->type == TY_BOOL)
-				write(" ? \"true\" : \"false\"");
-			
-			write(");\n");
+			gen_print(stmt->expr);
 			break;
 		case ST_VARDECL:
 			if(stmt->scope->parent) {
@@ -248,7 +282,7 @@ static void gen_vardecl(Stmt *stmt)
 	if(stmt->expr) {
 		if(stmt->expr->isconst || stmt->scope->parent) {
 			write(" = ");
-			gen_expr(stmt->expr);
+			gen_init_expr(stmt->expr);
 		}
 	}
 	else if(stmt->dtype->type == TY_ARRAY) {

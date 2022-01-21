@@ -27,6 +27,7 @@ typedef enum {
 	EX_CAST, // subexpr, (dtype)
 	EX_SUBSCRIPT, // subexpr, index
 	EX_BINOP, // left, right, operator
+	EX_ARRAY, // exprs
 } ExprType;
 
 typedef struct Expr {
@@ -35,6 +36,7 @@ typedef struct Expr {
 	int isconst;
 	int islvalue;
 	TypeDesc *dtype;
+	struct Expr *next; // next in a list
 	
 	union {
 		int64_t ival;
@@ -42,6 +44,7 @@ typedef struct Expr {
 		Token *id;
 		struct Expr *subexpr;
 		struct Expr *left;
+		struct Expr *exprs;
 	};
 	union {
 		struct Expr *right;

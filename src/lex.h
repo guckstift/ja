@@ -26,6 +26,7 @@
 	_("=", ASSIGN) \
 	_(":", COLON) \
 	_(";", SEMICOLON) \
+	_(",", COMMA) \
 	_("+", PLUS) \
 	_("-", MINUS) \
 

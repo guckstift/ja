@@ -49,6 +49,10 @@ void vprint_error(
 				TypeDesc *dtype = va_arg(args, TypeDesc*);
 				fprint_type(stderr, dtype);
 			}
+			else if(*msg == 'u') {
+				msg++;
+				fprintf(stderr, "%" PRIu64, va_arg(args, uint64_t));
+			}
 		}
 		else {
 			fprintf(stderr, "%c", *msg);
@@ -294,6 +298,15 @@ static void print_expr(Expr *expr)
 			print_expr(expr->left);
 			printf(" %s ", expr->operator->punct);
 			print_expr(expr->right);
+			break;
+		case EX_ARRAY:
+			printf("[");
+			for(Expr *item = expr->exprs; item; item = item->next) {
+				if(item != expr->exprs)
+					printf(", ");
+				print_expr(item);
+			}
+			printf("]");
 			break;
 	}
 }

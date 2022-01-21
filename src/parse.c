@@ -184,12 +184,14 @@ static Expr *new_expr(ExprType type)
 	Expr *expr = malloc(sizeof(Expr));
 	expr->type = type;
 	expr->start = last;
+	expr->next = 0;
 	return expr;
 }
 
 static Expr *p_atom()
 {
 	Expr *expr = 0;
+	Token *start;
 	
 	if(eat(TK_INT)) {
 		expr = new_expr(EX_INT);
@@ -214,6 +216,48 @@ static Expr *p_atom()
 		expr->isconst = 0;
 		expr->islvalue = 1;
 		expr->dtype = decl->dtype;
+	}
+	else if(start = eat(TK_LBRACK)) {
+		Expr *first = 0;
+		Expr *last_expr = 0;
+		TypeDesc *subtype = 0;
+		uint64_t length = 0;
+		int isconst = 1;
+		while(1) {
+			Expr *item = p_expr();
+			if(!item) break;
+			isconst = isconst && item->isconst;
+			if(first) {
+				last_expr->next = item;
+				last_expr = item;
+				if(!type_equ(subtype, item->dtype)) {
+					error_at(
+						item->start,
+						"item %u has type  %y  but should be  %y",
+						length + 1, item->dtype, subtype
+					);
+				}
+			}
+			else {
+				first = item;
+				last_expr = item;
+				subtype = item->dtype;
+			}
+			length ++;
+			if(!eat(TK_COMMA)) break;
+		}
+		if(!eat(TK_RBRACK))
+			error_after_last("expected comma or ]");
+		if(length == 0)
+			error_at_last("empty array literal is not allowed");
+		expr = new_expr(EX_ARRAY);
+		expr->start = start;
+		expr->exprs = first;
+		expr->isconst = isconst;
+		expr->islvalue = 0;
+		expr->dtype = new_type(TY_ARRAY);
+		expr->dtype->subtype = subtype;
+		expr->dtype->length = length;
 	}
 	
 	return expr;
@@ -374,6 +418,8 @@ static Stmt *p_print()
 	stmt->expr = p_expr();
 	if(!stmt->expr)
 		error_after_last("expected expression to print");
+	if(stmt->expr->dtype->type == TY_ARRAY)
+		error_at(stmt->expr->start, "array printing not supported");
 	if(!eat(TK_SEMICOLON))
 		error_after_last("expected semicolon after print statement");
 	return stmt;
