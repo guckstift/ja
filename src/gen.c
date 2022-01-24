@@ -13,38 +13,80 @@ static void gen_stmts(Stmt *stmts);
 static void gen_vardecls(Stmt *stmts);
 static void gen_vardecl(Stmt *stmt);
 static void gen_assign(Expr *target, Expr *expr);
+static void gen_type(TypeDesc *dtype);
+static void gen_type_postfix(TypeDesc *dtype);
+static void gen_expr(Expr *expr);
 
 static void write(char *msg, ...)
 {
 	va_list args;
 	va_start(args, msg);
-	vfprintf(ofs, msg, args);
-	va_end(args);
 	
-	va_start(args, msg);
-	vfprintf(stdout, msg, args);
+	while(*msg) {
+		if(*msg == '%') {
+			msg++;
+			if(*msg == '%') {
+				msg++;
+				fputc('%', ofs);
+			}
+			else if(*msg == '>') {
+				msg++;
+				for(int64_t i=0; i<level; i++) write("    ");
+			}
+			else if(*msg == 'c') {
+				msg++;
+				fprintf(ofs, "%c", va_arg(args, int));
+			}
+			else if(*msg == 's') {
+				msg++;
+				fprintf(ofs, "%s", va_arg(args, char*));
+			}
+			else if(*msg == 't') {
+				msg++;
+				Token *token = va_arg(args, Token*);
+				fwrite(token->start, 1, token->length, ofs);
+			}
+			else if(*msg == 'y') {
+				msg++;
+				TypeDesc *dtype = va_arg(args, TypeDesc*);
+				gen_type(dtype);
+			}
+			else if(*msg == 'z') {
+				msg++;
+				TypeDesc *dtype = va_arg(args, TypeDesc*);
+				gen_type_postfix(dtype);
+			}
+			else if(*msg == 'Y') {
+				msg++;
+				TypeDesc *dtype = va_arg(args, TypeDesc*);
+				gen_type(dtype);
+				gen_type_postfix(dtype);
+			}
+			else if(*msg == 'e') {
+				msg++;
+				Expr *expr = va_arg(args, Expr*);
+				gen_expr(expr);
+			}
+			else if(*msg == 'I') {
+				msg++;
+				write("ja_%t", va_arg(args, Token*));
+			}
+			else if(*msg == 'i') {
+				msg++;
+				fprintf(ofs, "%" PRId64, va_arg(args, int64_t));
+			}
+			else if(*msg == 'u') {
+				msg++;
+				fprintf(ofs, "%" PRIu64, va_arg(args, uint64_t));
+			}
+		}
+		else {
+			fputc(*msg, ofs);
+			msg++;
+		}
+	}
+	
 	va_end(args);
-}
-
-static void gen_indent()
-{
-	for(int64_t i=0; i<level; i++) write("    ");
-}
-
-static void gen_int(uint64_t val)
-{
-	write("%" PRId64, val);
-}
-
-static void gen_uint(uint64_t val)
-{
-	write("%" PRIu64, val);
-}
-
-static void gen_ident(Token *id)
-{
-	write("ja_");
-	for(int64_t i=0; i < id->length; i++) write("%c", id->start[i]);
 }
 
 static void gen_type(TypeDesc *dtype)
@@ -60,8 +102,7 @@ static void gen_type(TypeDesc *dtype)
 			write("jabool");
 			break;
 		case TY_PTR:
-			gen_type(dtype->subtype);
-			write("(*");
+			write("%y(*", dtype->subtype);
 			break;
 		case TY_ARRAY:
 			gen_type(dtype->subtype);
@@ -73,14 +114,10 @@ static void gen_type_postfix(TypeDesc *dtype)
 {
 	switch(dtype->type) {
 		case TY_PTR:
-			write(")");
-			gen_type_postfix(dtype->subtype);
+			write(")%z", dtype->subtype);
 			break;
 		case TY_ARRAY:
-			write("[");
-			gen_uint(dtype->length);
-			write("]");
-			gen_type_postfix(dtype->subtype);
+			write("[%u]%z", dtype->length, dtype->subtype);
 			break;
 	}
 }
@@ -89,52 +126,34 @@ static void gen_expr(Expr *expr)
 {
 	switch(expr->type) {
 		case EX_INT:
-			gen_int(expr->ival);
+			write("%i", expr->ival);
 			break;
 		case EX_BOOL:
 			write(expr->ival ? "jatrue" : "jafalse");
 			break;
 		case EX_VAR:
-			gen_ident(expr->id);
+			write("%I", expr->id);
 			break;
 		case EX_PTR:
-			write("&");
-			gen_expr(expr->subexpr);
+			write("&%e", expr->subexpr);
 			break;
 		case EX_DEREF:
-			write("*");
-			gen_expr(expr->subexpr);
+			write("*%e", expr->subexpr);
 			break;
 		case EX_CAST:
-			if(expr->dtype->type == TY_BOOL) {
-				write("(");
-				gen_expr(expr->subexpr);
-				write(" ? jatrue : jafalse)");
-			}
-			else {
-				write("(");
-				gen_type(expr->dtype);
-				write(")");
-				gen_expr(expr->subexpr);
-			}
+			if(expr->dtype->type == TY_BOOL)
+				write("(%e ? jatrue : jafalse)", expr->subexpr);
+			else
+				write("(%Y)%e", expr->dtype, expr->subexpr);
 			break;
 		case EX_SUBSCRIPT:
-			gen_expr(expr->subexpr);
-			write("[");
-			gen_expr(expr->index);
-			write("]");
+			write("%e[%e]", expr->subexpr, expr->index);
 			break;
 		case EX_BINOP:
-			gen_expr(expr->left);
-			write(" %s ", expr->operator->punct);
-			gen_expr(expr->right);
+			write("%e %s %e", expr->left, expr->operator->punct, expr->right);
 			break;
 		case EX_ARRAY:
-			write("(");
-			gen_type(expr->dtype);
-			gen_type_postfix(expr->dtype);
-			write(")");
-			write("{");
+			write("(%Y) {", expr->dtype);
 			for(Expr *item = expr->exprs; item; item = item->next) {
 				if(item != expr->exprs)
 					write(", ");
@@ -174,37 +193,27 @@ static void gen_assign(Expr *target, Expr *expr)
 			}
 		}
 		else {
-			gen_indent();
-			write("memcpy(");
-			gen_expr(target);
-			write(", ");
-			gen_expr(expr);
-			write(", sizeof(");
-			gen_type(target->dtype);
-			gen_type_postfix(target->dtype);
-			write("));\n");
+			write(
+				"%>memcpy(%e, %e, sizeof(%Y));\n",
+				target, expr, target->dtype
+			);
 		}
 	}
 	else {
-		gen_indent();
-		gen_expr(target);
-		write(" = ");
-		gen_expr(expr);
-		write(";\n");
+		write("%>%e = %e;\n", target, expr);
 	}
 }
 
 static void gen_print(Expr *expr)
 {
-	gen_indent();
-	write("printf(");
+	write("%>printf(");
 	
 	switch(expr->dtype->type) {
 		case TY_INT64:
-			write("\"%\" PRId64");
+			write("\"%%\" PRId64");
 			break;
 		case TY_UINT64:
-			write("\"%\" PRIu64");
+			write("\"%%\" PRIu64");
 			break;
 		case TY_BOOL:
 			write("\"%%s\"");
@@ -250,29 +259,19 @@ static void gen_stmt(Stmt *stmt)
 			}
 			break;
 		case ST_IFSTMT:
-			gen_indent();
-			write("if(");
-			gen_expr(stmt->expr);
-			write(") {\n");
+			write("%>if(%e) {\n", stmt->expr);
 			gen_stmts(stmt->body);
-			gen_indent();
-			write("}\n");
+			write("%>}\n");
 			if(stmt->else_body) {
-				gen_indent();
-				write("else {\n");
+				write("%>else {\n");
 				gen_stmts(stmt->else_body);
-				gen_indent();
-				write("}\n");
+				write("%>}\n");
 			}
 			break;
 		case ST_WHILESTMT:
-			gen_indent();
-			write("while(");
-			gen_expr(stmt->expr);
-			write(") {\n");
+			write("%>while(%e) {\n", stmt->expr);
 			gen_stmts(stmt->body);
-			gen_indent();
-			write("}\n");
+			write("%>}\n");
 			break;
 		case ST_ASSIGN:
 			gen_assign(stmt->target, stmt->expr);
@@ -295,15 +294,9 @@ static void gen_stmts(Stmt *stmts)
 
 static void gen_vardecl(Stmt *stmt)
 {
-	gen_indent();
-	
-	if(!stmt->scope->parent)
-		write("static ");
-	
-	gen_type(stmt->dtype);
-	write(" ");
-	gen_ident(stmt->id);
-	gen_type_postfix(stmt->dtype);
+	write("%>");
+	if(!stmt->scope->parent) write("static ");
+	write("%y %I%z", stmt->dtype, stmt->id, stmt->dtype);
 	
 	if(stmt->expr) {
 		// has initializer
@@ -348,7 +341,6 @@ static void gen_vardecls(Stmt *stmts)
 
 void gen(Unit *unit)
 {
-	printf(COL_YELLOW "=== code ===" COL_RESET "\n");
 	ofs = stdout;
 	ofs = fopen("./output.c", "wb");
 	level = 0;
@@ -363,4 +355,14 @@ void gen(Unit *unit)
 	write("int main(int argc, char **argv) {\n");
 	gen_stmts(unit->stmts);
 	write("}\n");
+	fclose(ofs);
+	
+	printf(COL_YELLOW "=== code ===" COL_RESET "\n");
+	ofs = fopen("./output.c", "rb");
+	while(!feof(ofs)) {
+		int ch = fgetc(ofs);
+		if(ch == EOF) break;
+		fputc(ch, stdout);
+	}
+	fclose(ofs);
 }
