@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include "parse.h"
 #include "print.h"
+#include "eval.h"
 
 #define match(t) (cur->type == (t))
 #define eat(t) (match(t) ? (last = cur++) : 0)
@@ -100,53 +101,6 @@ static int declare(Stmt *new_decl)
 	return 1;
 }
 
-static TypeDesc *new_type(Type type)
-{
-	TypeDesc *dtype = malloc(sizeof(TypeDesc));
-	dtype->type = type;
-	return dtype;
-}
-
-static TypeDesc *new_ptr_type(TypeDesc *subtype)
-{
-	TypeDesc *dtype = malloc(sizeof(TypeDesc));
-	dtype->type = TY_PTR;
-	dtype->subtype = subtype;
-	return dtype;
-}
-
-static TypeDesc *new_array_type(uint64_t length, TypeDesc *subtype)
-{
-	TypeDesc *dtype = malloc(sizeof(TypeDesc));
-	dtype->type = TY_ARRAY;
-	dtype->subtype = subtype;
-	dtype->length = length;
-	return dtype;
-}
-
-static int type_equ(TypeDesc *dtype1, TypeDesc *dtype2)
-{
-	if(dtype1->type == TY_PTR && dtype2->type == TY_PTR) {
-		return type_equ(dtype1->subtype, dtype2->subtype);
-	}
-	
-	if(
-		dtype1->type == TY_ARRAY && dtype2->type == TY_ARRAY
-	) {
-		return
-			dtype1->length == dtype2->length &&
-			type_equ(dtype1->subtype, dtype2->subtype);
-	}
-	
-	return dtype1->type == dtype2->type;
-}
-
-static int is_integral_type(TypeDesc *dtype)
-{
-	Type type = dtype->type;
-	return type == TY_INT64 || type == TY_UINT64 || type == TY_BOOL;
-}
-
 static TypeDesc *p_type()
 {
 	if(eat(TK_int)) {
@@ -179,13 +133,23 @@ static TypeDesc *p_type()
 	return 0;
 }
 
-static Expr *new_expr(ExprType type)
+static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
 {
-	Expr *expr = malloc(sizeof(Expr));
-	expr->type = type;
-	expr->start = last;
-	expr->next = 0;
-	return expr;
+	TypeDesc *src_type = subexpr->dtype;
+	if(type_equ(src_type, dtype)) return subexpr;
+	
+	if(is_integral_type(src_type) && is_integral_type(dtype)) {
+		Expr *expr = new_expr(EX_CAST, subexpr->start);
+		expr->isconst = subexpr->isconst;
+		expr->islvalue = 0;
+		expr->subexpr = subexpr;
+		expr->dtype = dtype;
+		return expr;
+	}
+	
+	error_at(
+		subexpr->start, "can not convert type  %y  to  %y", src_type, dtype
+	);
 }
 
 static Expr *p_atom()
@@ -194,21 +158,21 @@ static Expr *p_atom()
 	Token *start;
 	
 	if(eat(TK_INT)) {
-		expr = new_expr(EX_INT);
+		expr = new_expr(EX_INT, last);
 		expr->ival = last->ival;
 		expr->isconst = 1;
 		expr->islvalue = 0;
 		expr->dtype = new_type(TY_INT64);
 	}
 	else if(eat(TK_false) || eat(TK_true)) {
-		expr = new_expr(EX_BOOL);
-		expr->bval = last->type == TK_true ? true : false;
+		expr = new_expr(EX_BOOL, last);
+		expr->ival = last->type == TK_true ? 1 : 0;
 		expr->isconst = 1;
 		expr->islvalue = 0;
 		expr->dtype = new_type(TY_BOOL);
 	}
 	else if(eat(TK_IDENT)) {
-		expr = new_expr(EX_VAR);
+		expr = new_expr(EX_VAR, last);
 		expr->id = last->id;
 		Stmt *decl = lookup(expr->id);
 		if(!decl)
@@ -250,9 +214,9 @@ static Expr *p_atom()
 			error_after_last("expected comma or ]");
 		if(length == 0)
 			error_at_last("empty array literal is not allowed");
-		expr = new_expr(EX_ARRAY);
-		expr->start = start;
+		expr = new_expr(EX_ARRAY, start);
 		expr->exprs = first;
+		expr->length = length;
 		expr->isconst = isconst;
 		expr->islvalue = 0;
 		expr->dtype = new_type(TY_ARRAY);
@@ -261,26 +225,6 @@ static Expr *p_atom()
 	}
 	
 	return expr;
-}
-
-static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
-{
-	TypeDesc *src_type = subexpr->dtype;
-	if(type_equ(src_type, dtype)) return subexpr;
-	
-	if(is_integral_type(src_type) && is_integral_type(dtype)) {
-		Expr *expr = new_expr(EX_CAST);
-		expr->start = subexpr->start;
-		expr->isconst = subexpr->isconst;
-		expr->islvalue = 0;
-		expr->subexpr = subexpr;
-		expr->dtype = dtype;
-		return expr;
-	}
-	
-	error_at(
-		subexpr->start, "can not convert type  %y  to  %y", src_type, dtype
-	);
 }
 
 static Expr *p_postfix()
@@ -300,10 +244,17 @@ static Expr *p_postfix()
 			Expr *index = p_expr();
 			if(!index)
 				error_after_last("expected index expression after [");
+			if(!is_integral_type(index->dtype))
+				error_at(index->start, "index is not integral");
+			index = eval_expr(index);
+			if(index->isconst) {
+				int64_t index_val = index->ival;
+				if(index_val >= expr->dtype->length)
+					error_at(index->start, "index is out of range");
+			}
 			if(!eat(TK_RBRACK))
 				error_after_last("expected ] after index expression");
-			Expr *subscript = new_expr(EX_SUBSCRIPT);
-			subscript->start = expr->start;
+			Expr *subscript = new_expr(EX_SUBSCRIPT, expr->start);
 			subscript->subexpr = expr;
 			subscript->index = index;
 			subscript->isconst = 0;
@@ -321,7 +272,7 @@ static Expr *p_postfix()
 static Expr *p_prefix()
 {
 	if(eat(TK_GREATER)) {
-		Expr *expr = new_expr(EX_PTR);
+		Expr *expr = new_expr(EX_PTR, last);
 		expr->subexpr = p_prefix();
 		if(!expr->subexpr)
 			error_after_last("expected target to point to");
@@ -333,7 +284,7 @@ static Expr *p_prefix()
 		return expr;
 	}
 	else if(eat(TK_LOWER)) {
-		Expr *expr = new_expr(EX_DEREF);
+		Expr *expr = new_expr(EX_DEREF, last);
 		expr->subexpr = p_prefix();
 		if(!expr->subexpr)
 			error_at_last("expected expression after <");
@@ -367,8 +318,7 @@ static Expr *p_binop()
 		Expr *right = p_prefix();
 		if(!right)
 			error_after_last("expected right side after %t", operator);
-		Expr *expr = new_expr(EX_BINOP);
-		expr->start = left->start;
+		Expr *expr = new_expr(EX_BINOP, left->start);
 		expr->left = left;
 		expr->right = right;
 		expr->operator = operator;
@@ -398,23 +348,13 @@ static Expr *p_binop()
 
 static Expr *p_expr()
 {
-	return p_binop();
-}
-
-static Stmt *new_stmt(StmtType type)
-{
-	Stmt *stmt = malloc(sizeof(Stmt));
-	stmt->type = type;
-	stmt->start = last;
-	stmt->next = 0;
-	stmt->scope = scope;
-	return stmt;
+	return eval_expr(p_binop());
 }
 
 static Stmt *p_print()
 {
 	if(!eat(TK_print)) return 0;
-	Stmt *stmt = new_stmt(ST_PRINT);
+	Stmt *stmt = new_stmt(ST_PRINT, last, scope);
 	stmt->expr = p_expr();
 	if(!stmt->expr)
 		error_after_last("expected expression to print");
@@ -428,7 +368,7 @@ static Stmt *p_print()
 static Stmt *p_vardecl()
 {
 	if(!eat(TK_var)) return 0;
-	Stmt *stmt = new_stmt(ST_VARDECL);
+	Stmt *stmt = new_stmt(ST_VARDECL, last, scope);
 	stmt->next_decl = 0;
 	Token *id = eat(TK_IDENT);
 	if(!id)
@@ -467,7 +407,7 @@ static Stmt *p_vardecl()
 static Stmt *p_ifstmt()
 {
 	if(!eat(TK_if)) return 0;
-	Stmt *stmt = new_stmt(ST_IFSTMT);
+	Stmt *stmt = new_stmt(ST_IFSTMT, last, scope);
 	stmt->expr = p_expr();
 	if(!stmt->expr)
 		error_at_last("expected condition after if");
@@ -494,7 +434,7 @@ static Stmt *p_ifstmt()
 static Stmt *p_whilestmt()
 {
 	if(!eat(TK_while)) return 0;
-	Stmt *stmt = new_stmt(ST_WHILESTMT);
+	Stmt *stmt = new_stmt(ST_WHILESTMT, last, scope);
 	stmt->expr = p_expr();
 	if(!stmt->expr)
 		error_at_last("expected condition after while");
@@ -512,8 +452,7 @@ static Stmt *p_assign()
 	if(!target) return 0;
 	if(!target->islvalue)
 		error_at(target->start, "left side is not assignable");
-	Stmt *stmt = new_stmt(ST_ASSIGN);
-	stmt->start = target->start;
+	Stmt *stmt = new_stmt(ST_ASSIGN, target->start, scope);
 	stmt->target = target;
 	if(!eat(TK_ASSIGN))
 		error_after_last("expected = after left side");

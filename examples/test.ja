@@ -1,33 +1,15 @@
 
-var si = [1,2][0];
+var x = 9;
+var y = [4, x];
+var z = [y, [2,5]];
 
-var ba : [2]bool= [1,2];
+print z[0][0];
 
-var a2 = 9;
-var b2 = [a2, a2 + 1];
 
-print b2[0];
-print b2[1];
+var yy = [[1,2],[3,4]];
 
-var a : [2]int;
+var xx : [2][2]int;
 
-a[0] = 23;
-a[1] = 42;
+xx = [[1,2],[3,4]];
 
-var b = a;
-
-print b[0];
-
-var c = >b[1];
-
-print a[0] as bool as int;
-
-print c;
-
-var x = [1, 2];
-var y = [a[0], a[1]];
-
-print x[0];
-
-x = [1,2];
-
+z = [yy[1], [x, z[1][0]]];

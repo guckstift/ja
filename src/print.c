@@ -267,7 +267,7 @@ static void print_expr(Expr *expr)
 			print_int(expr->ival);
 			break;
 		case EX_BOOL:
-			if(expr->bval)
+			if(expr->ival)
 				print_keyword_cstr("true");
 			else
 				print_keyword_cstr("false");

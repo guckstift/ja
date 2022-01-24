@@ -12,6 +12,7 @@ static int64_t level;
 static void gen_stmts(Stmt *stmts);
 static void gen_vardecls(Stmt *stmts);
 static void gen_vardecl(Stmt *stmt);
+static void gen_assign(Expr *target, Expr *expr);
 
 static void write(char *msg, ...)
 {
@@ -28,6 +29,16 @@ static void write(char *msg, ...)
 static void gen_indent()
 {
 	for(int64_t i=0; i<level; i++) write("    ");
+}
+
+static void gen_int(uint64_t val)
+{
+	write("%" PRId64, val);
+}
+
+static void gen_uint(uint64_t val)
+{
+	write("%" PRIu64, val);
 }
 
 static void gen_ident(Token *id)
@@ -67,7 +78,7 @@ static void gen_type_postfix(TypeDesc *dtype)
 			break;
 		case TY_ARRAY:
 			write("[");
-			write("UINT64_C(%" PRIu64 ")", dtype->length);
+			gen_uint(dtype->length);
 			write("]");
 			gen_type_postfix(dtype->subtype);
 			break;
@@ -78,10 +89,10 @@ static void gen_expr(Expr *expr)
 {
 	switch(expr->type) {
 		case EX_INT:
-			write("INT64_C(%" PRId64 ")", expr->ival);
+			gen_int(expr->ival);
 			break;
 		case EX_BOOL:
-			write(expr->bval ? "jatrue" : "jafalse");
+			write(expr->ival ? "jatrue" : "jafalse");
 			break;
 		case EX_VAR:
 			gen_ident(expr->id);
@@ -141,7 +152,7 @@ static void gen_init_expr(Expr *expr)
 		for(Expr *item = expr->exprs; item; item = item->next) {
 			if(item != expr->exprs)
 				write(", ");
-			gen_expr(item);
+			gen_init_expr(item);
 		}
 		write("}");
 	}
@@ -152,19 +163,30 @@ static void gen_init_expr(Expr *expr)
 
 static void gen_assign(Expr *target, Expr *expr)
 {
-	gen_indent();
-	
 	if(target->dtype->type == TY_ARRAY) {
-		TypeDesc *dtype = target->dtype;
-		write("memcpy(");
-		gen_expr(target);
-		write(", ");
-		gen_expr(expr);
-		write(", sizeof(");
-		gen_expr(target);
-		write("));\n", dtype->length);
+		if(expr->type == EX_ARRAY) {
+			Expr *item = expr->exprs;
+			for(uint64_t i=0; i < expr->length; i++, item = item->next) {
+				gen_assign(
+					new_subscript(target, new_int_expr(i, target->start)),
+					item
+				);
+			}
+		}
+		else {
+			gen_indent();
+			write("memcpy(");
+			gen_expr(target);
+			write(", ");
+			gen_expr(expr);
+			write(", sizeof(");
+			gen_type(target->dtype);
+			gen_type_postfix(target->dtype);
+			write("));\n");
+		}
 	}
 	else {
+		gen_indent();
 		gen_expr(target);
 		write(" = ");
 		gen_expr(expr);
