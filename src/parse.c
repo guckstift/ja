@@ -250,7 +250,11 @@ static Expr *p_postfix()
 			if(index->isconst) {
 				int64_t index_val = index->ival;
 				if(index_val >= expr->dtype->length)
-					error_at(index->start, "index is out of range");
+					error_at(
+						index->start,
+						"index is out of range, must be between 0 .. %u",
+						expr->dtype->length - 1
+					);
 			}
 			if(!eat(TK_RBRACK))
 				error_after_last("expected ] after index expression");

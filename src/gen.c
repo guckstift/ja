@@ -235,14 +235,18 @@ static void gen_stmt(Stmt *stmt)
 			break;
 		case ST_VARDECL:
 			if(stmt->scope->parent) {
+				// local var
 				gen_vardecl(stmt);
 			}
-			else if(stmt->expr && !stmt->expr->isconst) {
-				Expr target;
-				target.type = EX_VAR;
-				target.dtype = stmt->dtype;
-				target.id = stmt->id;
-				gen_assign(&target, stmt->expr);
+			else {
+				// global var
+				if(stmt->expr && !stmt->expr->isconst) {
+					// with non-constant initializer
+					gen_assign(
+						new_var_expr(stmt->id, stmt->dtype, stmt->start),
+						stmt->expr
+					);
+				}
 			}
 			break;
 		case ST_IFSTMT:
@@ -302,19 +306,35 @@ static void gen_vardecl(Stmt *stmt)
 	gen_type_postfix(stmt->dtype);
 	
 	if(stmt->expr) {
-		if(stmt->expr->isconst || stmt->scope->parent) {
+		// has initializer
+		if(
+			stmt->expr->isconst ||
+			stmt->scope->parent && stmt->expr->type != EX_ARRAY
+		) {
+			// is constant or for local var (no array literal)
+			// => in-place init possible
 			write(" = ");
 			gen_init_expr(stmt->expr);
+			write(";\n");
+		}
+		else if(stmt->scope->parent && stmt->expr->type == EX_ARRAY) {
+			// array literal initializer for local var
+			write(";\n");
+			gen_assign(
+				new_var_expr(stmt->id, stmt->dtype, stmt->start),
+				stmt->expr
+			);
+		}
+		else {
+			write(";\n");
 		}
 	}
 	else if(stmt->dtype->type == TY_ARRAY) {
-		write(" = {0}");
+		write(" = {0};\n");
 	}
 	else {
-		write(" = 0");
+		write(" = 0;\n");
 	}
-	
-	write(";\n");
 }
 
 static void gen_vardecls(Stmt *stmts)

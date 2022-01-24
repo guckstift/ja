@@ -142,7 +142,11 @@ Tokens *lex(char *src, int64_t src_len)
 			
 			if(match("0x")) {
 				pos += 2;
-				while(isxdigit(*pos)) {
+				while(isxdigit(*pos) || *pos == '_') {
+					if(*pos == '_') {
+						pos ++;
+						continue;
+					}
 					ival *= 16;
 					ival += hex2int(*pos);
 					pos ++;
@@ -151,7 +155,11 @@ Tokens *lex(char *src, int64_t src_len)
 				last_token->ival = ival;
 			}
 			else {
-				while(isdigit(*pos)) {
+				while(isdigit(*pos) || *pos == '_') {
+					if(*pos == '_') {
+						pos ++;
+						continue;
+					}
 					ival *= 10;
 					ival += *pos - '0';
 					pos ++;

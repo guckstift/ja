@@ -73,6 +73,16 @@ Expr *new_int_expr(int64_t val, Token *start)
 	return expr;
 }
 
+Expr *new_var_expr(Token *id, TypeDesc *dtype, Token *start)
+{
+	Expr *expr = new_expr(EX_VAR, start);
+	expr->id = id;
+	expr->isconst = 0;
+	expr->islvalue = 1;
+	expr->dtype = dtype;
+	return expr;
+}
+
 Expr *new_subscript(Expr *subexpr, Expr *index)
 {
 	Expr *expr = new_expr(EX_SUBSCRIPT, subexpr->start);
@@ -94,9 +104,9 @@ Stmt *new_stmt(StmtType type, Token *start, Scope *scope)
 	return stmt;
 }
 
-Stmt *new_assign(Expr *target, Expr *expr, Token *start, Scope *scope)
+Stmt *new_assign(Expr *target, Expr *expr, Scope *scope)
 {
-	Stmt *stmt = new_stmt(ST_ASSIGN, start, scope);
+	Stmt *stmt = new_stmt(ST_ASSIGN, target->start, scope);
 	stmt->target = target;
 	stmt->expr = expr;
 	return stmt;
