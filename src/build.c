@@ -130,13 +130,35 @@ static Unit *build_unit(char *filename)
 	fclose(fs);
 	
 	unit->tokens = lex(unit->src, unit->src_len);
+	#ifdef JA_DEBUG
 	print_tokens(unit->tokens);
+	#endif
 	
 	unit->stmts = parse(unit->tokens);
+	#ifdef JA_DEBUG
 	print_ast(unit->stmts);
+	#endif
 	
 	gen(unit);
+	#ifdef JA_DEBUG
 	print_c_code(unit->c_filename);
+	#endif
+	
+	char *exe_filename = 0;
+	str_append(exe_filename, cache_dir);
+	str_append(exe_filename, "/");
+	str_append(exe_filename, unit_id);
+	
+	char *cc_cmd = 0;
+	str_append(cc_cmd, "gcc -o ");
+	str_append(cc_cmd, exe_filename);
+	str_append(cc_cmd, " ");
+	str_append(cc_cmd, c_filename);
+	
+	int res = system(cc_cmd);
+	if(res) error("could not compile the c code");
+	
+	system(exe_filename);
 }
 
 void build(char *main_filename)
