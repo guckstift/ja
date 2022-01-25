@@ -45,7 +45,7 @@ int type_equ(TypeDesc *dtype1, TypeDesc *dtype2)
 int is_integer_type(TypeDesc *dtype)
 {
 	Type type = dtype->type;
-	return type == TY_INT64 || type == TY_UINT64;
+	return type == TY_INT64 || type == TY_UINT8 || type == TY_UINT64;
 }
 
 int is_integral_type(TypeDesc *dtype)

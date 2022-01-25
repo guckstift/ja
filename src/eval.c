@@ -22,18 +22,36 @@ Expr *eval_expr(Expr *expr)
 		}
 		case EX_CAST: {
 			Expr *subexpr = expr->subexpr = eval_expr(expr->subexpr);
+			TypeDesc *src_type = subexpr->dtype;
+			TypeDesc *dtype = expr->dtype;
 			if(subexpr->isconst) {
-				if(is_integral_type(subexpr->dtype)) {
-					if(expr->dtype->type == TY_BOOL) {
+				if(is_integral_type(src_type)) {
+					if(dtype->type == TY_BOOL) {
 						expr->type = EX_BOOL;
 						expr->ival = subexpr->ival ? 1 : 0;
 					}
-					else if(is_integer_type(expr->dtype)) {
+					else if(is_integer_type(dtype)) {
 						expr->type = EX_INT;
 						expr->ival = subexpr->ival;
 					}
 				}
 			}
+			
+			// int and bool literals can be converted on the fly
+			if(
+				(subexpr->type == EX_INT || subexpr->type == EX_BOOL) &&
+				is_integer_type(dtype)
+			) {
+				switch(dtype->type) {
+					case TY_UINT8:
+						subexpr->ival = (uint8_t)subexpr->ival;
+						break;
+				}
+				subexpr->type = EX_INT;
+				subexpr->dtype = dtype;
+				return subexpr;
+			}
+			
 			break;
 		}
 		case EX_SUBSCRIPT: {

@@ -95,6 +95,9 @@ static void gen_type(TypeDesc *dtype)
 		case TY_INT64:
 			write("int64_t");
 			break;
+		case TY_UINT8:
+			write("uint8_t");
+			break;
 		case TY_UINT64:
 			write("uint64_t");
 			break;
@@ -211,6 +214,9 @@ static void gen_print(Expr *expr)
 	switch(expr->dtype->type) {
 		case TY_INT64:
 			write("\"%%\" PRId64");
+			break;
+		case TY_UINT8:
+			write("\"%%\" PRIu8");
 			break;
 		case TY_UINT64:
 			write("\"%%\" PRIu64");

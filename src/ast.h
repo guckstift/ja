@@ -5,6 +5,7 @@
 
 typedef enum {
 	TY_INT64,
+	TY_UINT8,
 	TY_UINT64,
 	TY_BOOL,
 	TY_PTR,

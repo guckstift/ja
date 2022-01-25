@@ -13,6 +13,7 @@
 	_(print) \
 	_(true) \
 	_(uint) \
+	_(uint8) \
 	_(var) \
 	_(while) \
 

@@ -236,6 +236,9 @@ static void fprint_type(FILE *fs, TypeDesc *dtype)
 		case TY_INT64:
 			fprint_keyword_cstr(fs, "int64");
 			break;
+		case TY_UINT8:
+			fprint_keyword_cstr(fs, "uint8");
+			break;
 		case TY_UINT64:
 			fprint_keyword_cstr(fs, "uint64");
 			break;

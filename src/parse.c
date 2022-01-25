@@ -106,6 +106,9 @@ static TypeDesc *p_type()
 	if(eat(TK_int)) {
 		return new_type(TY_INT64);
 	}
+	else if(eat(TK_uint8)) {
+		return new_type(TY_UINT8);
+	}
 	else if(eat(TK_uint)) {
 		return new_type(TY_UINT64);
 	}
@@ -136,8 +139,11 @@ static TypeDesc *p_type()
 static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
 {
 	TypeDesc *src_type = subexpr->dtype;
+	
+	// types equal => no cast needed
 	if(type_equ(src_type, dtype)) return subexpr;
 	
+	// integral types are castable into other integral types
 	if(is_integral_type(src_type) && is_integral_type(dtype)) {
 		Expr *expr = new_expr(EX_CAST, subexpr->start);
 		expr->isconst = subexpr->isconst;
@@ -145,6 +151,28 @@ static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
 		expr->subexpr = subexpr;
 		expr->dtype = dtype;
 		return expr;
+	}
+	
+	// array literal with fitting length => cast each item to subtype
+	if(
+		src_type->type == TY_ARRAY && dtype->type == TY_ARRAY &&
+		src_type->length == dtype->length &&
+		subexpr->type == EX_ARRAY
+	) {
+		Expr *prev = 0;
+		for(Expr *item = subexpr->exprs; item; item = item->next) {
+			Expr *new_item = cast_expr(item, dtype->subtype);
+			if(prev) {
+				prev->next = new_item;
+			}
+			else {
+				subexpr->exprs = new_item;
+			}
+			new_item->next = item->next;
+			item = new_item;
+			prev = item;
+		}
+		return subexpr;
 	}
 	
 	error_at(
@@ -192,15 +220,11 @@ static Expr *p_atom()
 			if(!item) break;
 			isconst = isconst && item->isconst;
 			if(first) {
+				if(!type_equ(subtype, item->dtype)) {
+					item = cast_expr(item, subtype);
+				}
 				last_expr->next = item;
 				last_expr = item;
-				if(!type_equ(subtype, item->dtype)) {
-					error_at(
-						item->start,
-						"item %u has type  %y  but should be  %y",
-						length + 1, item->dtype, subtype
-					);
-				}
 			}
 			else {
 				first = item;
@@ -352,14 +376,19 @@ static Expr *p_binop()
 
 static Expr *p_expr()
 {
-	return eval_expr(p_binop());
+	return p_binop();
+}
+
+static Expr *p_expr_evaled()
+{
+	return eval_expr(p_expr());
 }
 
 static Stmt *p_print()
 {
 	if(!eat(TK_print)) return 0;
 	Stmt *stmt = new_stmt(ST_PRINT, last, scope);
-	stmt->expr = p_expr();
+	stmt->expr = p_expr_evaled();
 	if(!stmt->expr)
 		error_after_last("expected expression to print");
 	if(stmt->expr->dtype->type == TY_ARRAY)
@@ -396,6 +425,7 @@ static Stmt *p_vardecl()
 			stmt->dtype = stmt->expr->dtype;
 		else
 			stmt->expr = cast_expr(stmt->expr, stmt->dtype);
+		stmt->expr = eval_expr(stmt->expr);
 	}
 	else {
 		stmt->expr = 0;
@@ -412,7 +442,7 @@ static Stmt *p_ifstmt()
 {
 	if(!eat(TK_if)) return 0;
 	Stmt *stmt = new_stmt(ST_IFSTMT, last, scope);
-	stmt->expr = p_expr();
+	stmt->expr = p_expr_evaled();
 	if(!stmt->expr)
 		error_at_last("expected condition after if");
 	if(!eat(TK_LCURLY))
@@ -439,7 +469,7 @@ static Stmt *p_whilestmt()
 {
 	if(!eat(TK_while)) return 0;
 	Stmt *stmt = new_stmt(ST_WHILESTMT, last, scope);
-	stmt->expr = p_expr();
+	stmt->expr = p_expr_evaled();
 	if(!stmt->expr)
 		error_at_last("expected condition after while");
 	if(!eat(TK_LCURLY))
@@ -452,7 +482,7 @@ static Stmt *p_whilestmt()
 
 static Stmt *p_assign()
 {
-	Expr *target = p_expr();
+	Expr *target = p_expr_evaled();
 	if(!target) return 0;
 	if(!target->islvalue)
 		error_at(target->start, "left side is not assignable");
@@ -463,7 +493,7 @@ static Stmt *p_assign()
 	stmt->expr = p_expr();
 	if(!stmt->expr)
 		error_at_last("expected right side after =");
-	stmt->expr = cast_expr(stmt->expr, stmt->target->dtype);
+	stmt->expr = eval_expr(cast_expr(stmt->expr, stmt->target->dtype));
 	if(!eat(TK_SEMICOLON))
 		error_after_last("expected semicolon after variable declaration");
 	return stmt;
