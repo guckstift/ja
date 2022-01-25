@@ -73,11 +73,11 @@ static void write(char *msg, ...)
 			}
 			else if(*msg == 'i') {
 				msg++;
-				fprintf(ofs, "%" PRId64, va_arg(args, int64_t));
+				fprintf(ofs, "%" PRId64 "L", va_arg(args, int64_t));
 			}
 			else if(*msg == 'u') {
 				msg++;
-				fprintf(ofs, "%" PRIu64, va_arg(args, uint64_t));
+				fprintf(ofs, "%" PRIu64 "L", va_arg(args, uint64_t));
 			}
 		}
 		else {
@@ -336,11 +336,27 @@ static void gen_vardecl(Stmt *stmt)
 	}
 }
 
+static void gen_funcdecl(Stmt *stmt)
+{
+	write("%>void %I() {\n", stmt->id);
+	gen_stmts(stmt->func_body);
+	write("%>}\n");
+}
+
 static void gen_vardecls(Stmt *stmts)
 {
 	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
 		if(stmt->type == ST_VARDECL) {
 			gen_vardecl(stmt);
+		}
+	}
+}
+
+static void gen_funcdecls(Stmt *stmts)
+{
+	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
+		if(stmt->type == ST_FUNCDECL) {
+			gen_funcdecl(stmt);
 		}
 	}
 }
@@ -357,6 +373,7 @@ void gen(Unit *unit)
 	write("#define jatrue ((jabool)1)\n");
 	write("typedef uint8_t jabool;\n");
 	gen_vardecls(unit->stmts);
+	gen_funcdecls(unit->stmts);
 	write("int main(int argc, char **argv) {\n");
 	gen_stmts(unit->stmts);
 	write("}\n");

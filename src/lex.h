@@ -8,6 +8,7 @@
 	_(bool) \
 	_(else) \
 	_(false) \
+	_(function) \
 	_(if) \
 	_(int) \
 	_(print) \
@@ -24,6 +25,8 @@
 	_(">", GREATER) \
 	_("[", LBRACK) \
 	_("]", RBRACK) \
+	_("(", LPAREN) \
+	_(")", RPAREN) \
 	_("=", ASSIGN) \
 	_(":", COLON) \
 	_(";", SEMICOLON) \

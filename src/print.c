@@ -154,9 +154,14 @@ static void print_keyword(Token *token)
 	printf(COL_RESET);
 }
 
+static void fprint_int(FILE *fs, int64_t val)
+{
+	fprintf(fs, COL_MAGENTA "%" PRId64 COL_RESET, val);
+}
+
 static void print_int(int64_t val)
 {
-	printf(COL_MAGENTA "%" PRId64 COL_RESET, val);
+	fprint_int(stdout, val);
 }
 
 static void fprint_uint(FILE *fs, uint64_t val)
@@ -251,7 +256,7 @@ static void fprint_type(FILE *fs, TypeDesc *dtype)
 			break;
 		case TY_ARRAY:
 			fprintf(fs, "[");
-			fprint_uint(fs, dtype->length);
+			fprint_int(fs, dtype->length);
 			fprintf(fs, "]");
 			fprint_type(fs, dtype->subtype);
 			break;
@@ -330,6 +335,16 @@ static void print_stmt(Stmt *stmt)
 				printf(" = ");
 				print_expr(stmt->expr);
 			}
+			break;
+		case ST_FUNCDECL:
+			print_keyword_cstr("function ");
+			print_ident(stmt->id);
+			printf("() {\n");
+			level ++;
+			print_stmts(stmt->func_body);
+			level --;
+			print_indent();
+			printf("}");
 			break;
 		case ST_IFSTMT:
 			print_keyword_cstr("if ");

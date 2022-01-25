@@ -15,7 +15,7 @@ typedef enum {
 typedef struct TypeDesc {
 	Type type;
 	struct TypeDesc *subtype;
-	uint64_t length;
+	int64_t length;
 } TypeDesc;
 
 typedef enum {
@@ -56,6 +56,7 @@ typedef struct Expr {
 typedef enum {
 	ST_PRINT, // expr
 	ST_VARDECL, // id, dtype, expr, next_decl
+	ST_FUNCDECL, // id, func_body
 	ST_IFSTMT, // expr, body, else_body
 	ST_WHILESTMT, // expr, body
 	ST_ASSIGN, // target, expr
@@ -76,6 +77,7 @@ typedef struct Stmt {
 	union {
 		TypeDesc *dtype;
 		struct Stmt *else_body;
+		struct Stmt *func_body;
 	};
 	struct Stmt *next_decl; // next declaration in scope
 } Stmt;
@@ -88,7 +90,7 @@ typedef struct Scope {
 
 TypeDesc *new_type(Type type);
 TypeDesc *new_ptr_type(TypeDesc *subtype);
-TypeDesc *new_array_type(uint64_t length, TypeDesc *subtype);
+TypeDesc *new_array_type(int64_t length, TypeDesc *subtype);
 int type_equ(TypeDesc *dtype1, TypeDesc *dtype2);
 int is_integer_type(TypeDesc *dtype);
 int is_integral_type(TypeDesc *dtype);

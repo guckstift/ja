@@ -125,12 +125,14 @@ static TypeDesc *p_type()
 		Token *length = eat(TK_INT);
 		if(!length)
 			error_at_cur("expected integer literal for array length");
+		if(length->ival <= 0)
+			error_at(length, "array length must be greater than 0");
 		if(!eat(TK_RBRACK))
 			error_after_last("expected ] after array length");
 		TypeDesc *subtype = p_type();
 		if(!subtype)
 			error_at_last("expected element type");
-		return new_array_type(length->uval, subtype);
+		return new_array_type(length->ival, subtype);
 	}
 	
 	return 0;
@@ -205,6 +207,8 @@ static Expr *p_atom()
 		Stmt *decl = lookup(expr->id);
 		if(!decl)
 			error_at_last("variable %t not declared", expr->id);
+		if(decl->type != ST_VARDECL)
+			error_at_last("%t is not a variable", expr->id);
 		expr->isconst = 0;
 		expr->islvalue = 1;
 		expr->dtype = decl->dtype;
@@ -431,10 +435,39 @@ static Stmt *p_vardecl()
 		stmt->expr = 0;
 	}
 	
+	if(stmt->expr == 0 && stmt->dtype == 0)
+		error_at(id, "variable without type declared");
+	
 	if(!declare(stmt))
-		error_at(id, "variable %t already declared", id);
+		error_at(id, "name %t already declared", id);
 	if(!eat(TK_SEMICOLON))
 		error_after_last("expected semicolon after variable declaration");
+	return stmt;
+}
+
+static Stmt *p_funcdecl()
+{
+	if(!eat(TK_function)) return 0;
+	Stmt *stmt = new_stmt(ST_FUNCDECL, last, scope);
+	Token *id = eat(TK_IDENT);
+	if(!id)
+		error_after_last("expected identifier after keyword function");
+	stmt->id = id->id;
+	
+	if(!eat(TK_LPAREN))
+		error_after_last("expected ( after function name");
+	if(!eat(TK_RPAREN))
+		error_after_last("expected ) after (");
+	
+	if(!eat(TK_LCURLY))
+		error_after_last("expected {");
+	stmt->func_body = p_stmts();
+	if(!eat(TK_RCURLY))
+		error_after_last("expected } after function body");
+	
+	if(!declare(stmt))
+		error_at(id, "name %t already declared", id);
+	
 	return stmt;
 }
 
@@ -504,6 +537,7 @@ static Stmt *p_stmt()
 	Stmt *stmt = 0;
 	(stmt = p_print()) ||
 	(stmt = p_vardecl()) ||
+	(stmt = p_funcdecl()) ||
 	(stmt = p_ifstmt()) ||
 	(stmt = p_whilestmt()) ||
 	(stmt = p_assign()) ;

@@ -16,7 +16,7 @@ TypeDesc *new_ptr_type(TypeDesc *subtype)
 	return dtype;
 }
 
-TypeDesc *new_array_type(uint64_t length, TypeDesc *subtype)
+TypeDesc *new_array_type(int64_t length, TypeDesc *subtype)
 {
 	TypeDesc *dtype = malloc(sizeof(TypeDesc));
 	dtype->type = TY_ARRAY;
