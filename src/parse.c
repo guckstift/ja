@@ -499,7 +499,7 @@ static Stmt *p_stmts()
 	return first_stmt;
 }
 
-Unit *parse(Tokens *tokens)
+Stmt *parse(Tokens *tokens)
 {
 	cur = tokens->first;
 	last = 0;
@@ -508,7 +508,5 @@ Unit *parse(Tokens *tokens)
 	Stmt *stmts = p_stmts();
 	if(!eat(TK_EOF))
 		error_at_cur("invalid statement");
-	Unit *unit = malloc(sizeof(Unit));
-	unit->stmts = stmts;
-	return unit;
+	return stmts;
 }

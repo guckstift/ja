@@ -341,8 +341,7 @@ static void gen_vardecls(Stmt *stmts)
 
 void gen(Unit *unit)
 {
-	ofs = stdout;
-	ofs = fopen("./output.c", "wb");
+	ofs = fopen(unit->c_filename, "wb");
 	level = 0;
 	write("#include <stdio.h>\n");
 	write("#include <stdint.h>\n");
@@ -355,14 +354,5 @@ void gen(Unit *unit)
 	write("int main(int argc, char **argv) {\n");
 	gen_stmts(unit->stmts);
 	write("}\n");
-	fclose(ofs);
-	
-	printf(COL_YELLOW "=== code ===" COL_RESET "\n");
-	ofs = fopen("./output.c", "rb");
-	while(!feof(ofs)) {
-		int ch = fgetc(ofs);
-		if(ch == EOF) break;
-		fputc(ch, stdout);
-	}
 	fclose(ofs);
 }

@@ -376,9 +376,23 @@ static void print_stmts(Stmt *stmts)
 	}
 }
 
-void print_unit(Unit *unit)
+void print_ast(Stmt *stmts)
 {
 	level = 0;
 	printf(COL_YELLOW "=== ast ===" COL_RESET "\n");
-	print_stmts(unit->stmts);
+	print_stmts(stmts);
+}
+
+void print_c_code(char *c_filename)
+{
+	printf(COL_YELLOW "=== code ===" COL_RESET "\n");
+	FILE *fs = fopen(c_filename, "rb");
+	
+	while(!feof(fs)) {
+		int ch = fgetc(fs);
+		if(ch == EOF) break;
+		fputc(ch, stdout);
+	}
+	
+	fclose(fs);
 }
