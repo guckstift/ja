@@ -68,6 +68,7 @@ typedef enum {
 	ST_WHILESTMT, // expr, body
 	ST_ASSIGN, // target, expr
 	ST_CALL, // call
+	ST_RETURN, // expr
 } StmtType;
 
 typedef struct Stmt {
@@ -97,6 +98,7 @@ typedef struct Scope {
 	Stmt *first_decl;
 	Stmt *last_decl;
 	struct Scope *parent;
+	Stmt *func;
 } Scope;
 
 TypeDesc *new_type(Type type);

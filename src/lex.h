@@ -12,6 +12,7 @@
 	_(if) \
 	_(int) \
 	_(print) \
+	_(return) \
 	_(true) \
 	_(uint) \
 	_(uint8) \

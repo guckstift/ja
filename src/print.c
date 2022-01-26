@@ -349,7 +349,12 @@ static void print_stmt(Stmt *stmt)
 		case ST_FUNCDECL:
 			print_keyword_cstr("function ");
 			print_ident(stmt->id);
-			printf("() {\n");
+			printf("()");
+			if(stmt->dtype->returntype->type != TY_NONE) {
+				printf(" : ");
+				print_type(stmt->dtype->returntype);
+			}
+			printf(" {\n");
 			level ++;
 			print_stmts(stmt->func_body);
 			level --;
@@ -394,6 +399,11 @@ static void print_stmt(Stmt *stmt)
 			break;
 		case ST_CALL:
 			print_expr(stmt->call);
+			break;
+		case ST_RETURN:
+			print_keyword_cstr("return ");
+			if(stmt->expr)
+				print_expr(stmt->expr);
 			break;
 	}
 }

@@ -13,7 +13,7 @@ static Token *last;
 static char *src_end;
 static Scope *scope;
 
-static Stmt *p_stmts();
+static Stmt *p_stmts(Stmt *func);
 static Expr *p_expr();
 
 static void error_at(Token *token, char *msg, ...)
@@ -493,11 +493,21 @@ static Stmt *p_funcdecl()
 		error_after_last("expected ) after (");
 	
 	stmt->dtype = new_type(TY_FUNC);
-	stmt->dtype->returntype = new_type(TY_NONE);
+	
+	if(eat(TK_COLON)) {
+		Token *start = cur;
+		stmt->dtype->returntype = p_type();
+		
+		if(!is_integral_type(stmt->dtype->returntype))
+			error_at(start, "functions can only return numbers");
+	}
+	else {
+		stmt->dtype->returntype = new_type(TY_NONE);
+	}
 	
 	if(!eat(TK_LCURLY))
 		error_after_last("expected {");
-	stmt->func_body = p_stmts();
+	stmt->func_body = p_stmts(stmt);
 	if(!eat(TK_RCURLY))
 		error_after_last("expected } after function body");
 	
@@ -516,14 +526,14 @@ static Stmt *p_ifstmt()
 		error_at_last("expected condition after if");
 	if(!eat(TK_LCURLY))
 		error_after_last("expected { after condition");
-	stmt->body = p_stmts();
+	stmt->body = p_stmts(0);
 	if(!eat(TK_RCURLY))
 		error_after_last("expected } after if-body");
 		
 	if(eat(TK_else)) {
 		if(!eat(TK_LCURLY))
 			error_after_last("expected { after else");
-		stmt->else_body = p_stmts();
+		stmt->else_body = p_stmts(0);
 		if(!eat(TK_RCURLY))
 			error_after_last("expected } after else-body");
 	}
@@ -543,9 +553,38 @@ static Stmt *p_whilestmt()
 		error_at_last("expected condition after while");
 	if(!eat(TK_LCURLY))
 		error_after_last("expected { after condition");
-	stmt->body = p_stmts();
+	stmt->body = p_stmts(0);
 	if(!eat(TK_RCURLY))
 		error_after_last("expected } after while-body");
+	return stmt;
+}
+
+static Stmt *p_returnstmt()
+{
+	if(!eat(TK_return)) return 0;
+	Stmt *func = scope->func;
+	
+	if(!func)
+		error_at_last("return outside of any function");
+	
+	TypeDesc *returntype = func->dtype->returntype;
+	Stmt *stmt = new_stmt(ST_RETURN, last, scope);
+	stmt->expr = p_expr();
+	
+	if(returntype->type == TY_NONE) {
+		if(stmt->expr)
+			error_at(stmt->expr->start, "function should not return values");
+	}
+	else {
+		if(!stmt->expr)
+			error_after_last("expected expression to return");
+		stmt->expr = cast_expr(stmt->expr, returntype);
+		stmt->expr = eval_expr(stmt->expr);
+	}
+	
+	if(!eat(TK_SEMICOLON))
+		error_after_last("expected semicolon after return statement");
+	
 	return stmt;
 }
 
@@ -583,17 +622,26 @@ static Stmt *p_stmt()
 	(stmt = p_funcdecl()) ||
 	(stmt = p_ifstmt()) ||
 	(stmt = p_whilestmt()) ||
+	(stmt = p_returnstmt()) ||
 	(stmt = p_assign()) ;
 	return stmt;
 }
 
-static Stmt *p_stmts()
+static Stmt *p_stmts(Stmt *func)
 {
 	Scope *new_scope = malloc(sizeof(Scope));
 	new_scope->parent = scope;
 	scope = new_scope;
 	scope->first_decl = 0;
 	scope->last_decl = 0;
+	
+	if(func)
+		scope->func = func;
+	else if(scope->parent)
+		scope->func = scope->parent->func;
+	else
+		scope->func = 0;
+	
 	Stmt *first_stmt = 0;
 	Stmt *last_stmt = 0;
 	while(1) {
@@ -612,7 +660,7 @@ Stmt *parse(Tokens *tokens)
 	last = 0;
 	src_end = tokens->last->start + tokens->last->length;
 	scope = 0;
-	Stmt *stmts = p_stmts();
+	Stmt *stmts = p_stmts(0);
 	if(!eat(TK_EOF))
 		error_at_cur("invalid statement");
 	return stmts;

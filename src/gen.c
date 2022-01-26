@@ -92,6 +92,9 @@ static void write(char *msg, ...)
 static void gen_type(TypeDesc *dtype)
 {
 	switch(dtype->type) {
+		case TY_NONE:
+			write("void");
+			break;
 		case TY_INT64:
 			write("int64_t");
 			break;
@@ -288,6 +291,12 @@ static void gen_stmt(Stmt *stmt)
 		case ST_CALL:
 			write("%>%e;\n", stmt->call);
 			break;
+		case ST_RETURN:
+			if(stmt->expr)
+				write("%>return %e;\n", stmt->expr);
+			else
+				write("%>return;\n");
+			break;
 	}
 }
 
@@ -344,7 +353,8 @@ static void gen_vardecl(Stmt *stmt)
 
 static void gen_funcdecl(Stmt *stmt)
 {
-	write("%>static void %I() {\n", stmt->id);
+	TypeDesc *returntype = stmt->dtype->returntype;
+	write("%>static %y %I%z() {\n", returntype, stmt->id, returntype);
 	gen_stmts(stmt->func_body);
 	write("%>}\n");
 }
