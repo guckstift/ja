@@ -20,7 +20,7 @@ typedef struct TypeDesc {
 		struct TypeDesc *subtype;
 		struct TypeDesc *returntype;
 	};
-	int64_t length;
+	int64_t length; // -1 = unknown
 } TypeDesc;
 
 typedef enum {

@@ -1,0 +1,12 @@
+var x = 10;
+
+function foo()
+{
+	if x {
+		print x;
+		x = x - 1;
+		foo();
+	}
+}
+
+foo();

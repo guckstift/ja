@@ -259,7 +259,7 @@ static void fprint_type(FILE *fs, TypeDesc *dtype)
 			break;
 		case TY_ARRAY:
 			fprintf(fs, "[");
-			fprint_int(fs, dtype->length);
+			if(dtype->length >= 0) fprint_int(fs, dtype->length);
 			fprintf(fs, "]");
 			fprint_type(fs, dtype->subtype);
 			break;
@@ -435,5 +435,6 @@ void print_c_code(char *c_filename)
 		fputc(ch, stdout);
 	}
 	
+	printf(COL_YELLOW "=== end ===" COL_RESET "\n");
 	fclose(fs);
 }

@@ -123,16 +123,20 @@ static TypeDesc *p_type()
 	}
 	else if(eat(TK_LBRACK)) {
 		Token *length = eat(TK_INT);
-		if(!length)
-			error_at_cur("expected integer literal for array length");
-		if(length->ival <= 0)
-			error_at(length, "array length must be greater than 0");
-		if(!eat(TK_RBRACK))
-			error_after_last("expected ] after array length");
+		if(length) {
+			if(length->ival <= 0)
+				error_at(length, "array length must be greater than 0");
+		}
+		if(!eat(TK_RBRACK)) {
+			if(!length)
+				error_at_cur("expected integer literal for array length or ]");
+			else
+				error_after_last("expected ] after array length");
+		}
 		TypeDesc *subtype = p_type();
 		if(!subtype)
 			error_at_last("expected element type");
-		return new_array_type(length->ival, subtype);
+		return new_array_type(length ? length->ival : -1, subtype);
 	}
 	
 	return 0;
@@ -155,26 +159,32 @@ static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
 		return expr;
 	}
 	
-	// array literal with fitting length => cast each item to subtype
+	// arrays with equal length or undefined target length
 	if(
 		src_type->type == TY_ARRAY && dtype->type == TY_ARRAY &&
-		src_type->length == dtype->length &&
-		subexpr->type == EX_ARRAY
+		(src_type->length == dtype->length || dtype->length == -1)
 	) {
-		Expr *prev = 0;
-		for(Expr *item = subexpr->exprs; item; item = item->next) {
-			Expr *new_item = cast_expr(item, dtype->subtype);
-			if(prev) {
-				prev->next = new_item;
+		// array literal => cast each item to subtype
+		if(subexpr->type == EX_ARRAY) {
+			Expr *prev = 0;
+			for(Expr *item = subexpr->exprs; item; item = item->next) {
+				Expr *new_item = cast_expr(item, dtype->subtype);
+				if(prev) {
+					prev->next = new_item;
+				}
+				else {
+					subexpr->exprs = new_item;
+				}
+				new_item->next = item->next;
+				item = new_item;
+				prev = item;
 			}
-			else {
-				subexpr->exprs = new_item;
-			}
-			new_item->next = item->next;
-			item = new_item;
-			prev = item;
+			return subexpr;
 		}
-		return subexpr;
+		// no array literal, at least subtypes should match
+		else if(type_equ(src_type->subtype, dtype->subtype)) {
+			return subexpr;
+		}
 	}
 	
 	if(src_type->type == TY_NONE)
@@ -459,10 +469,16 @@ static Stmt *p_vardecl()
 			stmt->dtype = stmt->expr->dtype;
 		else
 			stmt->expr = cast_expr(stmt->expr, stmt->dtype);
+		
 		stmt->expr = eval_expr(stmt->expr);
-	
+		
 		if(stmt->expr->dtype->type == TY_NONE)
 			error_at(stmt->expr->start, "expression has no value");
+		
+		TypeDesc *dtype = stmt->dtype;
+		
+		if(dtype->type == TY_ARRAY && dtype->length == -1)
+			dtype->length = stmt->expr->dtype->length;
 	}
 	else {
 		stmt->expr = 0;
@@ -470,6 +486,9 @@ static Stmt *p_vardecl()
 	
 	if(stmt->expr == 0 && stmt->dtype == 0)
 		error_at(id, "variable without type declared");
+	
+	if(stmt->dtype->type == TY_ARRAY && stmt->dtype->length == -1)
+		error_at(id, "array of unknown length declared");
 	
 	if(!declare(stmt))
 		error_at(id, "name %t already declared", id);

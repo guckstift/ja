@@ -1,14 +1,3 @@
-var x = 10;
+var a = [15, true];
+var x : []int = [a[1]];
 
-function foo()
-{
-	if x {
-		print x;
-		x = x - 1;
-		foo();
-	}
-}
-
-foo();
-foo();
-foo();
