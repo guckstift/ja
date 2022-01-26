@@ -481,6 +481,10 @@ static Stmt *p_vardecl()
 static Stmt *p_funcdecl()
 {
 	if(!eat(TK_function)) return 0;
+	
+	if(scope->parent)
+		error_at_last("functions can only be declared at top level");
+	
 	Stmt *stmt = new_stmt(ST_FUNCDECL, last, scope);
 	Token *id = eat(TK_IDENT);
 	if(!id)
