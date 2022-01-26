@@ -238,6 +238,9 @@ static void print_indent()
 static void fprint_type(FILE *fs, TypeDesc *dtype)
 {
 	switch(dtype->type) {
+		case TY_NONE:
+			fprint_keyword_cstr(fs, "none");
+			break;
 		case TY_INT64:
 			fprint_keyword_cstr(fs, "int64");
 			break;
@@ -259,6 +262,9 @@ static void fprint_type(FILE *fs, TypeDesc *dtype)
 			fprint_int(fs, dtype->length);
 			fprintf(fs, "]");
 			fprint_type(fs, dtype->subtype);
+			break;
+		case TY_FUNC:
+			fprint_keyword_cstr(fs, "function");
 			break;
 	}
 }
@@ -315,6 +321,10 @@ static void print_expr(Expr *expr)
 				print_expr(item);
 			}
 			printf("]");
+			break;
+		case EX_CALL:
+			print_expr(expr->callee);
+			printf("()");
 			break;
 	}
 }
@@ -381,6 +391,9 @@ static void print_stmt(Stmt *stmt)
 			print_expr(stmt->target);
 			printf(" = ");
 			print_expr(stmt->expr);
+			break;
+		case ST_CALL:
+			print_expr(stmt->call);
 			break;
 	}
 }

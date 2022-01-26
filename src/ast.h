@@ -4,17 +4,22 @@
 #include "lex.h"
 
 typedef enum {
+	TY_NONE,
 	TY_INT64,
 	TY_UINT8,
 	TY_UINT64,
 	TY_BOOL,
 	TY_PTR,
 	TY_ARRAY,
+	TY_FUNC,
 } Type;
 
 typedef struct TypeDesc {
 	Type type;
-	struct TypeDesc *subtype;
+	union {
+		struct TypeDesc *subtype;
+		struct TypeDesc *returntype;
+	};
 	int64_t length;
 } TypeDesc;
 
@@ -28,6 +33,7 @@ typedef enum {
 	EX_SUBSCRIPT, // subexpr, index
 	EX_BINOP, // left, right, operator
 	EX_ARRAY, // exprs, length
+	EX_CALL, // callee
 } ExprType;
 
 typedef struct Expr {
@@ -44,6 +50,7 @@ typedef struct Expr {
 		struct Expr *subexpr;
 		struct Expr *left;
 		struct Expr *exprs;
+		struct Expr *callee;
 	};
 	union {
 		struct Expr *right;
@@ -56,10 +63,11 @@ typedef struct Expr {
 typedef enum {
 	ST_PRINT, // expr
 	ST_VARDECL, // id, dtype, expr, next_decl
-	ST_FUNCDECL, // id, func_body
+	ST_FUNCDECL, // id, dtype, func_body
 	ST_IFSTMT, // expr, body, else_body
 	ST_WHILESTMT, // expr, body
 	ST_ASSIGN, // target, expr
+	ST_CALL, // call
 } StmtType;
 
 typedef struct Stmt {
@@ -68,7 +76,11 @@ typedef struct Stmt {
 	struct Stmt *next; // next in a list
 	struct Scope *scope;
 	
-	Expr *expr;
+	union {
+		Expr *expr;
+		Expr *call;
+		struct Stmt *func_body;
+	};
 	union {
 		Token *id;
 		struct Stmt *body;
@@ -77,7 +89,6 @@ typedef struct Stmt {
 	union {
 		TypeDesc *dtype;
 		struct Stmt *else_body;
-		struct Stmt *func_body;
 	};
 	struct Stmt *next_decl; // next declaration in scope
 } Stmt;

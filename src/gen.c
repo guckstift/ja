@@ -164,6 +164,9 @@ static void gen_expr(Expr *expr)
 			}
 			write("}");
 			break;
+		case EX_CALL:
+			write("%e()", expr->callee);
+			break;
 	}
 }
 
@@ -282,6 +285,9 @@ static void gen_stmt(Stmt *stmt)
 		case ST_ASSIGN:
 			gen_assign(stmt->target, stmt->expr);
 			break;
+		case ST_CALL:
+			write("%>%e;\n", stmt->call);
+			break;
 	}
 }
 
@@ -338,7 +344,7 @@ static void gen_vardecl(Stmt *stmt)
 
 static void gen_funcdecl(Stmt *stmt)
 {
-	write("%>void %I() {\n", stmt->id);
+	write("%>static void %I() {\n", stmt->id);
 	gen_stmts(stmt->func_body);
 	write("%>}\n");
 }

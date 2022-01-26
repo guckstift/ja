@@ -1,8 +1,8 @@
 function foo()
 {
 	print 912;
-	function foo()
-	{
-		print 912;
-	}
 }
+
+foo();
+
+foo = 9;

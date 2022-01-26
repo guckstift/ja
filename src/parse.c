@@ -177,6 +177,9 @@ static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
 		return subexpr;
 	}
 	
+	if(src_type->type == TY_NONE)
+		error_at(subexpr->start, "expression has no value");
+	
 	error_at(
 		subexpr->start, "can not convert type  %y  to  %y", src_type, dtype
 	);
@@ -206,12 +209,17 @@ static Expr *p_atom()
 		expr->id = last->id;
 		Stmt *decl = lookup(expr->id);
 		if(!decl)
-			error_at_last("variable %t not declared", expr->id);
-		if(decl->type != ST_VARDECL)
-			error_at_last("%t is not a variable", expr->id);
-		expr->isconst = 0;
-		expr->islvalue = 1;
-		expr->dtype = decl->dtype;
+			error_at_last("name %t not declared", expr->id);
+		if(decl->type == ST_FUNCDECL) {
+			expr->isconst = 0;
+			expr->islvalue = 0;
+			expr->dtype = decl->dtype;
+		}
+		else {
+			expr->isconst = 0;
+			expr->islvalue = 1;
+			expr->dtype = decl->dtype;
+		}
 	}
 	else if(start = eat(TK_LBRACK)) {
 		Expr *first = 0;
@@ -265,6 +273,18 @@ static Expr *p_postfix()
 			if(!dtype)
 				error_after_last("expected type after as");
 			expr = cast_expr(expr, dtype);
+		}
+		else if(eat(TK_LPAREN)) {
+			if(expr->dtype->type != TY_FUNC)
+				error_at(expr->start, "not a function you are calling");
+			if(!eat(TK_RPAREN))
+				error_after_last("expected ) after (");
+			Expr *call = new_expr(EX_CALL, expr->start);
+			call->callee = expr;
+			call->isconst = 0;
+			call->islvalue = 0;
+			call->dtype = expr->dtype->returntype;
+			expr = call;
 		}
 		else if(eat(TK_LBRACK)) {
 			if(expr->dtype->type != TY_ARRAY)
@@ -393,12 +413,20 @@ static Stmt *p_print()
 	if(!eat(TK_print)) return 0;
 	Stmt *stmt = new_stmt(ST_PRINT, last, scope);
 	stmt->expr = p_expr_evaled();
+	
 	if(!stmt->expr)
 		error_after_last("expected expression to print");
-	if(stmt->expr->dtype->type == TY_ARRAY)
-		error_at(stmt->expr->start, "array printing not supported");
+	
+	if(
+		!is_integral_type(stmt->expr->dtype) &&
+		stmt->expr->dtype->type != TY_PTR
+	) {
+		error_at(stmt->expr->start, "can only print numbers or pointers");
+	}
+	
 	if(!eat(TK_SEMICOLON))
 		error_after_last("expected semicolon after print statement");
+	
 	return stmt;
 }
 
@@ -425,11 +453,16 @@ static Stmt *p_vardecl()
 		stmt->expr = p_expr();
 		if(!stmt->expr)
 			error_after_last("expected initializer after equals");
+		if(stmt->expr->dtype->type == TY_FUNC)
+			error_at_last("can not use functions as values");
 		if(stmt->dtype == 0)
 			stmt->dtype = stmt->expr->dtype;
 		else
 			stmt->expr = cast_expr(stmt->expr, stmt->dtype);
 		stmt->expr = eval_expr(stmt->expr);
+	
+		if(stmt->expr->dtype->type == TY_NONE)
+			error_at(stmt->expr->start, "expression has no value");
 	}
 	else {
 		stmt->expr = 0;
@@ -458,6 +491,9 @@ static Stmt *p_funcdecl()
 		error_after_last("expected ( after function name");
 	if(!eat(TK_RPAREN))
 		error_after_last("expected ) after (");
+	
+	stmt->dtype = new_type(TY_FUNC);
+	stmt->dtype->returntype = new_type(TY_NONE);
 	
 	if(!eat(TK_LCURLY))
 		error_after_last("expected {");
@@ -517,6 +553,13 @@ static Stmt *p_assign()
 {
 	Expr *target = p_expr_evaled();
 	if(!target) return 0;
+	
+	if(target->type == EX_CALL && eat(TK_SEMICOLON)) {
+		Stmt *stmt = new_stmt(ST_CALL, target->start, scope);
+		stmt->call = target;
+		return stmt;
+	}
+	
 	if(!target->islvalue)
 		error_at(target->start, "left side is not assignable");
 	Stmt *stmt = new_stmt(ST_ASSIGN, target->start, scope);
