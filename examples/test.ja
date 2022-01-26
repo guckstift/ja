@@ -1,17 +1,14 @@
-var x = 42;
+var x = 10;
 
-function foo() : int
+function foo()
 {
-	return true + x;
+	if x {
+		print x;
+		x = x - 1;
+		foo();
+	}
 }
 
-function bar()
-{
-	print 912;
-	return;
-}
-
-var y = foo();
-
-print y;
-
+foo();
+foo();
+foo();

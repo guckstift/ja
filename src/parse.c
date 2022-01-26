@@ -509,14 +509,14 @@ static Stmt *p_funcdecl()
 		stmt->dtype->returntype = new_type(TY_NONE);
 	}
 	
+	if(!declare(stmt))
+		error_at(id, "name %t already declared", id);
+	
 	if(!eat(TK_LCURLY))
 		error_after_last("expected {");
 	stmt->func_body = p_stmts(stmt);
 	if(!eat(TK_RCURLY))
 		error_after_last("expected } after function body");
-	
-	if(!declare(stmt))
-		error_at(id, "name %t already declared", id);
 	
 	return stmt;
 }

@@ -1,0 +1,17 @@
+var x = 42;
+
+function foo() : int
+{
+	return true + x;
+}
+
+function bar()
+{
+	print 912;
+	return;
+}
+
+var y = foo();
+
+print y;
+
