@@ -1,0 +1,10 @@
+var x = [1,2];
+var y = [>x];
+var d = y as []>[]bool;
+
+#var a : [1]>[2]int = y;
+#var b : []>[2]int = y;
+#var c : [1]>[]int = y;
+
+#var u = [1,2]
+#var v = u as []bool;

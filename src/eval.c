@@ -3,6 +3,8 @@
 
 Expr *eval_expr(Expr *expr)
 {
+	return expr;
+	
 	if(!expr) return 0;
 	
 	switch(expr->type) {

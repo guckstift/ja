@@ -35,7 +35,11 @@ int type_equ(TypeDesc *dtype1, TypeDesc *dtype2)
 		dtype1->type == TY_ARRAY && dtype2->type == TY_ARRAY
 	) {
 		return
-			dtype1->length == dtype2->length &&
+			(
+				dtype1->length == dtype2->length ||
+				dtype1->length == -1 ||
+				dtype2->length == -1
+			) &&
 			type_equ(dtype1->subtype, dtype2->subtype);
 	}
 	
@@ -91,6 +95,16 @@ Expr *new_subscript(Expr *subexpr, Expr *index)
 	expr->isconst = 0;
 	expr->islvalue = 1;
 	expr->dtype = subexpr->dtype->subtype;
+	return expr;
+}
+
+Expr *new_cast_expr(Expr *subexpr, TypeDesc *dtype)
+{
+	Expr *expr = new_expr(EX_CAST, subexpr->start);
+	expr->isconst = subexpr->isconst;
+	expr->islvalue = 0;
+	expr->subexpr = subexpr;
+	expr->dtype = dtype;
 	return expr;
 }
 

@@ -147,21 +147,36 @@ static TypeDesc *p_type()
 	return 0;
 }
 
-static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
+static Expr *cast_expr(Expr *src_expr, TypeDesc *dtype, int explicit)
 {
-	TypeDesc *src_type = subexpr->dtype;
+	TypeDesc *src_type = src_expr->dtype;
+	
+	// can not cast from none type
+	if(src_type->type == TY_NONE)
+		error_at(src_expr->start, "expression has no value");
 	
 	// types equal => no cast needed
-	if(type_equ(src_type, dtype)) return subexpr;
+	if(type_equ(src_type, dtype))
+		return src_expr;
 	
 	// integral types are castable into other integral types
-	if(is_integral_type(src_type) && is_integral_type(dtype)) {
-		Expr *expr = new_expr(EX_CAST, subexpr->start);
-		expr->isconst = subexpr->isconst;
-		expr->islvalue = 0;
-		expr->subexpr = subexpr;
-		expr->dtype = dtype;
-		return expr;
+	if(is_integral_type(src_type) && is_integral_type(dtype))
+		return new_cast_expr(src_expr, dtype);
+	
+	// one pointer to some other possible only by explicit cast
+	if(explicit && src_type->type == TY_PTR && dtype->type == TY_PTR) {
+		// automatic array length determination
+		/*
+		TypeDesc *dt = dtype;
+		TypeDesc *et = src_type;
+		while(dt->type == TY_ARRAY || dt->type == TY_PTR) {
+			if(dt->type == TY_ARRAY && dt->length == -1)
+				dt->length = et->length;
+			dt = dt->subtype;
+			et = et->subtype;
+		}
+		*/
+		return new_cast_expr(src_expr, dtype);
 	}
 	
 	// arrays with equal length or undefined target length
@@ -170,47 +185,54 @@ static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
 		(src_type->length == dtype->length || dtype->length == -1)
 	) {
 		// array literal => cast each item to subtype
-		if(subexpr->type == EX_ARRAY) {
-			Expr *prev = 0;
-			for(Expr *item = subexpr->exprs; item; item = item->next) {
-				Expr *new_item = cast_expr(item, dtype->subtype);
-				if(prev) {
-					prev->next = new_item;
-				}
-				else {
-					subexpr->exprs = new_item;
-				}
+		if(src_expr->type == EX_ARRAY) {
+			for(
+				Expr *prev = 0, *item = src_expr->exprs;
+				item;
+				prev = item, item = item->next
+			) {
+				Expr *new_item = cast_expr(item, dtype->subtype, explicit);
+				if(prev) prev->next = new_item;
+				else src_expr->exprs = new_item;
 				new_item->next = item->next;
 				item = new_item;
-				prev = item;
 			}
-			return subexpr;
+			src_type->subtype = dtype->subtype;
+			return src_expr;
 		}
-		// no array literal, at least subtypes should match
+		// no array literal => create new array literal with cast items
 		else {
-			TypeDesc *st = src_type;
-			TypeDesc *dt = dtype;
-			int ok = 1;
-			while(st->type == TY_ARRAY && dt->type == TY_ARRAY) {
-				if(st->length == dt->length || dt->length == -1) {
-					st = st->subtype;
-					dt = dt->subtype;
+			Expr *first = 0;
+			Expr *last_expr = 0;
+			for(int64_t i=0; i < src_type->length; i++) {
+				Expr *index = new_int_expr(i, src_expr->start);
+				Expr *subscript = new_subscript(src_expr, index);
+				Expr *item = cast_expr(subscript, dtype->subtype, explicit);
+				if(first) {
+					last_expr->next = item;
+					last_expr = item;
 				}
 				else {
-					ok = 0;
+					first = item;
+					last_expr = item;
 				}
 			}
-			if(ok && type_equ(st, dt)) {
-				return subexpr;
-			}
+			Expr *expr = new_expr(EX_ARRAY, src_expr->start);
+			expr->exprs = first;
+			expr->length = src_type->length;
+			expr->isconst = 0;
+			expr->islvalue = 0;
+			expr->dtype = new_type(TY_ARRAY);
+			expr->dtype->subtype = dtype->subtype;
+			expr->dtype->length = src_type->length;
+			return expr;
 		}
 	}
 	
-	if(src_type->type == TY_NONE)
-		error_at(subexpr->start, "expression has no value");
-	
 	error_at(
-		subexpr->start, "can not convert type  %y  to  %y", src_type, dtype
+		src_expr->start,
+		"can not convert type  %y  to  %y  (%s)",
+		src_type, dtype, explicit ? "explicit" : "implicit"
 	);
 }
 
@@ -262,7 +284,7 @@ static Expr *p_atom()
 			isconst = isconst && item->isconst;
 			if(first) {
 				if(!type_equ(subtype, item->dtype)) {
-					item = cast_expr(item, subtype);
+					item = cast_expr(item, subtype, 0);
 				}
 				last_expr->next = item;
 				last_expr = item;
@@ -301,7 +323,7 @@ static Expr *p_postfix()
 			TypeDesc *dtype = p_type();
 			if(!dtype)
 				error_after_last("expected type after as");
-			expr = cast_expr(expr, dtype);
+			expr = cast_expr(expr, dtype, 1);
 		}
 		else if(eat(TK_LPAREN)) {
 			if(expr->dtype->type != TY_FUNC)
@@ -410,8 +432,8 @@ static Expr *p_binop()
 		
 		if(is_integral_type(ltype) && is_integral_type(rtype)) {
 			expr->dtype = new_type(TY_INT64);
-			expr->left = cast_expr(expr->left, expr->dtype);
-			expr->right = cast_expr(expr->right, expr->dtype);
+			expr->left = cast_expr(expr->left, expr->dtype, 0);
+			expr->right = cast_expr(expr->right, expr->dtype, 0);
 		}
 		else {
 			error_at(
@@ -487,7 +509,7 @@ static Stmt *p_vardecl()
 		if(stmt->dtype == 0)
 			stmt->dtype = stmt->expr->dtype;
 		else
-			stmt->expr = cast_expr(stmt->expr, stmt->dtype);
+			stmt->expr = cast_expr(stmt->expr, stmt->dtype, 0);
 		
 		stmt->expr = eval_expr(stmt->expr);
 		
@@ -497,16 +519,13 @@ static Stmt *p_vardecl()
 		TypeDesc *dtype = stmt->dtype;
 		
 		// automatic array length from init
-		if(dtype->type == TY_ARRAY) {
-			TypeDesc *dt = dtype;
-			TypeDesc *et = stmt->expr->dtype;
-			while(dt->type == TY_ARRAY) {
-				if(dt->length == -1) {
-					dt->length = et->length;
-				}
-				dt = dt->subtype;
-				et = et->subtype;
-			}
+		TypeDesc *dt = dtype;
+		TypeDesc *et = stmt->expr->dtype;
+		while(dt->type == TY_ARRAY || dt->type == TY_PTR) {
+			if(dt->type == TY_ARRAY && dt->length == -1)
+				dt->length = et->length;
+			dt = dt->subtype;
+			et = et->subtype;
 		}
 	}
 	else {
@@ -519,7 +538,9 @@ static Stmt *p_vardecl()
 	TypeDesc *dt = stmt->dtype;
 	while(dt->type == TY_ARRAY) {
 		if(dt->length == -1)
-			error_at(id, "array of incomplete size declared");
+			error_at(
+				id, "variable with incomplete type declared  %y", stmt->dtype
+			);
 		dt = dt->subtype;
 	}
 	
@@ -635,7 +656,7 @@ static Stmt *p_returnstmt()
 	else {
 		if(!stmt->expr)
 			error_after_last("expected expression to return");
-		stmt->expr = cast_expr(stmt->expr, returntype);
+		stmt->expr = cast_expr(stmt->expr, returntype, 0);
 		stmt->expr = eval_expr(stmt->expr);
 	}
 	
@@ -665,7 +686,7 @@ static Stmt *p_assign()
 	stmt->expr = p_expr();
 	if(!stmt->expr)
 		error_at_last("expected right side after =");
-	stmt->expr = eval_expr(cast_expr(stmt->expr, stmt->target->dtype));
+	stmt->expr = eval_expr(cast_expr(stmt->expr, stmt->target->dtype, 0));
 	if(!eat(TK_SEMICOLON))
 		noexit=1,
 		error_after_last("expected semicolon after variable declaration");
