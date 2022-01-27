@@ -77,7 +77,7 @@ static void write(char *msg, ...)
 			}
 			else if(*msg == 'u') {
 				msg++;
-				fprintf(ofs, "%" PRIu64 "L", va_arg(args, uint64_t));
+				fprintf(ofs, "%" PRIu64 "UL", va_arg(args, uint64_t));
 			}
 		}
 		else {
@@ -123,7 +123,10 @@ static void gen_type_postfix(TypeDesc *dtype)
 			write(")%z", dtype->subtype);
 			break;
 		case TY_ARRAY:
-			write("[%u]%z", dtype->length, dtype->subtype);
+			if(dtype->length >= 0)
+				write("[%u]%z", dtype->length, dtype->subtype);
+			else
+				write("[]%z", dtype->subtype);
 			break;
 	}
 }

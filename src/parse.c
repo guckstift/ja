@@ -12,6 +12,7 @@ static Token *cur;
 static Token *last;
 static char *src_end;
 static Scope *scope;
+static int noexit;
 
 static Stmt *p_stmts(Stmt *func);
 static Expr *p_expr();
@@ -22,6 +23,7 @@ static void error_at(Token *token, char *msg, ...)
 	va_start(args, msg);
 	vprint_error(token->line, token->linep, src_end, token->start, msg, args);
 	va_end(args);
+	if(noexit) {noexit = 0; return;}
 	exit(EXIT_FAILURE);
 }
 
@@ -31,6 +33,7 @@ static void error_at_last(char *msg, ...)
 	va_start(args, msg);
 	vprint_error(last->line, last->linep, src_end, last->start, msg, args);
 	va_end(args);
+	if(noexit) {noexit = 0; return;}
 	exit(EXIT_FAILURE);
 }
 
@@ -40,6 +43,7 @@ static void error_at_cur(char *msg, ...)
 	va_start(args, msg);
 	vprint_error(cur->line, cur->linep, src_end, cur->start, msg, args);
 	va_end(args);
+	if(noexit) {noexit = 0; return;}
 	exit(EXIT_FAILURE);
 }
 
@@ -51,6 +55,7 @@ static void error_after_last(char *msg, ...)
 		last->line, last->linep, src_end, last->start + last->length, msg, args
 	);
 	va_end(args);
+	if(noexit) {noexit = 0; return;}
 	exit(EXIT_FAILURE);
 }
 
@@ -182,8 +187,22 @@ static Expr *cast_expr(Expr *subexpr, TypeDesc *dtype)
 			return subexpr;
 		}
 		// no array literal, at least subtypes should match
-		else if(type_equ(src_type->subtype, dtype->subtype)) {
-			return subexpr;
+		else {
+			TypeDesc *st = src_type;
+			TypeDesc *dt = dtype;
+			int ok = 1;
+			while(st->type == TY_ARRAY && dt->type == TY_ARRAY) {
+				if(st->length == dt->length || dt->length == -1) {
+					st = st->subtype;
+					dt = dt->subtype;
+				}
+				else {
+					ok = 0;
+				}
+			}
+			if(ok && type_equ(st, dt)) {
+				return subexpr;
+			}
 		}
 	}
 	
@@ -435,7 +454,7 @@ static Stmt *p_print()
 	}
 	
 	if(!eat(TK_SEMICOLON))
-		error_after_last("expected semicolon after print statement");
+		noexit=1,error_after_last("expected semicolon after print statement");
 	
 	return stmt;
 }
@@ -477,8 +496,18 @@ static Stmt *p_vardecl()
 		
 		TypeDesc *dtype = stmt->dtype;
 		
-		if(dtype->type == TY_ARRAY && dtype->length == -1)
-			dtype->length = stmt->expr->dtype->length;
+		// automatic array length from init
+		if(dtype->type == TY_ARRAY) {
+			TypeDesc *dt = dtype;
+			TypeDesc *et = stmt->expr->dtype;
+			while(dt->type == TY_ARRAY) {
+				if(dt->length == -1) {
+					dt->length = et->length;
+				}
+				dt = dt->subtype;
+				et = et->subtype;
+			}
+		}
 	}
 	else {
 		stmt->expr = 0;
@@ -487,12 +516,17 @@ static Stmt *p_vardecl()
 	if(stmt->expr == 0 && stmt->dtype == 0)
 		error_at(id, "variable without type declared");
 	
-	if(stmt->dtype->type == TY_ARRAY && stmt->dtype->length == -1)
-		error_at(id, "array of unknown length declared");
+	TypeDesc *dt = stmt->dtype;
+	while(dt->type == TY_ARRAY) {
+		if(dt->length == -1)
+			error_at(id, "array of incomplete size declared");
+		dt = dt->subtype;
+	}
 	
 	if(!declare(stmt))
 		error_at(id, "name %t already declared", id);
 	if(!eat(TK_SEMICOLON))
+		noexit=1,
 		error_after_last("expected semicolon after variable declaration");
 	return stmt;
 }
@@ -606,7 +640,7 @@ static Stmt *p_returnstmt()
 	}
 	
 	if(!eat(TK_SEMICOLON))
-		error_after_last("expected semicolon after return statement");
+		noexit=1,error_after_last("expected semicolon after return statement");
 	
 	return stmt;
 }
@@ -633,6 +667,7 @@ static Stmt *p_assign()
 		error_at_last("expected right side after =");
 	stmt->expr = eval_expr(cast_expr(stmt->expr, stmt->target->dtype));
 	if(!eat(TK_SEMICOLON))
+		noexit=1,
 		error_after_last("expected semicolon after variable declaration");
 	return stmt;
 }
@@ -679,6 +714,7 @@ static Stmt *p_stmts(Stmt *func)
 
 Stmt *parse(Tokens *tokens)
 {
+	noexit = 0;
 	cur = tokens->first;
 	last = 0;
 	src_end = tokens->last->start + tokens->last->length;
