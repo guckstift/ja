@@ -576,9 +576,6 @@ static Stmt *p_funcdecl()
 	if(eat(TK_COLON)) {
 		Token *start = cur;
 		stmt->dtype->returntype = p_type();
-		
-		if(stmt->dtype->returntype->type == TY_ARRAY)
-			error_at(start, "functions can not return arrays");
 	}
 	else {
 		stmt->dtype->returntype = new_type(TY_NONE);

@@ -16,6 +16,7 @@ static void gen_assign(Expr *target, Expr *expr);
 static void gen_type(TypeDesc *dtype);
 static void gen_type_postfix(TypeDesc *dtype);
 static void gen_expr(Expr *expr);
+static void gen_init_expr(Expr *expr);
 
 static void write(char *msg, ...)
 {
@@ -66,6 +67,11 @@ static void write(char *msg, ...)
 				msg++;
 				Expr *expr = va_arg(args, Expr*);
 				gen_expr(expr);
+			}
+			else if(*msg == 'E') {
+				msg++;
+				Expr *expr = va_arg(args, Expr*);
+				gen_init_expr(expr);
 			}
 			else if(*msg == 'I') {
 				msg++;
@@ -180,6 +186,9 @@ static void gen_expr(Expr *expr)
 			break;
 		case EX_CALL:
 			write("%e()", expr->callee);
+			if(expr->callee->dtype->returntype->type == TY_ARRAY) {
+				write(".a");
+			}
 			break;
 	}
 }
@@ -303,10 +312,25 @@ static void gen_stmt(Stmt *stmt)
 			write("%>%e;\n", stmt->call);
 			break;
 		case ST_RETURN:
-			if(stmt->expr)
-				write("%>return %e;\n", stmt->expr);
-			else
+			if(stmt->expr) {
+				Expr *result = stmt->expr;
+				TypeDesc *dtype = result->dtype;
+				if(dtype->type == TY_ARRAY) {
+					if(result->type == EX_ARRAY) {
+						write(
+							"%>return (rt%I){%E};\n",
+							stmt->scope->func->id,
+							result
+						);
+					}
+				}
+				else {
+					write("%>return %e;\n", stmt->expr);
+				}
+			}
+			else {
 				write("%>return;\n");
+			}
 			break;
 	}
 }
@@ -365,7 +389,18 @@ static void gen_vardecl(Stmt *stmt)
 static void gen_funcdecl(Stmt *stmt)
 {
 	TypeDesc *returntype = stmt->dtype->returntype;
-	write("%>static %y %I()%z {\n", returntype, stmt->id, returntype);
+	
+	if(returntype->type == TY_ARRAY) {
+		write(
+			"%>typedef struct { %y a%z; } rt%I;\n",
+			returntype, returntype, stmt->id
+		);
+		write("%>static rt%I %I() {\n", stmt->id, stmt->id);
+	}
+	else {
+		write("%>static %y %I()%z {\n", returntype, stmt->id, returntype);
+	}
+	
 	gen_stmts(stmt->func_body);
 	write("%>}\n");
 }
