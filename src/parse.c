@@ -560,6 +560,7 @@ static Stmt *p_funcdecl()
 		error_at_last("functions can only be declared at top level");
 	
 	Stmt *stmt = new_stmt(ST_FUNCDECL, last, scope);
+	stmt->next_decl = 0;
 	Token *id = eat(TK_IDENT);
 	if(!id)
 		error_after_last("expected identifier after keyword function");
@@ -576,8 +577,8 @@ static Stmt *p_funcdecl()
 		Token *start = cur;
 		stmt->dtype->returntype = p_type();
 		
-		if(!is_integral_type(stmt->dtype->returntype))
-			error_at(start, "functions can only return numbers");
+		if(stmt->dtype->returntype->type == TY_ARRAY)
+			error_at(start, "functions can not return arrays");
 	}
 	else {
 		stmt->dtype->returntype = new_type(TY_NONE);

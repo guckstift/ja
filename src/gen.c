@@ -108,7 +108,11 @@ static void gen_type(TypeDesc *dtype)
 			write("jabool");
 			break;
 		case TY_PTR:
-			write("%y(*", dtype->subtype);
+			write(
+				"%y%s*",
+				dtype->subtype,
+				dtype->subtype->type == TY_ARRAY ? "(" : ""
+			);
 			break;
 		case TY_ARRAY:
 			gen_type(dtype->subtype);
@@ -120,7 +124,11 @@ static void gen_type_postfix(TypeDesc *dtype)
 {
 	switch(dtype->type) {
 		case TY_PTR:
-			write(")%z", dtype->subtype);
+			write(
+				"%s%z",
+				dtype->subtype->type == TY_ARRAY ? ")" : "",
+				dtype->subtype
+			);
 			break;
 		case TY_ARRAY:
 			if(dtype->length >= 0)
@@ -357,7 +365,7 @@ static void gen_vardecl(Stmt *stmt)
 static void gen_funcdecl(Stmt *stmt)
 {
 	TypeDesc *returntype = stmt->dtype->returntype;
-	write("%>static %y %I%z() {\n", returntype, stmt->id, returntype);
+	write("%>static %y %I()%z {\n", returntype, stmt->id, returntype);
 	gen_stmts(stmt->func_body);
 	write("%>}\n");
 }

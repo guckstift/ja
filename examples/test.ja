@@ -1,28 +1,14 @@
+var x : [1]int;
+var a : >int;
+var b : [1]>int;
+var c : >[1]int;
+var d : [1]>[2]int;
 
-var x = [1,2];
-var y = [>x] as []>[]bool;
+var e : >>[1]int;
+var f : [1]>>[2]int;
+var g : [1]>>[2][3]int;
 
-var A = [true, false];
-var p = >A;
-var q = p as >[2]int;
-
-var d = y as []>[]bool;
-
-/*
-var x : int = 1 as bool;
-
-var z : []int = [1] as []bool;
-
-/*
-var x = [1,2];
-var y = [>x];
-var d = y as []>[]bool;
-
-var a : [1]>[2]int = y;
-var b : []>[2]int = y;
-var c : [1]>[]int = y;
-
-var u = [1,2];
-var v = u as []bool;
-
-*/
+function foo() : >[1]int
+{
+	return c;
+}
