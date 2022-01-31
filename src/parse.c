@@ -120,6 +120,16 @@ static TypeDesc *p_type()
 	else if(eat(TK_bool)) {
 		return new_type(TY_BOOL);
 	}
+	else if(eat(TK_IDENT)) {
+		TypeDesc *dtype = new_type(TY_STRUCT);
+		dtype->id = last->id;
+		Stmt *decl = lookup(dtype->id);
+		if(!decl)
+			error_at_last("name %t not declared", dtype->id);
+		if(decl->type != ST_STRUCTDECL)
+			error_at_last("%t is not a structure", dtype->id);
+		return dtype;
+	}
 	else if(eat(TK_GREATER)) {
 		TypeDesc *subtype = p_type();
 		if(!subtype)
@@ -165,17 +175,6 @@ static Expr *cast_expr(Expr *src_expr, TypeDesc *dtype, int explicit)
 	
 	// one pointer to some other possible only by explicit cast
 	if(explicit && src_type->type == TY_PTR && dtype->type == TY_PTR) {
-		// automatic array length determination
-		/*
-		TypeDesc *dt = dtype;
-		TypeDesc *et = src_type;
-		while(dt->type == TY_ARRAY || dt->type == TY_PTR) {
-			if(dt->type == TY_ARRAY && dt->length == -1)
-				dt->length = et->length;
-			dt = dt->subtype;
-			et = et->subtype;
-		}
-		*/
 		return new_cast_expr(src_expr, dtype);
 	}
 	
@@ -511,6 +510,8 @@ static Stmt *p_vardecl()
 			error_after_last("expected initializer after equals");
 		if(stmt->expr->dtype->type == TY_FUNC)
 			error_at_last("can not use functions as values");
+		if(stmt->expr->dtype->type == TY_STRUCT)
+			error_at_last("can not use structures as values");
 		if(stmt->dtype == 0)
 			stmt->dtype = stmt->expr->dtype;
 		else
@@ -596,7 +597,6 @@ static Stmt *p_funcdecl()
 		stmt->dtype->returntype = new_type(TY_NONE);
 	}
 	
-	
 	if(!declare(stmt))
 		error_at(id, "name %t already declared", id);
 	
@@ -644,6 +644,7 @@ static Stmt *p_structdecl()
 	if(!id)
 		error_after_last("expected identifier after keyword struct");
 	stmt->id = id->id;
+	stmt->dtype = new_type(TY_STRUCT);
 	
 	if(!declare(stmt))
 		error_at(id, "name %t already declared", id);

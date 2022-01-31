@@ -107,11 +107,16 @@ void print_error(
 	va_end(args);
 }
 
+static void fprint_ident(FILE *fs, Token *token)
+{
+	fprintf(fs, COL_AQUA);
+	fwrite(token->start, 1, token->length, fs);
+	fprintf(fs, COL_RESET);
+}
+
 static void print_ident(Token *token)
 {
-	printf(COL_AQUA);
-	fwrite(token->start, 1, token->length, stdout);
-	printf(COL_RESET);
+	fprint_ident(stdout, token);
 }
 
 static int64_t dec_len(int64_t val)
@@ -265,6 +270,9 @@ static void fprint_type(FILE *fs, TypeDesc *dtype)
 			break;
 		case TY_FUNC:
 			fprint_keyword_cstr(fs, "function");
+			break;
+		case TY_STRUCT:
+			fprint_ident(fs, dtype->id);
 			break;
 	}
 }

@@ -12,6 +12,7 @@ typedef enum {
 	TY_PTR,
 	TY_ARRAY,
 	TY_FUNC,
+	TY_STRUCT,
 } Type;
 
 typedef struct TypeDesc {
@@ -19,6 +20,7 @@ typedef struct TypeDesc {
 	union {
 		struct TypeDesc *subtype;
 		struct TypeDesc *returntype;
+		Token *id;
 	};
 	int64_t length; // -1 = unknown
 } TypeDesc;

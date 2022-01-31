@@ -1,7 +1,11 @@
-var a = 90;
 
 struct Foo {
 	var x : int;
 	var y : bool = true;
-	#var z = a;
 }
+
+var x : Foo;
+var y = >x;
+var z : Foo;
+
+x = z;

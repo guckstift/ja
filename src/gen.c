@@ -113,6 +113,9 @@ static void gen_type(TypeDesc *dtype)
 		case TY_BOOL:
 			write("jabool");
 			break;
+		case TY_STRUCT:
+			write("%I", dtype->id);
+			break;
 		case TY_PTR:
 			write(
 				"%y%s*",
@@ -393,7 +396,7 @@ static void gen_vardecl(Stmt *stmt)
 			write(";\n");
 		}
 	}
-	else if(stmt->dtype->type == TY_ARRAY) {
+	else if(stmt->dtype->type == TY_ARRAY || stmt->dtype->type == TY_STRUCT) {
 		write(" = {0};\n");
 	}
 	else {
