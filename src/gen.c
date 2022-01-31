@@ -158,37 +158,38 @@ static void gen_expr(Expr *expr)
 			write("%I", expr->id);
 			break;
 		case EX_PTR:
-			write("&%e", expr->subexpr);
+			write("(&%e)", expr->subexpr);
 			break;
 		case EX_DEREF:
-			write("*%e", expr->subexpr);
+			write("(*%e)", expr->subexpr);
 			break;
 		case EX_CAST:
 			if(expr->dtype->type == TY_BOOL)
 				write("(%e ? jatrue : jafalse)", expr->subexpr);
 			else
-				write("(%Y)%e", expr->dtype, expr->subexpr);
+				write("((%Y)%e)", expr->dtype, expr->subexpr);
 			break;
 		case EX_SUBSCRIPT:
-			write("%e[%e]", expr->subexpr, expr->index);
+			write("(%e[%e])", expr->subexpr, expr->index);
 			break;
 		case EX_BINOP:
-			write("%e %s %e", expr->left, expr->operator->punct, expr->right);
+			write("(%e %s %e)", expr->left, expr->operator->punct, expr->right);
 			break;
 		case EX_ARRAY:
-			write("(%Y) {", expr->dtype);
+			write("((%Y){", expr->dtype);
 			for(Expr *item = expr->exprs; item; item = item->next) {
 				if(item != expr->exprs)
 					write(", ");
 				gen_expr(item);
 			}
-			write("}");
+			write("})");
 			break;
 		case EX_CALL:
-			write("%e()", expr->callee);
+			write("(%e()", expr->callee);
 			if(expr->callee->dtype->returntype->type == TY_ARRAY) {
 				write(".a");
 			}
+			write(")");
 			break;
 	}
 }

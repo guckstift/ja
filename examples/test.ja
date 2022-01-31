@@ -1,11 +1,4 @@
 var x = [1,2];
-var y = >x[1];
-
-function foo() : [2]int
-{
-	return [1,2];
-}
-
-var z = >foo()[0];
-
-print <z;
+var y = >x;
+var z = (<y)[1];
+print z;

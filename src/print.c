@@ -290,28 +290,36 @@ static void print_expr(Expr *expr)
 			print_ident(expr->id);
 			break;
 		case EX_PTR:
-			printf(">");
+			printf("(>");
 			print_expr(expr->subexpr);
+			printf(")");
 			break;
 		case EX_DEREF:
-			printf("<");
+			printf("(<");
 			print_expr(expr->subexpr);
+			printf(")");
 			break;
 		case EX_CAST:
+			printf("(");
 			print_expr(expr->subexpr);
 			print_keyword_cstr(" as ");
 			print_type(expr->dtype);
+			printf(")");
 			break;
 		case EX_SUBSCRIPT:
+			printf("(");
 			print_expr(expr->subexpr);
 			printf("[");
 			print_expr(expr->index);
 			printf("]");
+			printf(")");
 			break;
 		case EX_BINOP:
+			printf("(");
 			print_expr(expr->left);
 			printf(" %s ", expr->operator->punct);
 			print_expr(expr->right);
+			printf(")");
 			break;
 		case EX_ARRAY:
 			printf("[");
@@ -323,8 +331,10 @@ static void print_expr(Expr *expr)
 			printf("]");
 			break;
 		case EX_CALL:
+			printf("(");
 			print_expr(expr->callee);
 			printf("()");
+			printf(")");
 			break;
 	}
 }

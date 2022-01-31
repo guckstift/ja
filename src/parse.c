@@ -310,6 +310,11 @@ static Expr *p_atom()
 		expr->dtype->subtype = subtype;
 		expr->dtype->length = length;
 	}
+	else if(start = eat(TK_LPAREN)) {
+		expr = p_expr();
+		if(!eat(TK_RPAREN))
+			error_after_last("expected )");
+	}
 	
 	return expr;
 }
