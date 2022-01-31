@@ -545,6 +545,15 @@ static Stmt *p_vardecl()
 			id, "variable with incomplete type declared  %y", stmt->dtype
 		);
 	
+	if(stmt->scope->structure) {
+		if(stmt->expr && !stmt->expr->isconst)
+			error_at(
+				stmt->expr->start,
+				"structure members can only be initialized "
+				"with constant values"
+			);
+	}
+	
 	if(!declare(stmt))
 		error_at(id, "name %t already declared", id);
 	if(!eat(TK_SEMICOLON))
@@ -596,6 +605,54 @@ static Stmt *p_funcdecl()
 	stmt->func_body = p_stmts(stmt);
 	if(!eat(TK_RCURLY))
 		error_after_last("expected } after function body");
+	
+	return stmt;
+}
+
+static Stmt *p_vardecls(Stmt *structure)
+{
+	Scope *new_scope = malloc(sizeof(Scope));
+	new_scope->parent = scope;
+	scope = new_scope;
+	scope->first_decl = 0;
+	scope->last_decl = 0;
+	scope->structure = structure;
+	scope->func = 0;
+	
+	Stmt *first_decl = 0;
+	Stmt *last_decl = 0;
+	while(1) {
+		Stmt *decl = p_vardecl();
+		if(!decl) break;
+		if(first_decl) last_decl = last_decl->next = decl;
+		else first_decl = last_decl = decl;
+	}
+	scope = scope->parent;
+	return first_decl;
+}
+
+static Stmt *p_structdecl()
+{
+	if(!eat(TK_struct)) return 0;
+	
+	if(scope->parent)
+		error_at_last("structures can only be declared at top level");
+	
+	Stmt *stmt = new_stmt(ST_STRUCTDECL, last, scope);
+	stmt->next_decl = 0;
+	Token *id = eat(TK_IDENT);
+	if(!id)
+		error_after_last("expected identifier after keyword struct");
+	stmt->id = id->id;
+	
+	if(!declare(stmt))
+		error_at(id, "name %t already declared", id);
+	
+	if(!eat(TK_LCURLY))
+		error_after_last("expected {");
+	stmt->struct_body = p_vardecls(stmt);
+	if(!eat(TK_RCURLY))
+		error_after_last("expected } after structure body");
 	
 	return stmt;
 }
@@ -704,6 +761,7 @@ static Stmt *p_stmt()
 	(stmt = p_print()) ||
 	(stmt = p_vardecl()) ||
 	(stmt = p_funcdecl()) ||
+	(stmt = p_structdecl()) ||
 	(stmt = p_ifstmt()) ||
 	(stmt = p_whilestmt()) ||
 	(stmt = p_returnstmt()) ||
@@ -718,13 +776,17 @@ static Stmt *p_stmts(Stmt *func)
 	scope = new_scope;
 	scope->first_decl = 0;
 	scope->last_decl = 0;
+	scope->structure = 0;
 	
-	if(func)
+	if(func) {
 		scope->func = func;
-	else if(scope->parent)
+	}
+	else if(scope->parent) {
 		scope->func = scope->parent->func;
-	else
+	}
+	else {
 		scope->func = 0;
+	}
 	
 	Stmt *first_stmt = 0;
 	Stmt *last_stmt = 0;

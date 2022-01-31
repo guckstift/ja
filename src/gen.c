@@ -173,7 +173,9 @@ static void gen_expr(Expr *expr)
 			write("(%e[%e])", expr->subexpr, expr->index);
 			break;
 		case EX_BINOP:
-			write("(%e %s %e)", expr->left, expr->operator->punct, expr->right);
+			write(
+				"(%e %s %e)", expr->left, expr->operator->punct, expr->right
+			);
 			break;
 		case EX_ARRAY:
 			write("((%Y){", expr->dtype);
@@ -349,13 +351,25 @@ static void gen_stmts(Stmt *stmts)
 	level --;
 }
 
+static void gen_structdecl(Stmt *stmt)
+{
+	write("%>typedef struct {\n");
+	level ++;
+	gen_vardecls(stmt->struct_body);
+	level --;
+	write("%>} %I;\n", stmt->id);
+}
+
 static void gen_vardecl(Stmt *stmt)
 {
 	write("%>");
 	if(!stmt->scope->parent) write("static ");
 	write("%y %I%z", stmt->dtype, stmt->id, stmt->dtype);
 	
-	if(stmt->expr) {
+	if(stmt->scope->structure) {
+		write(";\n");
+	}
+	else if(stmt->expr) {
 		// has initializer
 		if(
 			stmt->expr->isconst ||
@@ -406,6 +420,15 @@ static void gen_funcdecl(Stmt *stmt)
 	write("%>}\n");
 }
 
+static void gen_structdecls(Stmt *stmts)
+{
+	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
+		if(stmt->type == ST_STRUCTDECL) {
+			gen_structdecl(stmt);
+		}
+	}
+}
+
 static void gen_vardecls(Stmt *stmts)
 {
 	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
@@ -435,6 +458,7 @@ void gen(Unit *unit)
 	write("#define jafalse ((jabool)0)\n");
 	write("#define jatrue ((jabool)1)\n");
 	write("typedef uint8_t jabool;\n");
+	gen_structdecls(unit->stmts);
 	gen_vardecls(unit->stmts);
 	gen_funcdecls(unit->stmts);
 	write("int main(int argc, char **argv) {\n");

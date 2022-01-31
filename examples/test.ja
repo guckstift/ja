@@ -1,4 +1,7 @@
-var x = [1,2];
-var y = >x;
-var z = (<y)[1];
-print z;
+var a = 90;
+
+struct Foo {
+	var x : int;
+	var y : bool = true;
+	#var z = a;
+}

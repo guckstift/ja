@@ -64,6 +64,7 @@ typedef enum {
 	ST_PRINT, // expr
 	ST_VARDECL, // id, dtype, expr, next_decl
 	ST_FUNCDECL, // id, dtype, func_body
+	ST_STRUCTDECL, // id, struct_body
 	ST_IFSTMT, // expr, body, else_body
 	ST_WHILESTMT, // expr, body
 	ST_ASSIGN, // target, expr
@@ -81,6 +82,7 @@ typedef struct Stmt {
 		Expr *expr;
 		Expr *call;
 		struct Stmt *func_body;
+		struct Stmt *struct_body;
 	};
 	union {
 		Token *id;
@@ -99,6 +101,7 @@ typedef struct Scope {
 	Stmt *last_decl;
 	struct Scope *parent;
 	Stmt *func;
+	Stmt *structure;
 } Scope;
 
 TypeDesc *new_type(Type type);

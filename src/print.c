@@ -371,6 +371,16 @@ static void print_stmt(Stmt *stmt)
 			print_indent();
 			printf("}");
 			break;
+		case ST_STRUCTDECL:
+			print_keyword_cstr("struct ");
+			print_ident(stmt->id);
+			printf(" {\n");
+			level ++;
+			print_stmts(stmt->struct_body);
+			level --;
+			print_indent();
+			printf("}");
+			break;
 		case ST_IFSTMT:
 			print_keyword_cstr("if ");
 			print_expr(stmt->expr);
