@@ -535,14 +535,10 @@ static Stmt *p_vardecl()
 	if(stmt->expr == 0 && stmt->dtype == 0)
 		error_at(id, "variable without type declared");
 	
-	TypeDesc *dt = stmt->dtype;
-	while(dt->type == TY_ARRAY) {
-		if(dt->length == -1)
-			error_at(
-				id, "variable with incomplete type declared  %y", stmt->dtype
-			);
-		dt = dt->subtype;
-	}
+	if(!is_complete_type(stmt->dtype))
+		error_at(
+			id, "variable with incomplete type declared  %y", stmt->dtype
+		);
 	
 	if(!declare(stmt))
 		error_at(id, "name %t already declared", id);
@@ -576,10 +572,16 @@ static Stmt *p_funcdecl()
 	if(eat(TK_COLON)) {
 		Token *start = cur;
 		stmt->dtype->returntype = p_type();
+		if(!is_complete_type(stmt->dtype->returntype))
+			error_at(
+				id, "function with incomplete return type declared  %y",
+				stmt->dtype->returntype
+			);
 	}
 	else {
 		stmt->dtype->returntype = new_type(TY_NONE);
 	}
+	
 	
 	if(!declare(stmt))
 		error_at(id, "name %t already declared", id);

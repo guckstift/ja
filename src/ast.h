@@ -107,6 +107,7 @@ TypeDesc *new_array_type(int64_t length, TypeDesc *subtype);
 int type_equ(TypeDesc *dtype1, TypeDesc *dtype2);
 int is_integer_type(TypeDesc *dtype);
 int is_integral_type(TypeDesc *dtype);
+int is_complete_type(TypeDesc *dtype);
 Expr *new_expr(ExprType type, Token *start);
 Expr *new_var_expr(Token *id, TypeDesc *dtype, Token *start);
 Expr *new_int_expr(int64_t val, Token *start);

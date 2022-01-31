@@ -1,23 +1,11 @@
-var x : [1]int;
-var a : >int;
-var b : [1]>int;
-var c : >[1]int;
-var d : [1]>[2]int;
+var x = [1,2];
+var y = >x[1];
 
-var e : >>[1]int;
-var f : [1]>>[2]int;
-var g : [1]>>[2][3]int;
-
-function foo() : >[1]int
-{
-	return c;
-}
-
-function bar() : [2]int
+function foo() : [2]int
 {
 	return [1,2];
 }
 
-var F = bar();
+var z = >foo()[0];
 
-print F[1];
+print <z;

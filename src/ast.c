@@ -37,8 +37,7 @@ int type_equ(TypeDesc *dtype1, TypeDesc *dtype2)
 		return
 			(
 				dtype1->length == dtype2->length ||
-				dtype1->length == -1 ||
-				dtype2->length == -1
+				dtype1->length == -1 || dtype2->length == -1
 			) &&
 			type_equ(dtype1->subtype, dtype2->subtype);
 	}
@@ -56,6 +55,15 @@ int is_integral_type(TypeDesc *dtype)
 {
 	Type type = dtype->type;
 	return is_integer_type(dtype) || type == TY_BOOL;
+}
+
+int is_complete_type(TypeDesc *dt)
+{
+	while(dt->type == TY_ARRAY) {
+		if(dt->length == -1) return 0;
+		dt = dt->subtype;
+	}
+	return 1;
 }
 
 Expr *new_expr(ExprType type, Token *start)
