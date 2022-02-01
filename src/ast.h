@@ -9,10 +9,11 @@ typedef enum {
 	TY_UINT8,
 	TY_UINT64,
 	TY_BOOL,
-	TY_PTR,
-	TY_ARRAY,
-	TY_FUNC,
+	TY_PTR, // subtype
+	TY_ARRAY, // subtype, length
+	TY_FUNC, // returntype
 	TY_STRUCT,
+	TY_INST, // id, typedecl
 } Type;
 
 typedef struct TypeDesc {
@@ -20,9 +21,13 @@ typedef struct TypeDesc {
 	union {
 		struct TypeDesc *subtype;
 		struct TypeDesc *returntype;
+		struct TypeDesc *structype;
 		Token *id;
 	};
-	int64_t length; // -1 = unknown
+	union {
+		int64_t length; // -1 = unknown
+		struct Stmt *typedecl;
+	};
 } TypeDesc;
 
 typedef enum {
@@ -36,6 +41,7 @@ typedef enum {
 	EX_BINOP, // left, right, operator
 	EX_ARRAY, // exprs, length
 	EX_CALL, // callee
+	EX_MEMBER, // subexpr, member_id
 } ExprType;
 
 typedef struct Expr {
@@ -58,6 +64,7 @@ typedef struct Expr {
 		struct Expr *right;
 		struct Expr *index;
 		int64_t length;
+		Token *member_id;
 	};
 	Token *operator;
 } Expr;

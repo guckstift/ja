@@ -272,6 +272,9 @@ static void fprint_type(FILE *fs, TypeDesc *dtype)
 			fprint_keyword_cstr(fs, "function");
 			break;
 		case TY_STRUCT:
+			fprint_keyword_cstr(fs, "struct");
+			break;
+		case TY_INST:
 			fprint_ident(fs, dtype->id);
 			break;
 	}
@@ -343,6 +346,11 @@ static void print_expr(Expr *expr)
 			print_expr(expr->callee);
 			printf("()");
 			printf(")");
+			break;
+		case EX_MEMBER:
+			print_expr(expr->subexpr);
+			printf(".");
+			print_ident(expr->member_id);
 			break;
 	}
 }

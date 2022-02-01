@@ -5,7 +5,9 @@ struct Foo {
 }
 
 var x : Foo;
-var y = >x;
-var z : Foo;
+var y = x;
+var a = 10;
 
-x = z;
+var z = x.y;
+
+y.x = false;

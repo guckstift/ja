@@ -30,6 +30,7 @@
 	_("(", LPAREN) \
 	_(")", RPAREN) \
 	_("=", ASSIGN) \
+	_(".", PERIOD) \
 	_(":", COLON) \
 	_(";", SEMICOLON) \
 	_(",", COMMA) \

@@ -121,13 +121,14 @@ static TypeDesc *p_type()
 		return new_type(TY_BOOL);
 	}
 	else if(eat(TK_IDENT)) {
-		TypeDesc *dtype = new_type(TY_STRUCT);
+		TypeDesc *dtype = new_type(TY_INST);
 		dtype->id = last->id;
 		Stmt *decl = lookup(dtype->id);
 		if(!decl)
 			error_at_last("name %t not declared", dtype->id);
 		if(decl->type != ST_STRUCTDECL)
 			error_at_last("%t is not a structure", dtype->id);
+		dtype->typedecl = decl;
 		return dtype;
 	}
 	else if(eat(TK_GREATER)) {
@@ -368,6 +369,26 @@ static Expr *p_postfix()
 			subscript->islvalue = 1;
 			subscript->dtype = expr->dtype->subtype;
 			expr = subscript;
+		}
+		else if(eat(TK_PERIOD)) {
+			TypeDesc *dtype = expr->dtype;
+			if(dtype->type != TY_INST)
+				error_at(expr->start, "no instance to get member");
+			Stmt *struct_decl = dtype->typedecl;
+			Scope *struct_scope = struct_decl->struct_body->scope;
+			Token *id = eat(TK_IDENT);
+			if(!id)
+				error_at_last("expected id of structure member");
+			Expr *member = new_expr(EX_MEMBER, expr->start);
+			member->member_id = id->id;
+			Stmt *decl = lookup_in(member->member_id, struct_scope);
+			if(!decl)
+				error_at(id, "name %t not declared in struct", id);
+			member->isconst = 0;
+			member->islvalue = 1;
+			member->dtype = decl->dtype;
+			member->subexpr = expr;
+			expr = member;
 		}
 		else {
 			break;
@@ -612,7 +633,8 @@ static Stmt *p_funcdecl()
 static Stmt *p_vardecls(Stmt *structure)
 {
 	Scope *new_scope = malloc(sizeof(Scope));
-	new_scope->parent = scope;
+	Scope *parent = scope;
+	new_scope->parent = structure ? 0 : parent;
 	scope = new_scope;
 	scope->first_decl = 0;
 	scope->last_decl = 0;
@@ -627,7 +649,7 @@ static Stmt *p_vardecls(Stmt *structure)
 		if(first_decl) last_decl = last_decl->next = decl;
 		else first_decl = last_decl = decl;
 	}
-	scope = scope->parent;
+	scope = parent;
 	return first_decl;
 }
 
@@ -654,6 +676,9 @@ static Stmt *p_structdecl()
 	stmt->struct_body = p_vardecls(stmt);
 	if(!eat(TK_RCURLY))
 		error_after_last("expected } after structure body");
+	
+	if(stmt->struct_body == 0)
+		error_at(stmt->start, "empty structure");
 	
 	return stmt;
 }

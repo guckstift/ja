@@ -113,7 +113,7 @@ static void gen_type(TypeDesc *dtype)
 		case TY_BOOL:
 			write("jabool");
 			break;
-		case TY_STRUCT:
+		case TY_INST:
 			write("%I", dtype->id);
 			break;
 		case TY_PTR:
@@ -195,6 +195,9 @@ static void gen_expr(Expr *expr)
 				write(".a");
 			}
 			write(")");
+			break;
+		case EX_MEMBER:
+			write("(%e.%I)", expr->subexpr, expr->member_id);
 			break;
 	}
 }
@@ -366,7 +369,7 @@ static void gen_structdecl(Stmt *stmt)
 static void gen_vardecl(Stmt *stmt)
 {
 	write("%>");
-	if(!stmt->scope->parent) write("static ");
+	if(!stmt->scope->parent && !stmt->scope->structure) write("static ");
 	write("%y %I%z", stmt->dtype, stmt->id, stmt->dtype);
 	
 	if(stmt->scope->structure) {
@@ -396,7 +399,7 @@ static void gen_vardecl(Stmt *stmt)
 			write(";\n");
 		}
 	}
-	else if(stmt->dtype->type == TY_ARRAY || stmt->dtype->type == TY_STRUCT) {
+	else if(stmt->dtype->type == TY_ARRAY || stmt->dtype->type == TY_INST) {
 		write(" = {0};\n");
 	}
 	else {
