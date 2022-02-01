@@ -12,7 +12,6 @@ typedef enum {
 	TY_PTR, // subtype
 	TY_ARRAY, // subtype, length
 	TY_FUNC, // returntype
-	TY_STRUCT,
 	TY_INST, // id, typedecl
 } Type;
 
@@ -21,7 +20,6 @@ typedef struct TypeDesc {
 	union {
 		struct TypeDesc *subtype;
 		struct TypeDesc *returntype;
-		struct TypeDesc *structype;
 		Token *id;
 	};
 	union {
@@ -95,7 +93,8 @@ typedef struct Stmt {
 	};
 	union {
 		Token *id;
-		struct Stmt *body;
+		struct Stmt *if_body;
+		struct Stmt *while_body;
 		Expr *target;
 	};
 	union {
@@ -110,21 +109,26 @@ typedef struct Scope {
 	Stmt *last_decl;
 	struct Scope *parent;
 	Stmt *func;
-	Stmt *structure;
+	Stmt *struc;
 } Scope;
 
 TypeDesc *new_type(Type type);
 TypeDesc *new_ptr_type(TypeDesc *subtype);
 TypeDesc *new_array_type(int64_t length, TypeDesc *subtype);
+TypeDesc *new_func_type(TypeDesc *returntype);
+
 int type_equ(TypeDesc *dtype1, TypeDesc *dtype2);
 int is_integer_type(TypeDesc *dtype);
 int is_integral_type(TypeDesc *dtype);
 int is_complete_type(TypeDesc *dtype);
+
 Expr *new_expr(ExprType type, Token *start);
-Expr *new_var_expr(Token *id, TypeDesc *dtype, Token *start);
 Expr *new_int_expr(int64_t val, Token *start);
+Expr *new_bool_expr(int64_t val, Token *start);
+Expr *new_var_expr(Token *id, TypeDesc *dtype, Token *start);
 Expr *new_subscript(Expr *subexpr, Expr *index);
 Expr *new_cast_expr(Expr *subexpr, TypeDesc *dtype);
+
 Stmt *new_stmt(StmtType type, Token *start, Scope *scope);
 Stmt *new_assign(Expr *target, Expr *expr, Scope *scope);
 

@@ -1,0 +1,14 @@
+
+struct Foo {
+	var x : int;
+	var y : bool = true;
+	var z = 100;
+}
+
+var x : Foo;
+var y = x;
+var a = 10;
+
+var z = x.z;
+
+y.x = false;

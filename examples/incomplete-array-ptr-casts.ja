@@ -1,0 +1,16 @@
+var u = [1, 1];
+var x = [>u, >u];
+
+#var v : >[5]int = >u;
+var v : >[]int = >u;
+
+#var y : >[5]>[]int = >x;
+var y : >[]>[]int = >x;
+
+var z : >[5]int = v;
+var p : >[5]>[]int = y;
+var q : >[]>[5]int = y;
+var r : >[5]>[5]int = y;
+
+#var s : >[5]>[5]int = >x;
+var s : >[]>[]int = r;

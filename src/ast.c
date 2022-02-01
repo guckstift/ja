@@ -25,21 +25,28 @@ TypeDesc *new_array_type(int64_t length, TypeDesc *subtype)
 	return dtype;
 }
 
+TypeDesc *new_func_type(TypeDesc *returntype)
+{
+	TypeDesc *dtype = malloc(sizeof(TypeDesc));
+	dtype->type = TY_FUNC;
+	dtype->returntype = returntype;
+	return dtype;
+}
+
 int type_equ(TypeDesc *dtype1, TypeDesc *dtype2)
 {
 	if(dtype1->type == TY_PTR && dtype2->type == TY_PTR) {
 		return type_equ(dtype1->subtype, dtype2->subtype);
 	}
 	
-	if(
-		dtype1->type == TY_ARRAY && dtype2->type == TY_ARRAY
-	) {
+	if(dtype1->type == TY_ARRAY && dtype2->type == TY_ARRAY) {
 		return
-			(
-				dtype1->length == dtype2->length ||
-				dtype1->length == -1 || dtype2->length == -1
-			) &&
+			dtype1->length == dtype2->length &&
 			type_equ(dtype1->subtype, dtype2->subtype);
+	}
+	
+	if(dtype1->type == TY_INST && dtype2->type == TY_INST) {
+		return dtype1->id == dtype2->id;
 	}
 	
 	return dtype1->type == dtype2->type;
@@ -59,10 +66,19 @@ int is_integral_type(TypeDesc *dtype)
 
 int is_complete_type(TypeDesc *dt)
 {
-	while(dt->type == TY_ARRAY) {
-		if(dt->length == -1) return 0;
-		dt = dt->subtype;
+	if(dt->type == TY_PTR) {
+		TypeDesc *target_type = dt->subtype;
+		
+		if(target_type->type == TY_ARRAY)
+			return is_complete_type(target_type->subtype);
+		
+		return is_complete_type(target_type);
 	}
+	
+	if(dt->type == TY_ARRAY) {
+		return dt->length >= 0 && is_complete_type(dt->subtype);
+	}
+	
 	return 1;
 }
 
@@ -85,12 +101,22 @@ Expr *new_int_expr(int64_t val, Token *start)
 	return expr;
 }
 
+Expr *new_bool_expr(int64_t val, Token *start)
+{
+	Expr *expr = new_expr(EX_BOOL, start);
+	expr->ival = val;
+	expr->isconst = 1;
+	expr->islvalue = 0;
+	expr->dtype = new_type(TY_BOOL);
+	return expr;
+}
+
 Expr *new_var_expr(Token *id, TypeDesc *dtype, Token *start)
 {
 	Expr *expr = new_expr(EX_VAR, start);
 	expr->id = id;
 	expr->isconst = 0;
-	expr->islvalue = 1;
+	expr->islvalue = dtype->type != TY_FUNC;
 	expr->dtype = dtype;
 	return expr;
 }

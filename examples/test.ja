@@ -1,13 +1,3 @@
-
-struct Foo {
-	var x : int;
-	var y : bool = true;
+function foo()
+{
 }
-
-var x : Foo;
-var y = x;
-var a = 10;
-
-var z = x.y;
-
-y.x = false;

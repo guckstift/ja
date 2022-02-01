@@ -1,6 +1,6 @@
 var x = [1,2];
 var y = [>x];
-var d = y as []>[]bool;
+var d = y as [1]>[]bool;
 
 #var a : [1]>[2]int = y;
 #var b : []>[2]int = y;

@@ -301,7 +301,7 @@ static void gen_stmt(Stmt *stmt)
 			break;
 		case ST_IFSTMT:
 			write("%>if(%e) {\n", stmt->expr);
-			gen_stmts(stmt->body);
+			gen_stmts(stmt->if_body);
 			write("%>}\n");
 			if(stmt->else_body) {
 				write("%>else {\n");
@@ -311,7 +311,7 @@ static void gen_stmt(Stmt *stmt)
 			break;
 		case ST_WHILESTMT:
 			write("%>while(%e) {\n", stmt->expr);
-			gen_stmts(stmt->body);
+			gen_stmts(stmt->while_body);
 			write("%>}\n");
 			break;
 		case ST_ASSIGN:
@@ -369,10 +369,10 @@ static void gen_structdecl(Stmt *stmt)
 static void gen_vardecl(Stmt *stmt)
 {
 	write("%>");
-	if(!stmt->scope->parent && !stmt->scope->structure) write("static ");
+	if(!stmt->scope->parent && !stmt->scope->struc) write("static ");
 	write("%y %I%z", stmt->dtype, stmt->id, stmt->dtype);
 	
-	if(stmt->scope->structure) {
+	if(stmt->scope->struc) {
 		write(";\n");
 	}
 	else if(stmt->expr) {
@@ -409,7 +409,7 @@ static void gen_vardecl(Stmt *stmt)
 
 static void gen_funcdecl(Stmt *stmt)
 {
-	TypeDesc *returntype = stmt->dtype->returntype;
+	TypeDesc *returntype = stmt->dtype;
 	
 	if(returntype->type == TY_ARRAY) {
 		write(

@@ -271,9 +271,6 @@ static void fprint_type(FILE *fs, TypeDesc *dtype)
 		case TY_FUNC:
 			fprint_keyword_cstr(fs, "function");
 			break;
-		case TY_STRUCT:
-			fprint_keyword_cstr(fs, "struct");
-			break;
 		case TY_INST:
 			fprint_ident(fs, dtype->id);
 			break;
@@ -376,9 +373,9 @@ static void print_stmt(Stmt *stmt)
 			print_keyword_cstr("function ");
 			print_ident(stmt->id);
 			printf("()");
-			if(stmt->dtype->returntype->type != TY_NONE) {
+			if(stmt->dtype) {
 				printf(" : ");
-				print_type(stmt->dtype->returntype);
+				print_type(stmt->dtype);
 			}
 			printf(" {\n");
 			level ++;
@@ -402,7 +399,7 @@ static void print_stmt(Stmt *stmt)
 			print_expr(stmt->expr);
 			printf(" {\n");
 			level ++;
-			print_stmts(stmt->body);
+			print_stmts(stmt->if_body);
 			level --;
 			print_indent();
 			printf("}");
@@ -423,7 +420,7 @@ static void print_stmt(Stmt *stmt)
 			print_expr(stmt->expr);
 			printf(" {\n");
 			level ++;
-			print_stmts(stmt->body);
+			print_stmts(stmt->while_body);
 			level --;
 			print_indent();
 			printf("}");

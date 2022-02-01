@@ -11,7 +11,7 @@
 
 ## bool
 
-Stores only false or true. Requires 8 bits of size.
+Boolean that can only be false or true. Stored in a single byte.
 
 ## integral types
 
@@ -31,4 +31,43 @@ Stores a fixed number of consecutive items of a certain type
 
 ```
 [size] item_type
+```
+
+## structure types
+
+```
+struct StructName {
+	var member_a : int;
+	var member_b = true;
+	var member_c : uint = 90;
+}
+
+var st : StructName;
+```
+
+Structure members can be initialized with constant expressions in the structure
+definition.
+
+## incomplete types
+
+Variables of incomplete types can not be declared.
+
+An array type with undefined length is incomplete.
+
+```
+var x : []int;
+```
+
+A pointer type to an incomplete array is not incomplete.
+
+```
+var p : >[]int;
+```
+
+Except when the item type of the array is incomplete.
+
+```
+var p1 : >[][]int;
+var p2 : >>[][]int;
+var p3 : []>>[][]int;
 ```

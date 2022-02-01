@@ -106,6 +106,22 @@ static int declare(Stmt *new_decl)
 	return 1;
 }
 
+static void enter()
+{
+	Scope *new_scope = malloc(sizeof(Scope));
+	new_scope->parent = scope;
+	scope = new_scope;
+	scope->first_decl = 0;
+	scope->last_decl = 0;
+	scope->func = scope->parent ? scope->parent->func : 0;
+	scope->struc = 0;
+}
+
+static void leave()
+{
+	scope = scope->parent;
+}
+
 static TypeDesc *p_type()
 {
 	if(eat(TK_int)) {
@@ -158,55 +174,80 @@ static TypeDesc *p_type()
 	return 0;
 }
 
-static Expr *cast_expr(Expr *src_expr, TypeDesc *dtype, int explicit)
+static Expr *cast_expr(Expr *expr, TypeDesc *dtype, int explicit)
 {
-	TypeDesc *src_type = src_expr->dtype;
+	TypeDesc *stype = expr->dtype;
 	
 	// can not cast from none type
-	if(src_type->type == TY_NONE)
-		error_at(src_expr->start, "expression has no value");
+	if(stype->type == TY_NONE)
+		error_at(expr->start, "expression has no value");
 	
 	// types equal => no cast needed
-	if(type_equ(src_type, dtype))
-		return src_expr;
+	if(type_equ(stype, dtype))
+		return expr;
 	
 	// integral types are castable into other integral types
-	if(is_integral_type(src_type) && is_integral_type(dtype))
-		return new_cast_expr(src_expr, dtype);
+	if(is_integral_type(stype) && is_integral_type(dtype))
+		return new_cast_expr(expr, dtype);
 	
-	// one pointer to some other possible only by explicit cast
-	if(explicit && src_type->type == TY_PTR && dtype->type == TY_PTR) {
-		return new_cast_expr(src_expr, dtype);
+	// one pointer to some other
+	if(stype->type == TY_PTR && dtype->type == TY_PTR) {
+		// by explicit cast always ok
+		if(explicit) {
+			return new_cast_expr(expr, dtype);
+		}
+		
+		TypeDesc *dt = dtype;
+		TypeDesc *st = stype;
+		
+		while(
+			dt->type == TY_PTR && st->type == TY_PTR ||
+			dt->type == TY_ARRAY && st->type == TY_ARRAY
+		) {
+			if(dt->type == TY_ARRAY) {
+				if(dt->length == -1 || st->length == -1) {
+					if(type_equ(st->subtype, dt->subtype)) {
+						return new_cast_expr(expr, dtype);
+					}
+				}
+				else if(dt->length != st->length) {
+					break;
+				}
+			}
+			
+			dt = dt->subtype;
+			st = st->subtype;
+		}
 	}
 	
-	// arrays with equal length or undefined target length
+	// arrays with equal length
 	if(
-		src_type->type == TY_ARRAY && dtype->type == TY_ARRAY &&
-		(src_type->length == dtype->length || dtype->length == -1)
+		stype->type == TY_ARRAY && dtype->type == TY_ARRAY &&
+		stype->length == dtype->length
 	) {
 		// array literal => cast each item to subtype
-		if(src_expr->type == EX_ARRAY) {
+		if(expr->type == EX_ARRAY) {
 			for(
-				Expr *prev = 0, *item = src_expr->exprs;
+				Expr *prev = 0, *item = expr->exprs;
 				item;
 				prev = item, item = item->next
 			) {
 				Expr *new_item = cast_expr(item, dtype->subtype, explicit);
 				if(prev) prev->next = new_item;
-				else src_expr->exprs = new_item;
+				else expr->exprs = new_item;
 				new_item->next = item->next;
 				item = new_item;
 			}
-			src_type->subtype = dtype->subtype;
-			return src_expr;
+			stype->subtype = dtype->subtype;
+			return expr;
 		}
 		// no array literal => create new array literal with cast items
 		else {
 			Expr *first = 0;
 			Expr *last_expr = 0;
-			for(int64_t i=0; i < src_type->length; i++) {
-				Expr *index = new_int_expr(i, src_expr->start);
-				Expr *subscript = new_subscript(src_expr, index);
+			for(int64_t i=0; i < stype->length; i++) {
+				Expr *index = new_int_expr(i, expr->start);
+				Expr *subscript = new_subscript(expr, index);
 				Expr *item = cast_expr(subscript, dtype->subtype, explicit);
 				if(first) {
 					last_expr->next = item;
@@ -217,62 +258,58 @@ static Expr *cast_expr(Expr *src_expr, TypeDesc *dtype, int explicit)
 					last_expr = item;
 				}
 			}
-			Expr *expr = new_expr(EX_ARRAY, src_expr->start);
+			expr = new_expr(EX_ARRAY, expr->start);
 			expr->exprs = first;
-			expr->length = src_type->length;
+			expr->length = stype->length;
 			expr->isconst = 0;
 			expr->islvalue = 0;
 			expr->dtype = new_type(TY_ARRAY);
 			expr->dtype->subtype = dtype->subtype;
-			expr->dtype->length = src_type->length;
+			expr->dtype->length = stype->length;
 			return expr;
 		}
 	}
 	
 	error_at(
-		src_expr->start,
+		expr->start,
 		"can not convert type  %y  to  %y  (%s)",
-		src_type, dtype, explicit ? "explicit" : "implicit"
+		stype, dtype, explicit ? "explicit" : "implicit"
 	);
 }
 
 static Expr *p_atom()
 {
-	Expr *expr = 0;
-	Token *start;
-	
 	if(eat(TK_INT)) {
-		expr = new_expr(EX_INT, last);
-		expr->ival = last->ival;
-		expr->isconst = 1;
-		expr->islvalue = 0;
-		expr->dtype = new_type(TY_INT64);
+		return new_int_expr(last->ival, last);
 	}
 	else if(eat(TK_false) || eat(TK_true)) {
-		expr = new_expr(EX_BOOL, last);
-		expr->ival = last->type == TK_true ? 1 : 0;
-		expr->isconst = 1;
-		expr->islvalue = 0;
-		expr->dtype = new_type(TY_BOOL);
+		return new_bool_expr(last->type == TK_true, last);
 	}
 	else if(eat(TK_IDENT)) {
-		expr = new_expr(EX_VAR, last);
-		expr->id = last->id;
-		Stmt *decl = lookup(expr->id);
+		Token *ident = last;
+		Stmt *decl = lookup(ident->id);
+		
 		if(!decl)
-			error_at_last("name %t not declared", expr->id);
-		if(decl->type == ST_FUNCDECL) {
-			expr->isconst = 0;
-			expr->islvalue = 0;
-			expr->dtype = decl->dtype;
-		}
-		else {
-			expr->isconst = 0;
-			expr->islvalue = 1;
-			expr->dtype = decl->dtype;
-		}
+			error_at_last("name %t not declared", ident);
+		
+		if(decl->type == ST_STRUCTDECL)
+			error_at_last("%t is the name of a structure", ident);
+		
+		if(decl->type == ST_FUNCDECL)
+			return new_var_expr(
+				ident->id,
+				new_func_type(decl->dtype),
+				ident
+			);
+		
+		return new_var_expr(
+			ident->id,
+			decl->dtype,
+			ident
+		);
 	}
-	else if(start = eat(TK_LBRACK)) {
+	else if(eat(TK_LBRACK)) {
+		Token *start = last;
 		Expr *first = 0;
 		Expr *last_expr = 0;
 		TypeDesc *subtype = 0;
@@ -301,7 +338,7 @@ static Expr *p_atom()
 			error_after_last("expected comma or ]");
 		if(length == 0)
 			error_at_last("empty array literal is not allowed");
-		expr = new_expr(EX_ARRAY, start);
+		Expr *expr = new_expr(EX_ARRAY, start);
 		expr->exprs = first;
 		expr->length = length;
 		expr->isconst = isconst;
@@ -309,14 +346,17 @@ static Expr *p_atom()
 		expr->dtype = new_type(TY_ARRAY);
 		expr->dtype->subtype = subtype;
 		expr->dtype->length = length;
+		return expr;
 	}
-	else if(start = eat(TK_LPAREN)) {
-		expr = p_expr();
-		if(!eat(TK_RPAREN))
-			error_after_last("expected )");
+	else if(eat(TK_LPAREN)) {
+		Token *start = last;
+		Expr *expr = p_expr();
+		expr->start = start;
+		if(!eat(TK_RPAREN)) error_after_last("expected )");
+		return expr;
 	}
 	
-	return expr;
+	return 0;
 }
 
 static Expr *p_postfix()
@@ -381,7 +421,7 @@ static Expr *p_postfix()
 				error_at_last("expected id of structure member");
 			Expr *member = new_expr(EX_MEMBER, expr->start);
 			member->member_id = id->id;
-			Stmt *decl = lookup_in(member->member_id, struct_scope);
+			Stmt *decl = lookup_flat_in(member->member_id, struct_scope);
 			if(!decl)
 				error_at(id, "name %t not declared in struct", id);
 			member->isconst = 0;
@@ -508,138 +548,80 @@ static Stmt *p_print()
 
 static Stmt *p_vardecl()
 {
-	if(!eat(TK_var)) return 0;
-	Stmt *stmt = new_stmt(ST_VARDECL, last, scope);
-	stmt->next_decl = 0;
-	Token *id = eat(TK_IDENT);
-	if(!id)
-		error_after_last("expected identifier after keyword var");
-	stmt->id = id->id;
+	Token *start = eat(TK_var);
+	if(!start) return 0;
 	
+	Token *ident = eat(TK_IDENT);
+	if(!ident) error_after_last("expected identifier after keyword var");
+	
+	TypeDesc *dtype = 0;
 	if(eat(TK_COLON)) {
-		stmt->dtype = p_type();
-		if(!stmt->dtype)
-			error_after_last("expected type after colon");
-	}
-	else {
-		stmt->dtype = 0;
+		dtype = p_type();
+		if(!dtype) error_after_last("expected type after colon");
 	}
 	
+	Expr *init = 0;
 	if(eat(TK_ASSIGN)) {
-		stmt->expr = p_expr();
-		if(!stmt->expr)
-			error_after_last("expected initializer after equals");
-		if(stmt->expr->dtype->type == TY_FUNC)
-			error_at_last("can not use functions as values");
-		if(stmt->expr->dtype->type == TY_STRUCT)
-			error_at_last("can not use structures as values");
-		if(stmt->dtype == 0)
-			stmt->dtype = stmt->expr->dtype;
-		else
-			stmt->expr = cast_expr(stmt->expr, stmt->dtype, 0);
+		init = p_expr();
+		if(!init) error_after_last("expected initializer after =");
 		
-		stmt->expr = eval_expr(stmt->expr);
+		Token *init_start = init->start;
 		
-		if(stmt->expr->dtype->type == TY_NONE)
-			error_at(stmt->expr->start, "expression has no value");
+		if(init->dtype->type == TY_FUNC)
+			error_at(init_start, "can not use function as value");
 		
-		TypeDesc *dtype = stmt->dtype;
-		
-		// automatic array length from init
-		TypeDesc *dt = dtype;
-		TypeDesc *et = stmt->expr->dtype;
-		while(dt->type == TY_ARRAY || dt->type == TY_PTR) {
-			if(dt->type == TY_ARRAY && dt->length == -1)
-				dt->length = et->length;
-			dt = dt->subtype;
-			et = et->subtype;
-		}
-	}
-	else {
-		stmt->expr = 0;
-	}
+		if(init->dtype->type == TY_NONE)
+			error_at(init_start, "expression has no value");
 	
-	if(stmt->expr == 0 && stmt->dtype == 0)
-		error_at(id, "variable without type declared");
-	
-	if(!is_complete_type(stmt->dtype))
-		error_at(
-			id, "variable with incomplete type declared  %y", stmt->dtype
-		);
-	
-	if(stmt->scope->structure) {
-		if(stmt->expr && !stmt->expr->isconst)
+		if(scope->struc && !init->isconst)
 			error_at(
-				stmt->expr->start,
+				init_start,
 				"structure members can only be initialized "
 				"with constant values"
 			);
+		
+		if(dtype == 0)
+			dtype = init->dtype;
+		
+		// automatic array length from init
+		for(
+			TypeDesc *dt = dtype, *it = init->dtype;
+			dt->type == TY_ARRAY && it->type == TY_ARRAY;
+			dt = dt->subtype, it = it->subtype
+		) {
+			if(dt->length == -1) dt->length = it->length;
+		}
+		
+		init = cast_expr(init, dtype, 0);
 	}
 	
-	if(!declare(stmt))
-		error_at(id, "name %t already declared", id);
 	if(!eat(TK_SEMICOLON))
 		noexit=1,
 		error_after_last("expected semicolon after variable declaration");
-	return stmt;
-}
-
-static Stmt *p_funcdecl()
-{
-	if(!eat(TK_function)) return 0;
 	
-	if(scope->parent)
-		error_at_last("functions can only be declared at top level");
+	if(dtype == 0) error_at(ident, "variable without type declared");
 	
-	Stmt *stmt = new_stmt(ST_FUNCDECL, last, scope);
+	if(!is_complete_type(dtype))
+		error_at(
+			ident, "variable with incomplete type  %y  declared", dtype
+		);
+	
+	Stmt *stmt = new_stmt(ST_VARDECL, start, scope);
+	stmt->id = ident->id;
+	stmt->dtype = dtype;
+	stmt->expr = init;
 	stmt->next_decl = 0;
-	Token *id = eat(TK_IDENT);
-	if(!id)
-		error_after_last("expected identifier after keyword function");
-	stmt->id = id->id;
-	
-	if(!eat(TK_LPAREN))
-		error_after_last("expected ( after function name");
-	if(!eat(TK_RPAREN))
-		error_after_last("expected ) after (");
-	
-	stmt->dtype = new_type(TY_FUNC);
-	
-	if(eat(TK_COLON)) {
-		Token *start = cur;
-		stmt->dtype->returntype = p_type();
-		if(!is_complete_type(stmt->dtype->returntype))
-			error_at(
-				id, "function with incomplete return type declared  %y",
-				stmt->dtype->returntype
-			);
-	}
-	else {
-		stmt->dtype->returntype = new_type(TY_NONE);
-	}
 	
 	if(!declare(stmt))
-		error_at(id, "name %t already declared", id);
-	
-	if(!eat(TK_LCURLY))
-		error_after_last("expected {");
-	stmt->func_body = p_stmts(stmt);
-	if(!eat(TK_RCURLY))
-		error_after_last("expected } after function body");
+		error_at(ident, "name %t already declared", ident);
 	
 	return stmt;
 }
 
-static Stmt *p_vardecls(Stmt *structure)
+static Stmt *p_vardecls(Stmt *struc)
 {
-	Scope *new_scope = malloc(sizeof(Scope));
-	Scope *parent = scope;
-	new_scope->parent = structure ? 0 : parent;
-	scope = new_scope;
-	scope->first_decl = 0;
-	scope->last_decl = 0;
-	scope->structure = structure;
-	scope->func = 0;
+	enter();
+	if(struc) scope->struc = struc;
 	
 	Stmt *first_decl = 0;
 	Stmt *last_decl = 0;
@@ -649,36 +631,84 @@ static Stmt *p_vardecls(Stmt *structure)
 		if(first_decl) last_decl = last_decl->next = decl;
 		else first_decl = last_decl = decl;
 	}
-	scope = parent;
+	
+	leave();
 	return first_decl;
+}
+
+static Stmt *p_funcdecl()
+{
+	Token *start = eat(TK_function);
+	if(!start) return 0;
+	
+	if(scope->parent)
+		error_at_last("functions can only be declared at top level");
+	
+	Token *ident = eat(TK_IDENT);
+	if(!ident) error_after_last("expected identifier after keyword function");
+	
+	if(!eat(TK_LPAREN))
+		error_after_last("expected ( after function name");
+	if(!eat(TK_RPAREN))
+		error_after_last("expected ) after (");
+	
+	TypeDesc *dtype = new_type(TY_NONE);
+	if(eat(TK_COLON)) {
+		dtype = p_type();
+		if(!dtype) error_after_last("expected return type after colon");
+		
+		if(!is_complete_type(dtype))
+			error_at(
+				ident, "function with incomplete type  %y  declared", dtype
+			);
+	}
+	
+	Stmt *stmt = new_stmt(ST_FUNCDECL, start, scope);
+	stmt->id = ident->id;
+	stmt->dtype = dtype;
+	stmt->next_decl = 0;
+	
+	if(!declare(stmt))
+		error_at(ident, "name %t already declared", ident);
+	
+	if(!eat(TK_LCURLY))
+		error_after_last("expected {");
+	
+	stmt->func_body = p_stmts(stmt);
+	
+	if(!eat(TK_RCURLY))
+		error_after_last("expected } after function body");
+	
+	return stmt;
 }
 
 static Stmt *p_structdecl()
 {
-	if(!eat(TK_struct)) return 0;
+	Token *start = eat(TK_struct);
+	if(!start) return 0;
 	
 	if(scope->parent)
 		error_at_last("structures can only be declared at top level");
 	
-	Stmt *stmt = new_stmt(ST_STRUCTDECL, last, scope);
+	Token *ident = eat(TK_IDENT);
+	if(!ident) error_after_last("expected identifier after keyword struct");
+	
+	Stmt *stmt = new_stmt(ST_STRUCTDECL, start, scope);
+	stmt->id = ident->id;
 	stmt->next_decl = 0;
-	Token *id = eat(TK_IDENT);
-	if(!id)
-		error_after_last("expected identifier after keyword struct");
-	stmt->id = id->id;
-	stmt->dtype = new_type(TY_STRUCT);
 	
 	if(!declare(stmt))
-		error_at(id, "name %t already declared", id);
+		error_at(ident, "name %t already declared", ident);
 	
 	if(!eat(TK_LCURLY))
 		error_after_last("expected {");
-	stmt->struct_body = p_vardecls(stmt);
-	if(!eat(TK_RCURLY))
-		error_after_last("expected } after structure body");
 	
+	stmt->struct_body = p_vardecls(stmt);
 	if(stmt->struct_body == 0)
 		error_at(stmt->start, "empty structure");
+	
+	if(!eat(TK_RCURLY))
+		error_after_last("expected } after function body");
 	
 	return stmt;
 }
@@ -692,7 +722,7 @@ static Stmt *p_ifstmt()
 		error_at_last("expected condition after if");
 	if(!eat(TK_LCURLY))
 		error_after_last("expected { after condition");
-	stmt->body = p_stmts(0);
+	stmt->if_body = p_stmts(0);
 	if(!eat(TK_RCURLY))
 		error_after_last("expected } after if-body");
 		
@@ -719,7 +749,7 @@ static Stmt *p_whilestmt()
 		error_at_last("expected condition after while");
 	if(!eat(TK_LCURLY))
 		error_after_last("expected { after condition");
-	stmt->body = p_stmts(0);
+	stmt->while_body = p_stmts(0);
 	if(!eat(TK_RCURLY))
 		error_after_last("expected } after while-body");
 	return stmt;
@@ -733,18 +763,18 @@ static Stmt *p_returnstmt()
 	if(!func)
 		error_at_last("return outside of any function");
 	
-	TypeDesc *returntype = func->dtype->returntype;
+	TypeDesc *dtype = func->dtype;
 	Stmt *stmt = new_stmt(ST_RETURN, last, scope);
 	stmt->expr = p_expr();
 	
-	if(returntype->type == TY_NONE) {
+	if(dtype->type == TY_NONE) {
 		if(stmt->expr)
 			error_at(stmt->expr->start, "function should not return values");
 	}
 	else {
 		if(!stmt->expr)
 			error_after_last("expected expression to return");
-		stmt->expr = cast_expr(stmt->expr, returntype, 0);
+		stmt->expr = cast_expr(stmt->expr, dtype, 0);
 		stmt->expr = eval_expr(stmt->expr);
 	}
 	
@@ -797,22 +827,8 @@ static Stmt *p_stmt()
 
 static Stmt *p_stmts(Stmt *func)
 {
-	Scope *new_scope = malloc(sizeof(Scope));
-	new_scope->parent = scope;
-	scope = new_scope;
-	scope->first_decl = 0;
-	scope->last_decl = 0;
-	scope->structure = 0;
-	
-	if(func) {
-		scope->func = func;
-	}
-	else if(scope->parent) {
-		scope->func = scope->parent->func;
-	}
-	else {
-		scope->func = 0;
-	}
+	enter();
+	if(func) scope->func = func;
 	
 	Stmt *first_stmt = 0;
 	Stmt *last_stmt = 0;
@@ -822,7 +838,8 @@ static Stmt *p_stmts(Stmt *func)
 		if(first_stmt) last_stmt = last_stmt->next = stmt;
 		else first_stmt = last_stmt = stmt;
 	}
-	scope = scope->parent;
+	
+	leave();
 	return first_stmt;
 }
 
