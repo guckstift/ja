@@ -25,6 +25,14 @@ TypeDesc *new_array_type(int64_t length, TypeDesc *subtype)
 	return dtype;
 }
 
+TypeDesc *new_dynarray_type(TypeDesc *subtype)
+{
+	TypeDesc *dtype = malloc(sizeof(TypeDesc));
+	dtype->type = TY_DYNARRAY;
+	dtype->subtype = subtype;
+	return dtype;
+}
+
 TypeDesc *new_func_type(TypeDesc *returntype)
 {
 	TypeDesc *dtype = malloc(sizeof(TypeDesc));
@@ -43,6 +51,10 @@ int type_equ(TypeDesc *dtype1, TypeDesc *dtype2)
 		return
 			dtype1->length == dtype2->length &&
 			type_equ(dtype1->subtype, dtype2->subtype);
+	}
+	
+	if(dtype1->type == TY_DYNARRAY && dtype2->type == TY_DYNARRAY) {
+		return type_equ(dtype1->subtype, dtype2->subtype);
 	}
 	
 	if(dtype1->type == TY_INST && dtype2->type == TY_INST) {
@@ -67,16 +79,15 @@ int is_integral_type(TypeDesc *dtype)
 int is_complete_type(TypeDesc *dt)
 {
 	if(dt->type == TY_PTR) {
-		TypeDesc *target_type = dt->subtype;
-		
-		if(target_type->type == TY_ARRAY)
-			return is_complete_type(target_type->subtype);
-		
-		return is_complete_type(target_type);
+		return is_complete_type(dt->subtype);
 	}
 	
 	if(dt->type == TY_ARRAY) {
 		return dt->length >= 0 && is_complete_type(dt->subtype);
+	}
+	
+	if(dt->type == TY_DYNARRAY) {
+		return is_complete_type(dt->subtype);
 	}
 	
 	return 1;

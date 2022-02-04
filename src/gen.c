@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include "gen.h"
 
+#define INDENT      "    "
 #define COL_YELLOW  "\x1b[38;2;255;255;0m"
 #define COL_RESET   "\x1b[0m"
 
@@ -32,7 +33,7 @@ static void write(char *msg, ...)
 			}
 			else if(*msg == '>') {
 				msg++;
-				for(int64_t i=0; i<level; i++) write("    ");
+				for(int64_t i=0; i<level; i++) write(INDENT);
 			}
 			else if(*msg == 'c') {
 				msg++;
@@ -117,14 +118,15 @@ static void gen_type(TypeDesc *dtype)
 			write("%I", dtype->id);
 			break;
 		case TY_PTR:
-			write(
-				"%y%s*",
-				dtype->subtype,
-				dtype->subtype->type == TY_ARRAY ? "(" : ""
-			);
+			gen_type(dtype->subtype);
+			if(dtype->subtype->type == TY_ARRAY) write("(");
+			write("*");
 			break;
 		case TY_ARRAY:
 			gen_type(dtype->subtype);
+			break;
+		case TY_DYNARRAY:
+			write("jadynarray");
 			break;
 	}
 }
@@ -133,18 +135,42 @@ static void gen_type_postfix(TypeDesc *dtype)
 {
 	switch(dtype->type) {
 		case TY_PTR:
-			write(
-				"%s%z",
-				dtype->subtype->type == TY_ARRAY ? ")" : "",
-				dtype->subtype
-			);
+			if(dtype->subtype->type == TY_ARRAY) write(")");
+			gen_type_postfix(dtype->subtype);
 			break;
 		case TY_ARRAY:
-			if(dtype->length >= 0)
-				write("[%u]%z", dtype->length, dtype->subtype);
-			else
-				write("[]%z", dtype->subtype);
+			write("[%u]%z", dtype->length, dtype->subtype);
 			break;
+	}
+}
+
+static void gen_cast(Expr *expr)
+{
+	TypeDesc *dtype = expr->dtype;
+	TypeDesc *subtype = dtype->subtype;
+	Expr *srcexpr = expr->subexpr;
+	TypeDesc *srctype = srcexpr->dtype;
+	
+	if(dtype->type == TY_BOOL) {
+		write("(%e ? jatrue : jafalse)", srcexpr);
+	}
+	else if(dtype->type == TY_DYNARRAY) {
+		// to dynarray
+		write("((%Y){.length = ", dtype);
+		
+		if(srctype->type == TY_PTR && srctype->subtype->type == TY_ARRAY) {
+			// from static array
+			write("%i", srctype->subtype->length);
+		}
+		else {
+			// other
+			write("0");
+		}
+		
+		write(", .items = %e})", srcexpr);
+	}
+	else {
+		write("((%Y)%e)", dtype, srcexpr);
 	}
 }
 
@@ -167,13 +193,19 @@ static void gen_expr(Expr *expr)
 			write("(*%e)", expr->subexpr);
 			break;
 		case EX_CAST:
-			if(expr->dtype->type == TY_BOOL)
-				write("(%e ? jatrue : jafalse)", expr->subexpr);
-			else
-				write("((%Y)%e)", expr->dtype, expr->subexpr);
+			gen_cast(expr);
 			break;
 		case EX_SUBSCRIPT:
-			write("(%e[%e])", expr->subexpr, expr->index);
+			if(expr->subexpr->dtype->type == TY_DYNARRAY) {
+				write(
+					"(((%Y*)%e.items)[%e])",
+					expr->subexpr->dtype->subtype,
+					expr->subexpr, expr->index
+				);
+			}
+			else {
+				write("(%e[%e])", expr->subexpr, expr->index);
+			}
 			break;
 		case EX_BINOP:
 			write(
@@ -399,7 +431,10 @@ static void gen_vardecl(Stmt *stmt)
 			write(";\n");
 		}
 	}
-	else if(stmt->dtype->type == TY_ARRAY || stmt->dtype->type == TY_INST) {
+	else if(
+		stmt->dtype->type == TY_ARRAY || stmt->dtype->type == TY_INST ||
+		stmt->dtype->type == TY_DYNARRAY
+	) {
 		write(" = {0};\n");
 	}
 	else {
@@ -457,13 +492,21 @@ void gen(Unit *unit)
 {
 	ofs = fopen(unit->c_filename, "wb");
 	level = 0;
-	write("#include <stdio.h>\n");
-	write("#include <stdint.h>\n");
-	write("#include <inttypes.h>\n");
-	write("#include <string.h>\n");
-	write("#define jafalse ((jabool)0)\n");
-	write("#define jatrue ((jabool)1)\n");
-	write("typedef uint8_t jabool;\n");
+	
+	write(
+		"#include <stdio.h>\n"
+		"#include <stdint.h>\n"
+		"#include <inttypes.h>\n"
+		"#include <string.h>\n"
+		"#define jafalse ((jabool)0)\n"
+		"#define jatrue ((jabool)1)\n"
+		"typedef uint8_t jabool;\n"
+		"typedef struct {\n"
+		INDENT "int64_t length;\n"
+		INDENT "void *items;\n"
+		"} jadynarray;\n"
+	);
+	
 	gen_structdecls(unit->stmts);
 	gen_vardecls(unit->stmts);
 	gen_funcdecls(unit->stmts);

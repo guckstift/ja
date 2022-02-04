@@ -33,6 +33,14 @@ Stores a fixed number of consecutive items of a certain type
 [size] item_type
 ```
 
+## dynamic array
+
+Stores length and pointer to items.
+
+```
+>[] item_type
+```
+
 ## structure types
 
 ```
@@ -50,24 +58,20 @@ definition.
 
 ## incomplete types
 
-Variables of incomplete types can not be declared.
+Variables or members of incomplete types can not be declared.
 
 An array type with undefined length is incomplete.
 
 ```
-var x : []int;
+var x : [?]int;
 ```
 
-A pointer type to an incomplete array is not incomplete.
+Static and dynamic arrays of incomplete item types and pointers to incomplete
+types are also incomplete.
 
 ```
-var p : >[]int;
+var p : [3][?]int;
+var q : >[?]int;
+var r : >[][?];
 ```
 
-Except when the item type of the array is incomplete.
-
-```
-var p1 : >[][]int;
-var p2 : >>[][]int;
-var p3 : []>>[][]int;
-```

@@ -12,8 +12,17 @@ static void error(char *msg, ...)
 	exit(EXIT_FAILURE);
 }
 
+typedef struct {
+	int x;
+} Foo;
+
 int main(int argc, char *argv[])
 {
+	Foo *p = &(Foo){90};
+	printf("%i\n", p->x);
+	
+	((Foo){42}).x = 90;
+	
 	if(argc < 2) error("no input file");
 	if(argc > 2) error("too many input files");
 	char *filename = argv[1];

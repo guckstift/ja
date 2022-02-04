@@ -29,6 +29,7 @@
 	_("]", RBRACK) \
 	_("(", LPAREN) \
 	_(")", RPAREN) \
+	_("?", QUESTION) \
 	_("=", ASSIGN) \
 	_(".", PERIOD) \
 	_(":", COLON) \

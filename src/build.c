@@ -150,7 +150,7 @@ static Unit *build_unit(char *filename)
 	str_append(exe_filename, unit_id);
 	
 	char *cc_cmd = 0;
-	str_append(cc_cmd, "gcc -o ");
+	str_append(cc_cmd, "gcc -std=c17 -pedantic-errors -o ");
 	str_append(cc_cmd, exe_filename);
 	str_append(cc_cmd, " ");
 	str_append(cc_cmd, c_filename);
