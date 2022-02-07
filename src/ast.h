@@ -121,6 +121,7 @@ int type_equ(TypeDesc *dtype1, TypeDesc *dtype2);
 int is_integer_type(TypeDesc *dtype);
 int is_integral_type(TypeDesc *dtype);
 int is_complete_type(TypeDesc *dtype);
+int is_dynarray_ptr_type(TypeDesc *dt);
 
 Expr *new_expr(ExprType type, Token *start);
 Expr *new_int_expr(int64_t val, Token *start);

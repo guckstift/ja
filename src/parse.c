@@ -194,6 +194,15 @@ static Expr *cast_expr(Expr *expr, TypeDesc *dtype, int explicit)
 	if(explicit && stype->type == TY_PTR && dtype->type == TY_PTR)
 		return new_cast_expr(expr, dtype);
 	
+	// array ptr to dynamic array ptr when same item type
+	if(
+		stype->type == TY_PTR && stype->subtype->type == TY_ARRAY &&
+		is_dynarray_ptr_type(dtype) &&
+		type_equ(stype->subtype->subtype, dtype->subtype->subtype)
+	) {
+		return new_cast_expr(expr, dtype);
+	}
+	
 	// arrays with equal length
 	if(
 		stype->type == TY_ARRAY && dtype->type == TY_ARRAY &&

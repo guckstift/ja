@@ -67,6 +67,10 @@ int is_integral_type(TypeDesc *dtype)
 int is_complete_type(TypeDesc *dt)
 {
 	if(dt->type == TY_PTR) {
+		if(dt->subtype->type == TY_ARRAY) {
+			return is_complete_type(dt->subtype->subtype);
+		}
+		
 		return is_complete_type(dt->subtype);
 	}
 	
@@ -75,6 +79,14 @@ int is_complete_type(TypeDesc *dt)
 	}
 	
 	return 1;
+}
+
+int is_dynarray_ptr_type(TypeDesc *dt)
+{
+	return
+		dt->type == TY_PTR &&
+		dt->subtype->type == TY_ARRAY &&
+		dt->subtype->length == -1 ;
 }
 
 Expr *new_expr(ExprType type, Token *start)

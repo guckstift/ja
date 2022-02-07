@@ -118,9 +118,14 @@ static void gen_type(TypeDesc *dtype)
 			write("%I", dtype->id);
 			break;
 		case TY_PTR:
-			gen_type(dtype->subtype);
-			if(dtype->subtype->type == TY_ARRAY) write("(");
-			write("*");
+			if(is_dynarray_ptr_type(dtype)) {
+				write("jadynarray");
+			}
+			else {
+				gen_type(dtype->subtype);
+				if(dtype->subtype->type == TY_ARRAY) write("(");
+				write("*");
+			}
 			break;
 		case TY_ARRAY:
 			gen_type(dtype->subtype);
@@ -132,6 +137,7 @@ static void gen_type_postfix(TypeDesc *dtype)
 {
 	switch(dtype->type) {
 		case TY_PTR:
+			if(is_dynarray_ptr_type(dtype)) break;
 			if(dtype->subtype->type == TY_ARRAY) write(")");
 			gen_type_postfix(dtype->subtype);
 			break;
@@ -150,6 +156,20 @@ static void gen_cast(Expr *expr)
 	
 	if(dtype->type == TY_BOOL) {
 		write("(%e ? jatrue : jafalse)", srcexpr);
+	}
+	else if(is_dynarray_ptr_type(dtype)) {
+		write("((%Y){.length = ", dtype);
+		
+		if(srctype->subtype->type == TY_ARRAY) {
+			// from static array
+			write("%i", srctype->subtype->length);
+		}
+		else {
+			// other
+			write("0");
+		}
+		
+		write(", .items = %e})", srcexpr);
 	}
 	else {
 		write("((%Y)%e)", dtype, srcexpr);
@@ -178,7 +198,22 @@ static void gen_expr(Expr *expr)
 			gen_cast(expr);
 			break;
 		case EX_SUBSCRIPT:
-			write("(%e[%e])", expr->subexpr, expr->index);
+			if(
+				expr->subexpr->type == EX_DEREF &&
+				is_dynarray_ptr_type(expr->subexpr->subexpr->dtype)
+			) {
+				Expr *dynarray = expr->subexpr->subexpr;
+				Expr *index = expr->index;
+				TypeDesc *itemtype = expr->dtype;
+				
+				write(
+					"(((%y(*)%z)%e.items)[%e])",
+					itemtype, itemtype, dynarray, index
+				);
+			}
+			else {
+				write("(%e[%e])", expr->subexpr, expr->index);
+			}
 			break;
 		case EX_BINOP:
 			write(
@@ -405,7 +440,8 @@ static void gen_vardecl(Stmt *stmt)
 		}
 	}
 	else if(
-		stmt->dtype->type == TY_ARRAY || stmt->dtype->type == TY_STRUCT
+		stmt->dtype->type == TY_ARRAY || stmt->dtype->type == TY_STRUCT ||
+		is_dynarray_ptr_type(stmt->dtype)
 	) {
 		write(" = {0};\n");
 	}
