@@ -12,7 +12,7 @@ typedef enum {
 	TY_PTR, // subtype
 	TY_ARRAY, // subtype, length
 	TY_FUNC, // returntype
-	TY_INST, // id, typedecl
+	TY_STRUCT, // id, typedecl
 } Type;
 
 typedef struct TypeDesc {
@@ -23,7 +23,7 @@ typedef struct TypeDesc {
 		Token *id;
 	};
 	union {
-		int64_t length;
+		int64_t length; // -1 = incomplete
 		struct Stmt *typedecl;
 	};
 } TypeDesc;
@@ -131,5 +131,8 @@ Expr *new_cast_expr(Expr *subexpr, TypeDesc *dtype);
 
 Stmt *new_stmt(StmtType type, Token *start, Scope *scope);
 Stmt *new_assign(Expr *target, Expr *expr, Scope *scope);
+
+Stmt *lookup_flat_in(Token *id, Scope *scope);
+Stmt *lookup_in(Token *id, Scope *scope);
 
 #endif

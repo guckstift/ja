@@ -1,3 +1,7 @@
+# done
+
+* on the fly constant evaluation
+
 # todo
 
 * function parameters
@@ -19,7 +23,6 @@
 * array.length
 * auto pointer unpacking/packing
 * pseudo ptr arithmetic via @ index
-* on the fly constant evaluation
 * print arrays
 * print structs
 * print ptrs contents

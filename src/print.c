@@ -264,14 +264,14 @@ static void fprint_type(FILE *fs, TypeDesc *dtype)
 			break;
 		case TY_ARRAY:
 			fprintf(fs, "[");
-			fprint_int(fs, dtype->length);
+			if(dtype->length >= 0) fprint_int(fs, dtype->length);
 			fprintf(fs, "]");
 			fprint_type(fs, dtype->subtype);
 			break;
 		case TY_FUNC:
 			fprint_keyword_cstr(fs, "function");
 			break;
-		case TY_INST:
+		case TY_STRUCT:
 			fprint_ident(fs, dtype->id);
 			break;
 	}

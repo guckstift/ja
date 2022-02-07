@@ -45,7 +45,7 @@ int type_equ(TypeDesc *dtype1, TypeDesc *dtype2)
 			type_equ(dtype1->subtype, dtype2->subtype);
 	}
 	
-	if(dtype1->type == TY_INST && dtype2->type == TY_INST) {
+	if(dtype1->type == TY_STRUCT && dtype2->type == TY_STRUCT) {
 		return dtype1->id == dtype2->id;
 	}
 	
@@ -153,4 +153,28 @@ Stmt *new_assign(Expr *target, Expr *expr, Scope *scope)
 	stmt->target = target;
 	stmt->expr = expr;
 	return stmt;
+}
+
+Stmt *lookup_flat_in(Token *id, Scope *scope)
+{
+	for(Stmt *decl = scope->first_decl; decl; decl = decl->next_decl) {
+		if(decl->id == id) return decl;
+	}
+	
+	return 0;
+}
+
+Stmt *lookup_in(Token *id, Scope *scope)
+{
+	Stmt *decl = lookup_flat_in(id, scope);
+	
+	if(decl) {
+		return decl;
+	}
+	
+	if(scope->parent) {
+		return lookup_in(id, scope->parent);
+	}
+	
+	return 0;
 }

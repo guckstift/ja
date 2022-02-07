@@ -1,2 +1,16 @@
 
-var x = 1 + 2;
+var x = 0-1;
+var y = ><>x;
+var z = 1000 as uint8 as bool as int;
+
+var f = [0,1,2,3,4][3] as bool as uint8;
+
+var g : [][]int = [[1,2]];
+
+function foo () : >[]bool {}
+
+struct Foo {
+	var x : [1]int;
+}
+
+var p : >[][]int = (>g) as >[][]int;

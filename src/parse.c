@@ -44,30 +44,7 @@ static Scope *scope;
 
 static Stmt *p_stmts(Stmt *func);
 static Expr *p_expr();
-
-static Stmt *lookup_flat_in(Token *id, Scope *scope)
-{
-	for(Stmt *decl = scope->first_decl; decl; decl = decl->next_decl) {
-		if(decl->id == id) return decl;
-	}
-	
-	return 0;
-}
-
-static Stmt *lookup_in(Token *id, Scope *scope)
-{
-	Stmt *decl = lookup_flat_in(id, scope);
-	
-	if(decl) {
-		return decl;
-	}
-	
-	if(scope->parent) {
-		return lookup_in(id, scope->parent);
-	}
-	
-	return 0;
-}
+static TypeDesc *p_type();
 
 static Stmt *lookup_flat(Token *id)
 {
@@ -108,57 +85,90 @@ static void leave()
 	scope = scope->parent;
 }
 
-static TypeDesc *p_type()
+static TypeDesc *p_primtype()
 {
-	if(eat(TK_int)) {
-		return new_type(TY_INT64);
-	}
-	else if(eat(TK_uint8)) {
-		return new_type(TY_UINT8);
-	}
-	else if(eat(TK_uint)) {
-		return new_type(TY_UINT64);
-	}
-	else if(eat(TK_bool)) {
-		return new_type(TY_BOOL);
-	}
-	else if(eat(TK_IDENT)) {
-		TypeDesc *dtype = new_type(TY_INST);
-		dtype->id = last->id;
-		Stmt *decl = lookup(dtype->id);
-		if(!decl)
-			fatal_at(last, "name %t not declared", dtype->id);
-		if(decl->type != ST_STRUCTDECL)
-			fatal_at(last, "%t is not a structure", dtype->id);
-		dtype->typedecl = decl;
-		return dtype;
-	}
-	else if(eat(TK_GREATER)) {
-		TypeDesc *subtype = p_type();
-		
-		if(!subtype)
-			fatal_at(last, "expected target type");
-		
-		return new_ptr_type(subtype);
-	}
-	else if(eat(TK_LBRACK)) {
-		Token *length = eat(TK_INT);
-		if(!length)
-			fatal_at(cur, "expected integer literal for array length");
-		if(length->ival <= 0)
-			fatal_at(length, "array length must be greater than 0");
-		
-		if(!eat(TK_RBRACK))
-			fatal_after(last, "expected ] after array length");
-		
-		TypeDesc *subtype = p_type();
-		if(!subtype)
-			fatal_at(last, "expected element type");
-		
-		return new_array_type(length->ival, subtype);
+	if(eat(TK_int)) return new_type(TY_INT64);
+	if(eat(TK_uint8)) return new_type(TY_UINT8);
+	if(eat(TK_uint)) return new_type(TY_UINT64);
+	if(eat(TK_bool)) return new_type(TY_BOOL);
+	return 0;
+}
+
+static TypeDesc *p_nametype()
+{
+	Token *ident = eat(TK_IDENT);
+	if(!ident) return 0;
+	
+	Stmt *decl = lookup(ident->id);
+	
+	if(!decl)
+		fatal_at(ident, "name %t not declared", ident);
+	
+	if(decl->type != ST_STRUCTDECL)
+		fatal_at(ident, "%t is not a structure", ident);
+	
+	TypeDesc *dtype = new_type(TY_STRUCT);
+	dtype->id = ident->id;
+	dtype->typedecl = decl;
+	return dtype;
+}
+
+static TypeDesc *p_ptrtype()
+{
+	if(!eat(TK_GREATER)) return 0;
+	
+	TypeDesc *subtype = p_type();
+	if(!subtype)
+		fatal_at(last, "expected target type");
+	
+	return new_ptr_type(subtype);
+}
+
+static TypeDesc *p_arraytype()
+{
+	if(!eat(TK_LBRACK)) return 0;
+	
+	Token *length = eat(TK_INT);
+	
+	if(length && length->ival <= 0)
+		fatal_at(length, "array length must be greater than 0");
+	
+	if(!eat(TK_RBRACK)) {
+		if(length)
+			fatal_after(last, "expected ]");
+		else
+			fatal_after(last, "expected integer literal for array length");
 	}
 	
-	return 0;
+	TypeDesc *subtype = p_type();
+	if(!subtype)
+		fatal_at(last, "expected element type");
+	
+	return new_array_type(length ? length->ival : -1, subtype);
+}
+
+static TypeDesc *p_type()
+{
+	TypeDesc *dtype = 0;
+	(dtype = p_primtype()) ||
+	(dtype = p_nametype()) ||
+	(dtype = p_ptrtype()) ||
+	(dtype = p_arraytype()) ;
+	return dtype;
+}
+
+static TypeDesc *complete_type(TypeDesc *dtype, Expr *expr)
+{
+	// automatic array length completion from expr
+	for(
+		TypeDesc *dt = dtype, *st = expr->dtype;
+		dt->type == TY_ARRAY && st->type == TY_ARRAY;
+		dt = dt->subtype, st = st->subtype
+	) {
+		if(dt->length == -1) {
+			dt->length = st->length;
+		}
+	}
 }
 
 /*
@@ -178,12 +188,11 @@ static Expr *cast_expr(Expr *expr, TypeDesc *dtype, int explicit)
 	
 	// integral types are castable into other integral types
 	if(is_integral_type(stype) && is_integral_type(dtype))
-		return new_cast_expr(expr, dtype);
+		return eval_integral_cast(expr, dtype);
 	
 	// one pointer to some other by explicit cast always ok
-	if(explicit && stype->type == TY_PTR && dtype->type == TY_PTR) {
+	if(explicit && stype->type == TY_PTR && dtype->type == TY_PTR)
 		return new_cast_expr(expr, dtype);
-	}
 	
 	// arrays with equal length
 	if(
@@ -280,6 +289,7 @@ static Expr *p_atom()
 		TypeDesc *subtype = 0;
 		uint64_t length = 0;
 		int isconst = 1;
+		
 		while(1) {
 			Expr *item = p_expr();
 			if(!item) break;
@@ -299,10 +309,13 @@ static Expr *p_atom()
 			length ++;
 			if(!eat(TK_COMMA)) break;
 		}
+		
 		if(!eat(TK_RBRACK))
 			fatal_after(last, "expected comma or ]");
+		
 		if(length == 0)
 			fatal_at(last, "empty array literal is not allowed");
+		
 		Expr *expr = new_expr(EX_ARRAY, start);
 		expr->exprs = first;
 		expr->length = length;
@@ -363,7 +376,7 @@ static Expr *p_postfix()
 					index->isconst
 				) {
 					int64_t index_val = index->ival;
-					if(index_val >= expr->dtype->length)
+					if(index_val < 0 || index_val >= expr->dtype->length)
 						fatal_at(
 							index->start,
 							"index is out of range, must be between 0 .. %u",
@@ -374,13 +387,7 @@ static Expr *p_postfix()
 				if(!eat(TK_RBRACK))
 					fatal_after(last, "expected ] after index expression");
 				
-				Expr *subscript = new_expr(EX_SUBSCRIPT, expr->start);
-				subscript->subexpr = expr;
-				subscript->index = index;
-				subscript->isconst = 0;
-				subscript->islvalue = 1;
-				subscript->dtype = expr->dtype->subtype;
-				expr = subscript;
+				expr = eval_subscript(expr, index);
 			}
 			else {
 				fatal_after(last, "need array to subscript");
@@ -388,7 +395,7 @@ static Expr *p_postfix()
 		}
 		else if(eat(TK_PERIOD)) {
 			TypeDesc *dtype = expr->dtype;
-			if(dtype->type != TY_INST)
+			if(dtype->type != TY_STRUCT)
 				fatal_at(expr->start, "no instance to get member");
 			Stmt *struct_decl = dtype->typedecl;
 			Scope *struct_scope = struct_decl->struct_body->scope;
@@ -416,12 +423,20 @@ static Expr *p_postfix()
 static Expr *p_prefix()
 {
 	if(eat(TK_GREATER)) {
-		Expr *expr = new_expr(EX_PTR, last);
-		expr->subexpr = p_prefix();
-		if(!expr->subexpr)
-			fatal_after(last, "expected target to point to");
-		if(!expr->subexpr->islvalue)
-			fatal_at(expr->subexpr->start, "expected target to point to");
+		Token *start = last;
+		Expr *subexpr = p_prefix();
+		
+		if(!subexpr)
+			fatal_after(last, "expected expression to point to");
+		
+		if(!subexpr->islvalue)
+			fatal_at(subexpr->start, "target is not addressable");
+		
+		if(subexpr->type == EX_DEREF)
+			return subexpr->subexpr;
+			
+		Expr *expr = new_expr(EX_PTR, start);
+		expr->subexpr = subexpr;
 		expr->isconst = 0;
 		expr->islvalue = 0;
 		expr->dtype = new_ptr_type(expr->subexpr->dtype);
@@ -429,18 +444,22 @@ static Expr *p_prefix()
 	}
 	else if(eat(TK_LOWER)) {
 		Expr *subexpr = p_prefix();
+		
 		if(!subexpr)
-			fatal_at(last, "expected expression after <");
+			fatal_at(last, "expected expression to dereference");
+			
+		if(subexpr->dtype->type != TY_PTR)
+			fatal_at(subexpr->start, "expected pointer to dereference");
 		
-		if(subexpr->dtype->type == TY_PTR) {
-			Expr *expr = new_expr(EX_DEREF, subexpr->start);
-			expr->isconst = 0;
-			expr->islvalue = 1;
-			expr->dtype = subexpr->dtype->subtype;
-			return expr;
-		}
+		if(subexpr->type == EX_PTR)
+			return subexpr->subexpr;
 		
-		fatal_at(subexpr->start, "expected pointer to dereference");
+		Expr *expr = new_expr(EX_DEREF, subexpr->start);
+		expr->subexpr = subexpr;
+		expr->isconst = 0;
+		expr->islvalue = 1;
+		expr->dtype = subexpr->dtype->subtype;
+		return expr;
 	}
 	
 	return p_postfix();
@@ -487,6 +506,7 @@ static Expr *p_binop()
 			);
 		}
 		
+		expr = eval_binop(expr);
 		left = expr;
 	}
 	
@@ -498,16 +518,11 @@ static Expr *p_expr()
 	return p_binop();
 }
 
-static Expr *p_expr_evaled()
-{
-	return eval_expr(p_expr());
-}
-
 static Stmt *p_print()
 {
 	if(!eat(TK_print)) return 0;
 	Stmt *stmt = new_stmt(ST_PRINT, last, scope);
-	stmt->expr = p_expr_evaled();
+	stmt->expr = p_expr();
 	
 	if(!stmt->expr)
 		fatal_after(last, "expected expression to print");
@@ -562,6 +577,7 @@ static Stmt *p_vardecl()
 		if(dtype == 0)
 			dtype = init->dtype;
 		
+		complete_type(dtype, init);
 		init = cast_expr(init, dtype, 0);
 	}
 	
@@ -613,7 +629,8 @@ static Stmt *p_funcdecl()
 		fatal_at(last, "functions can only be declared at top level");
 	
 	Token *ident = eat(TK_IDENT);
-	if(!ident) fatal_after(last, "expected identifier after keyword function");
+	if(!ident)
+		fatal_after(last, "expected identifier after keyword function");
 	
 	if(!eat(TK_LPAREN))
 		fatal_after(last, "expected ( after function name");
@@ -685,7 +702,7 @@ static Stmt *p_ifstmt()
 {
 	if(!eat(TK_if)) return 0;
 	Stmt *stmt = new_stmt(ST_IFSTMT, last, scope);
-	stmt->expr = p_expr_evaled();
+	stmt->expr = p_expr();
 	if(!stmt->expr)
 		fatal_at(last, "expected condition after if");
 	if(!eat(TK_LCURLY))
@@ -712,7 +729,7 @@ static Stmt *p_whilestmt()
 {
 	if(!eat(TK_while)) return 0;
 	Stmt *stmt = new_stmt(ST_WHILESTMT, last, scope);
-	stmt->expr = p_expr_evaled();
+	stmt->expr = p_expr();
 	if(!stmt->expr)
 		fatal_at(last, "expected condition after while");
 	if(!eat(TK_LCURLY))
@@ -743,7 +760,6 @@ static Stmt *p_returnstmt()
 		if(!stmt->expr)
 			fatal_after(last, "expected expression to return");
 		stmt->expr = cast_expr(stmt->expr, dtype, 0);
-		stmt->expr = eval_expr(stmt->expr);
 	}
 	
 	if(!eat(TK_SEMICOLON))
@@ -754,7 +770,7 @@ static Stmt *p_returnstmt()
 
 static Stmt *p_assign()
 {
-	Expr *target = p_expr_evaled();
+	Expr *target = p_expr();
 	if(!target) return 0;
 	
 	if(target->type == EX_CALL && eat(TK_SEMICOLON)) {
@@ -772,7 +788,7 @@ static Stmt *p_assign()
 	stmt->expr = p_expr();
 	if(!stmt->expr)
 		fatal_at(last, "expected right side after =");
-	stmt->expr = eval_expr(cast_expr(stmt->expr, stmt->target->dtype, 0));
+	stmt->expr = cast_expr(stmt->expr, stmt->target->dtype, 0);
 	if(!eat(TK_SEMICOLON))
 		error_after(last, "expected semicolon after variable declaration");
 	return stmt;
