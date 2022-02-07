@@ -1,36 +1,5 @@
 
-var x = [[1,2]];
-var y : >[][?]int = >x;
+var a = [[1]];
+var x : >[][?]int = >a;
 
-/*
-#var x = [true, false];
-#var xd : >[]bool = >x;
-
-var y = [[1,2],[3,4]];
-var yd : >[][?]int = >y;
-
-/*
-#var y = [>x] as [?]>[?]bool;
-var y = [xd] as [?]>[]bool;
-
-#var yd = xd as >[]int;
-
-/*
-var x = [1,2] as [?]int;
-#var y = [[1,2],[3,4]] as [?][?]int;
-
-#var y = (>x) as >[?]int;
-
-var y = [x, x] as [?][?]bool;
-
-#var z = [>x, >x] as [?]>[?]bool;
-
-/*
-var x = [1,true,3] as [?]bool;
-
-#var y = (>x) as >[?]int;
-
-var y = [x, x, x];
-
-var z = y as [?][?]int;
-*/
+x[0][0] = 9;

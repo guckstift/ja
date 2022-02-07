@@ -1,0 +1,9 @@
+
+var x = 9;
+var y = >x;
+var z = >y;
+
+z = 80;
+
+var a = 0;
+y = >a;

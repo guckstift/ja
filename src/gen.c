@@ -198,7 +198,8 @@ static void gen_expr(Expr *expr)
 		case EX_SUBSCRIPT:
 			if(expr->subexpr->dtype->type == TY_DYNARRAY) {
 				write(
-					"(((%Y*)%e.items)[%e])",
+					"(((%y(*)%z)%e.items)[%e])",
+					expr->subexpr->dtype->subtype,
 					expr->subexpr->dtype->subtype,
 					expr->subexpr, expr->index
 				);
