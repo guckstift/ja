@@ -11,56 +11,39 @@
 #define eat(t) (match(t) ? adv() : 0)
 #define eat2(t1, t2) (match2(t1, t2) ? (adv(), adv()) : 0)
 
+#define error(line, linep, start, ...) \
+	print_error(line, linep, src_end, start, __VA_ARGS__)
+
+#define error_at(token, ...) \
+	error((token)->line, (token)->linep, (token)->start, __VA_ARGS__)
+
+#define error_after(token, ...) \
+	error( \
+		(token)->line, (token)->linep, (token)->start + (token)->length, \
+		__VA_ARGS__ \
+	)
+
+#define fatal(line, linep, start, ...) do { \
+	error(line, linep, start, __VA_ARGS__); \
+	exit(EXIT_FAILURE); \
+} while(0)
+
+#define fatal_at(token, ...) \
+	fatal((token)->line, (token)->linep, (token)->start, __VA_ARGS__)
+
+#define fatal_after(token, ...) \
+	fatal( \
+		(token)->line, (token)->linep, (token)->start + (token)->length, \
+		__VA_ARGS__ \
+	)
+
 static Token *cur;
 static Token *last;
 static char *src_end;
 static Scope *scope;
-static int noexit;
 
 static Stmt *p_stmts(Stmt *func);
 static Expr *p_expr();
-
-static void error_at(Token *token, char *msg, ...)
-{
-	va_list args;
-	va_start(args, msg);
-	vprint_error(token->line, token->linep, src_end, token->start, msg, args);
-	va_end(args);
-	if(noexit) {noexit = 0; return;}
-	exit(EXIT_FAILURE);
-}
-
-static void error_at_last(char *msg, ...)
-{
-	va_list args;
-	va_start(args, msg);
-	vprint_error(last->line, last->linep, src_end, last->start, msg, args);
-	va_end(args);
-	if(noexit) {noexit = 0; return;}
-	exit(EXIT_FAILURE);
-}
-
-static void error_at_cur(char *msg, ...)
-{
-	va_list args;
-	va_start(args, msg);
-	vprint_error(cur->line, cur->linep, src_end, cur->start, msg, args);
-	va_end(args);
-	if(noexit) {noexit = 0; return;}
-	exit(EXIT_FAILURE);
-}
-
-static void error_after_last(char *msg, ...)
-{
-	va_list args;
-	va_start(args, msg);
-	vprint_error(
-		last->line, last->linep, src_end, last->start + last->length, msg, args
-	);
-	va_end(args);
-	if(noexit) {noexit = 0; return;}
-	exit(EXIT_FAILURE);
-}
 
 static Stmt *lookup_flat_in(Token *id, Scope *scope)
 {
@@ -144,9 +127,9 @@ static TypeDesc *p_type()
 		dtype->id = last->id;
 		Stmt *decl = lookup(dtype->id);
 		if(!decl)
-			error_at_last("name %t not declared", dtype->id);
+			fatal_at(last, "name %t not declared", dtype->id);
 		if(decl->type != ST_STRUCTDECL)
-			error_at_last("%t is not a structure", dtype->id);
+			fatal_at(last, "%t is not a structure", dtype->id);
 		dtype->typedecl = decl;
 		return dtype;
 	}
@@ -154,23 +137,23 @@ static TypeDesc *p_type()
 		TypeDesc *subtype = p_type();
 		
 		if(!subtype)
-			error_at_last("expected target type");
+			fatal_at(last, "expected target type");
 		
 		return new_ptr_type(subtype);
 	}
 	else if(eat(TK_LBRACK)) {
 		Token *length = eat(TK_INT);
 		if(!length)
-			error_at_cur("expected integer literal for array length");
+			fatal_at(cur, "expected integer literal for array length");
 		if(length->ival <= 0)
-			error_at(length, "array length must be greater than 0");
+			fatal_at(length, "array length must be greater than 0");
 		
 		if(!eat(TK_RBRACK))
-			error_after_last("expected ] after array length");
+			fatal_after(last, "expected ] after array length");
 		
 		TypeDesc *subtype = p_type();
 		if(!subtype)
-			error_at_last("expected element type");
+			fatal_at(last, "expected element type");
 		
 		return new_array_type(length->ival, subtype);
 	}
@@ -187,7 +170,7 @@ static Expr *cast_expr(Expr *expr, TypeDesc *dtype, int explicit)
 	
 	// can not cast from none type
 	if(stype->type == TY_NONE)
-		error_at(expr->start, "expression has no value");
+		fatal_at(expr->start, "expression has no value");
 	
 	// types equal => no cast needed
 	if(type_equ(stype, dtype))
@@ -252,7 +235,7 @@ static Expr *cast_expr(Expr *expr, TypeDesc *dtype, int explicit)
 		}
 	}
 	
-	error_at(
+	fatal_at(
 		expr->start,
 		"can not convert type  %y  to  %y  (%s)",
 		stype, dtype, explicit ? "explicit" : "implicit"
@@ -272,10 +255,10 @@ static Expr *p_atom()
 		Stmt *decl = lookup(ident->id);
 		
 		if(!decl)
-			error_at_last("name %t not declared", ident);
+			fatal_at(last, "name %t not declared", ident);
 		
 		if(decl->type == ST_STRUCTDECL)
-			error_at_last("%t is the name of a structure", ident);
+			fatal_at(last, "%t is the name of a structure", ident);
 		
 		if(decl->type == ST_FUNCDECL)
 			return new_var_expr(
@@ -317,9 +300,9 @@ static Expr *p_atom()
 			if(!eat(TK_COMMA)) break;
 		}
 		if(!eat(TK_RBRACK))
-			error_after_last("expected comma or ]");
+			fatal_after(last, "expected comma or ]");
 		if(length == 0)
-			error_at_last("empty array literal is not allowed");
+			fatal_at(last, "empty array literal is not allowed");
 		Expr *expr = new_expr(EX_ARRAY, start);
 		expr->exprs = first;
 		expr->length = length;
@@ -334,7 +317,7 @@ static Expr *p_atom()
 		Token *start = last;
 		Expr *expr = p_expr();
 		expr->start = start;
-		if(!eat(TK_RPAREN)) error_after_last("expected )");
+		if(!eat(TK_RPAREN)) fatal_after(last, "expected )");
 		return expr;
 	}
 	
@@ -350,14 +333,14 @@ static Expr *p_postfix()
 		if(eat(TK_as)) {
 			TypeDesc *dtype = p_type();
 			if(!dtype)
-				error_after_last("expected type after as");
+				fatal_after(last, "expected type after as");
 			expr = cast_expr(expr, dtype, 1);
 		}
 		else if(eat(TK_LPAREN)) {
 			if(expr->dtype->type != TY_FUNC)
-				error_at(expr->start, "not a function you are calling");
+				fatal_at(expr->start, "not a function you are calling");
 			if(!eat(TK_RPAREN))
-				error_after_last("expected ) after (");
+				fatal_after(last, "expected ) after (");
 			Expr *call = new_expr(EX_CALL, expr->start);
 			call->callee = expr;
 			call->isconst = 0;
@@ -369,10 +352,10 @@ static Expr *p_postfix()
 			if(expr->dtype->type == TY_ARRAY) {
 				Expr *index = p_expr();
 				if(!index)
-					error_after_last("expected index expression after [");
+					fatal_after(last, "expected index expression after [");
 				
 				if(!is_integral_type(index->dtype))
-					error_at(index->start, "index is not integral");
+					fatal_at(index->start, "index is not integral");
 				
 				if(
 					expr->dtype->type == TY_ARRAY &&
@@ -381,7 +364,7 @@ static Expr *p_postfix()
 				) {
 					int64_t index_val = index->ival;
 					if(index_val >= expr->dtype->length)
-						error_at(
+						fatal_at(
 							index->start,
 							"index is out of range, must be between 0 .. %u",
 							expr->dtype->length - 1
@@ -389,7 +372,7 @@ static Expr *p_postfix()
 				}
 				
 				if(!eat(TK_RBRACK))
-					error_after_last("expected ] after index expression");
+					fatal_after(last, "expected ] after index expression");
 				
 				Expr *subscript = new_expr(EX_SUBSCRIPT, expr->start);
 				subscript->subexpr = expr;
@@ -400,23 +383,23 @@ static Expr *p_postfix()
 				expr = subscript;
 			}
 			else {
-				error_after_last("need array to subscript");
+				fatal_after(last, "need array to subscript");
 			}
 		}
 		else if(eat(TK_PERIOD)) {
 			TypeDesc *dtype = expr->dtype;
 			if(dtype->type != TY_INST)
-				error_at(expr->start, "no instance to get member");
+				fatal_at(expr->start, "no instance to get member");
 			Stmt *struct_decl = dtype->typedecl;
 			Scope *struct_scope = struct_decl->struct_body->scope;
 			Token *id = eat(TK_IDENT);
 			if(!id)
-				error_at_last("expected id of structure member");
+				fatal_at(last, "expected id of structure member");
 			Expr *member = new_expr(EX_MEMBER, expr->start);
 			member->member_id = id->id;
 			Stmt *decl = lookup_flat_in(member->member_id, struct_scope);
 			if(!decl)
-				error_at(id, "name %t not declared in struct", id);
+				fatal_at(id, "name %t not declared in struct", id);
 			member->isconst = 0;
 			member->islvalue = 1;
 			member->dtype = decl->dtype;
@@ -436,9 +419,9 @@ static Expr *p_prefix()
 		Expr *expr = new_expr(EX_PTR, last);
 		expr->subexpr = p_prefix();
 		if(!expr->subexpr)
-			error_after_last("expected target to point to");
+			fatal_after(last, "expected target to point to");
 		if(!expr->subexpr->islvalue)
-			error_at(expr->subexpr->start, "expected target to point to");
+			fatal_at(expr->subexpr->start, "expected target to point to");
 		expr->isconst = 0;
 		expr->islvalue = 0;
 		expr->dtype = new_ptr_type(expr->subexpr->dtype);
@@ -447,7 +430,7 @@ static Expr *p_prefix()
 	else if(eat(TK_LOWER)) {
 		Expr *subexpr = p_prefix();
 		if(!subexpr)
-			error_at_last("expected expression after <");
+			fatal_at(last, "expected expression after <");
 		
 		if(subexpr->dtype->type == TY_PTR) {
 			Expr *expr = new_expr(EX_DEREF, subexpr->start);
@@ -457,7 +440,7 @@ static Expr *p_prefix()
 			return expr;
 		}
 		
-		error_at(subexpr->start, "expected pointer to dereference");
+		fatal_at(subexpr->start, "expected pointer to dereference");
 	}
 	
 	return p_postfix();
@@ -481,7 +464,7 @@ static Expr *p_binop()
 		if(!operator) break;
 		Expr *right = p_prefix();
 		if(!right)
-			error_after_last("expected right side after %t", operator);
+			fatal_after(last, "expected right side after %t", operator);
 		Expr *expr = new_expr(EX_BINOP, left->start);
 		expr->left = left;
 		expr->right = right;
@@ -497,7 +480,7 @@ static Expr *p_binop()
 			expr->right = cast_expr(expr->right, expr->dtype, 0);
 		}
 		else {
-			error_at(
+			fatal_at(
 				expr->operator,
 				"can not use types  %y  and  %y  with operator %t",
 				ltype, rtype, expr->operator
@@ -527,17 +510,17 @@ static Stmt *p_print()
 	stmt->expr = p_expr_evaled();
 	
 	if(!stmt->expr)
-		error_after_last("expected expression to print");
+		fatal_after(last, "expected expression to print");
 	
 	if(
 		!is_integral_type(stmt->expr->dtype) &&
 		stmt->expr->dtype->type != TY_PTR
 	) {
-		error_at(stmt->expr->start, "can only print numbers or pointers");
+		fatal_at(stmt->expr->start, "can only print numbers or pointers");
 	}
 	
 	if(!eat(TK_SEMICOLON))
-		noexit=1,error_after_last("expected semicolon after print statement");
+		error_after(last, "expected semicolon after print statement");
 	
 	return stmt;
 }
@@ -548,29 +531,29 @@ static Stmt *p_vardecl()
 	if(!start) return 0;
 	
 	Token *ident = eat(TK_IDENT);
-	if(!ident) error_after_last("expected identifier after keyword var");
+	if(!ident) fatal_after(last, "expected identifier after keyword var");
 	
 	TypeDesc *dtype = 0;
 	if(eat(TK_COLON)) {
 		dtype = p_type();
-		if(!dtype) error_after_last("expected type after colon");
+		if(!dtype) fatal_after(last, "expected type after colon");
 	}
 	
 	Expr *init = 0;
 	if(eat(TK_ASSIGN)) {
 		init = p_expr();
-		if(!init) error_after_last("expected initializer after =");
+		if(!init) fatal_after(last, "expected initializer after =");
 		
 		Token *init_start = init->start;
 		
 		if(init->dtype->type == TY_FUNC)
-			error_at(init_start, "can not use function as value");
+			fatal_at(init_start, "can not use function as value");
 		
 		if(init->dtype->type == TY_NONE)
-			error_at(init_start, "expression has no value");
+			fatal_at(init_start, "expression has no value");
 	
 		if(scope->struc && !init->isconst)
-			error_at(
+			fatal_at(
 				init_start,
 				"structure members can only be initialized "
 				"with constant values"
@@ -583,15 +566,13 @@ static Stmt *p_vardecl()
 	}
 	
 	if(!eat(TK_SEMICOLON))
-		noexit=1,
-		error_after_last("expected semicolon after variable declaration");
+		error_after(last, "expected semicolon after variable declaration");
 	
-	if(dtype == 0) error_at(ident, "variable without type declared");
+	if(dtype == 0)
+		fatal_at(ident, "variable without type declared");
 	
 	if(!is_complete_type(dtype))
-		error_at(
-			ident, "variable with incomplete type  %y  declared", dtype
-		);
+		fatal_at(ident, "variable with incomplete type  %y  declared", dtype);
 	
 	Stmt *stmt = new_stmt(ST_VARDECL, start, scope);
 	stmt->id = ident->id;
@@ -600,7 +581,7 @@ static Stmt *p_vardecl()
 	stmt->next_decl = 0;
 	
 	if(!declare(stmt))
-		error_at(ident, "name %t already declared", ident);
+		fatal_at(ident, "name %t already declared", ident);
 	
 	return stmt;
 }
@@ -629,23 +610,23 @@ static Stmt *p_funcdecl()
 	if(!start) return 0;
 	
 	if(scope->parent)
-		error_at_last("functions can only be declared at top level");
+		fatal_at(last, "functions can only be declared at top level");
 	
 	Token *ident = eat(TK_IDENT);
-	if(!ident) error_after_last("expected identifier after keyword function");
+	if(!ident) fatal_after(last, "expected identifier after keyword function");
 	
 	if(!eat(TK_LPAREN))
-		error_after_last("expected ( after function name");
+		fatal_after(last, "expected ( after function name");
 	if(!eat(TK_RPAREN))
-		error_after_last("expected ) after (");
+		fatal_after(last, "expected ) after (");
 	
 	TypeDesc *dtype = new_type(TY_NONE);
 	if(eat(TK_COLON)) {
 		dtype = p_type();
-		if(!dtype) error_after_last("expected return type after colon");
+		if(!dtype) fatal_after(last, "expected return type after colon");
 		
 		if(!is_complete_type(dtype))
-			error_at(
+			fatal_at(
 				ident, "function with incomplete type  %y  declared", dtype
 			);
 	}
@@ -656,15 +637,15 @@ static Stmt *p_funcdecl()
 	stmt->next_decl = 0;
 	
 	if(!declare(stmt))
-		error_at(ident, "name %t already declared", ident);
+		fatal_at(ident, "name %t already declared", ident);
 	
 	if(!eat(TK_LCURLY))
-		error_after_last("expected {");
+		fatal_after(last, "expected {");
 	
 	stmt->func_body = p_stmts(stmt);
 	
 	if(!eat(TK_RCURLY))
-		error_after_last("expected } after function body");
+		fatal_after(last, "expected } after function body");
 	
 	return stmt;
 }
@@ -675,27 +656,27 @@ static Stmt *p_structdecl()
 	if(!start) return 0;
 	
 	if(scope->parent)
-		error_at_last("structures can only be declared at top level");
+		fatal_at(last, "structures can only be declared at top level");
 	
 	Token *ident = eat(TK_IDENT);
-	if(!ident) error_after_last("expected identifier after keyword struct");
+	if(!ident) fatal_after(last, "expected identifier after keyword struct");
 	
 	Stmt *stmt = new_stmt(ST_STRUCTDECL, start, scope);
 	stmt->id = ident->id;
 	stmt->next_decl = 0;
 	
 	if(!declare(stmt))
-		error_at(ident, "name %t already declared", ident);
+		fatal_at(ident, "name %t already declared", ident);
 	
 	if(!eat(TK_LCURLY))
-		error_after_last("expected {");
+		fatal_after(last, "expected {");
 	
 	stmt->struct_body = p_vardecls(stmt);
 	if(stmt->struct_body == 0)
-		error_at(stmt->start, "empty structure");
+		fatal_at(stmt->start, "empty structure");
 	
 	if(!eat(TK_RCURLY))
-		error_after_last("expected } after function body");
+		fatal_after(last, "expected } after function body");
 	
 	return stmt;
 }
@@ -706,19 +687,19 @@ static Stmt *p_ifstmt()
 	Stmt *stmt = new_stmt(ST_IFSTMT, last, scope);
 	stmt->expr = p_expr_evaled();
 	if(!stmt->expr)
-		error_at_last("expected condition after if");
+		fatal_at(last, "expected condition after if");
 	if(!eat(TK_LCURLY))
-		error_after_last("expected { after condition");
+		fatal_after(last, "expected { after condition");
 	stmt->if_body = p_stmts(0);
 	if(!eat(TK_RCURLY))
-		error_after_last("expected } after if-body");
+		fatal_after(last, "expected } after if-body");
 		
 	if(eat(TK_else)) {
 		if(!eat(TK_LCURLY))
-			error_after_last("expected { after else");
+			fatal_after(last, "expected { after else");
 		stmt->else_body = p_stmts(0);
 		if(!eat(TK_RCURLY))
-			error_after_last("expected } after else-body");
+			fatal_after(last, "expected } after else-body");
 	}
 	else {
 		stmt->else_body = 0;
@@ -733,12 +714,12 @@ static Stmt *p_whilestmt()
 	Stmt *stmt = new_stmt(ST_WHILESTMT, last, scope);
 	stmt->expr = p_expr_evaled();
 	if(!stmt->expr)
-		error_at_last("expected condition after while");
+		fatal_at(last, "expected condition after while");
 	if(!eat(TK_LCURLY))
-		error_after_last("expected { after condition");
+		fatal_after(last, "expected { after condition");
 	stmt->while_body = p_stmts(0);
 	if(!eat(TK_RCURLY))
-		error_after_last("expected } after while-body");
+		fatal_after(last, "expected } after while-body");
 	return stmt;
 }
 
@@ -748,7 +729,7 @@ static Stmt *p_returnstmt()
 	Stmt *func = scope->func;
 	
 	if(!func)
-		error_at_last("return outside of any function");
+		fatal_at(last, "return outside of any function");
 	
 	TypeDesc *dtype = func->dtype;
 	Stmt *stmt = new_stmt(ST_RETURN, last, scope);
@@ -756,17 +737,17 @@ static Stmt *p_returnstmt()
 	
 	if(dtype->type == TY_NONE) {
 		if(stmt->expr)
-			error_at(stmt->expr->start, "function should not return values");
+			fatal_at(stmt->expr->start, "function should not return values");
 	}
 	else {
 		if(!stmt->expr)
-			error_after_last("expected expression to return");
+			fatal_after(last, "expected expression to return");
 		stmt->expr = cast_expr(stmt->expr, dtype, 0);
 		stmt->expr = eval_expr(stmt->expr);
 	}
 	
 	if(!eat(TK_SEMICOLON))
-		noexit=1,error_after_last("expected semicolon after return statement");
+		error_after(last, "expected semicolon after return statement");
 	
 	return stmt;
 }
@@ -783,18 +764,17 @@ static Stmt *p_assign()
 	}
 	
 	if(!target->islvalue)
-		error_at(target->start, "left side is not assignable");
+		fatal_at(target->start, "left side is not assignable");
 	Stmt *stmt = new_stmt(ST_ASSIGN, target->start, scope);
 	stmt->target = target;
 	if(!eat(TK_ASSIGN))
-		error_after_last("expected = after left side");
+		fatal_after(last, "expected = after left side");
 	stmt->expr = p_expr();
 	if(!stmt->expr)
-		error_at_last("expected right side after =");
+		fatal_at(last, "expected right side after =");
 	stmt->expr = eval_expr(cast_expr(stmt->expr, stmt->target->dtype, 0));
 	if(!eat(TK_SEMICOLON))
-		noexit=1,
-		error_after_last("expected semicolon after variable declaration");
+		error_after(last, "expected semicolon after variable declaration");
 	return stmt;
 }
 
@@ -832,13 +812,12 @@ static Stmt *p_stmts(Stmt *func)
 
 Stmt *parse(Tokens *tokens)
 {
-	noexit = 0;
 	cur = tokens->first;
 	last = 0;
 	src_end = tokens->last->start + tokens->last->length;
 	scope = 0;
 	Stmt *stmts = p_stmts(0);
 	if(!eat(TK_EOF))
-		error_at_cur("invalid statement");
+		fatal_at(cur, "invalid statement");
 	return stmts;
 }
