@@ -237,7 +237,24 @@ static void gen_expr(Expr *expr)
 			write(")");
 			break;
 		case EX_MEMBER:
-			write("(%e.%I)", expr->subexpr, expr->member_id);
+			if(
+				expr->subexpr->dtype->type == TY_ARRAY &&
+				token_text_equals(expr->member_id, "length")
+			) {
+				if(
+					expr->suebxpr->type == EX_DEREF &&
+					expr->subexpr->dtype->length == -1 &&
+					token_text_equals(expr->member_id, "length")
+				) {
+					write("(%e.length)", expr->subexpr->subexpr);
+				}
+				else {
+					write("%i", expr->subexpr->dtype->length);
+				}
+			}
+			else {
+				write("(%e.%I)", expr->subexpr, expr->member_id);
+			}
 			break;
 	}
 }

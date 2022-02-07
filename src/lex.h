@@ -73,6 +73,7 @@ typedef struct {
 } Tokens;
 
 char *get_token_type_name(TokenType type);
+int token_text_equals(Token *token, char *text);
 Tokens *lex(char *src, int64_t src_len);
 
 #endif

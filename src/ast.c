@@ -149,6 +149,17 @@ Expr *new_cast_expr(Expr *subexpr, TypeDesc *dtype)
 	return expr;
 }
 
+Expr *new_member_expr(Expr *subexpr, Token *member_id, TypeDesc *dtype)
+{
+	Expr *expr = new_expr(EX_MEMBER, subexpr->start);
+	expr->member_id =member_id;
+	expr->isconst = 0;
+	expr->islvalue = 1;
+	expr->dtype = dtype;
+	expr->subexpr = subexpr;
+	return expr;
+}
+
 Stmt *new_stmt(StmtType type, Token *start, Scope *scope)
 {
 	Stmt *stmt = malloc(sizeof(Stmt));

@@ -1,11 +1,12 @@
 # done
 
 * on the fly constant evaluation
+* dynamic arrays (wide array pointers)
+* array.length
 
 # todo
 
 * function parameters
-* dynamic arrays (wide array pointers)
 * else-if
 * binops + - * / // %
 * binops == != <= >= < >
@@ -20,13 +21,12 @@
 	import "./file.ja" as unit; # import in namespace
 	)
 * new/delete/resize
-* array.length
 * auto pointer unpacking/packing
 * pseudo ptr arithmetic via @ index
 * print arrays
 * print structs
 * print ptrs contents
-* chained comparison (a == b > c)
+* chained comparison (a == b > c  is  a == b && b > c)
 * short-circuiting and, or
 * codegen: spare () on equal level binop chains (except explicit ())
 * owned ptr type !int (deletes automatically at scope end)

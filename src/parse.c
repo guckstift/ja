@@ -403,24 +403,26 @@ static Expr *p_postfix()
 			}
 		}
 		else if(eat(TK_PERIOD)) {
+			Token *ident = eat(TK_IDENT);
+			if(!ident)
+				fatal_at(last, "expected id of member to access");
+				
 			TypeDesc *dtype = expr->dtype;
-			if(dtype->type != TY_STRUCT)
-				fatal_at(expr->start, "no instance to get member");
-			Stmt *struct_decl = dtype->typedecl;
-			Scope *struct_scope = struct_decl->struct_body->scope;
-			Token *id = eat(TK_IDENT);
-			if(!id)
-				fatal_at(last, "expected id of structure member");
-			Expr *member = new_expr(EX_MEMBER, expr->start);
-			member->member_id = id->id;
-			Stmt *decl = lookup_flat_in(member->member_id, struct_scope);
-			if(!decl)
-				fatal_at(id, "name %t not declared in struct", id);
-			member->isconst = 0;
-			member->islvalue = 1;
-			member->dtype = decl->dtype;
-			member->subexpr = expr;
-			expr = member;
+			if(dtype->type == TY_ARRAY && token_text_equals(ident, "length")) {
+				expr = new_member_expr(expr, ident->id, new_type(TY_INT64));
+			}
+			else {
+				if(dtype->type != TY_STRUCT)
+					fatal_at(expr->start, "no instance to get member");
+				
+				Stmt *struct_decl = dtype->typedecl;
+				Scope *struct_scope = struct_decl->struct_body->scope;
+				Stmt *decl = lookup_flat_in(ident->id, struct_scope);
+				if(!decl)
+					fatal_at(ident, "name %t not declared in struct", ident);
+				
+				expr = new_member_expr(expr, ident->id, decl->dtype);
+			}
 		}
 		else {
 			break;

@@ -32,6 +32,13 @@ char *get_token_type_name(TokenType type)
 	}
 }
 
+int token_text_equals(Token *token, char *text)
+{
+	return
+		strlen(text) == token->length &&
+		memcmp(text, token->start, token->length) == 0 ;
+}
+
 Tokens *lex(char *src, int64_t src_len)
 {
 	char *src_end = src + src_len;

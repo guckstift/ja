@@ -1,25 +1,12 @@
 
-var x = 0-1;
-var y = ><>x;
-var z = 1000 as uint8 as bool as int;
+var x = [1,2,3];
+var y = [4,1,2,3];
+var z = x.length;
+print z;
 
-var f = [0,1,2,3,4][3] as bool as uint8;
+var f : >[]int = >x;
+print (<f).length;
 
-var g : [][]int = [[1,2]];
+f = >y;
+print (<f).length;
 
-var k = [1,2,3];
-var m : >[]int = >k;
-
-var o = (<m)[2];
-
-var p : >[]int = (>g[0]) as >[]int;
-
-function foo () : >[]bool {}
-
-var X = foo();
-
-struct Foo {
-	var x : [1]int;
-}
-
-var P : >[][2]int = (>g) as >[][2]int;
