@@ -264,13 +264,8 @@ static void fprint_type(FILE *fs, TypeDesc *dtype)
 			break;
 		case TY_ARRAY:
 			fprintf(fs, "[");
-			if(dtype->length == -1) fprintf(fs, "?");
-			else fprint_int(fs, dtype->length);
+			fprint_int(fs, dtype->length);
 			fprintf(fs, "]");
-			fprint_type(fs, dtype->subtype);
-			break;
-		case TY_DYNARRAY:
-			fprintf(fs, ">[]");
 			fprint_type(fs, dtype->subtype);
 			break;
 		case TY_FUNC:

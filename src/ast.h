@@ -11,7 +11,6 @@ typedef enum {
 	TY_BOOL,
 	TY_PTR, // subtype
 	TY_ARRAY, // subtype, length
-	TY_DYNARRAY, // subtype
 	TY_FUNC, // returntype
 	TY_INST, // id, typedecl
 } Type;
@@ -24,7 +23,7 @@ typedef struct TypeDesc {
 		Token *id;
 	};
 	union {
-		int64_t length; // -1 = unknown
+		int64_t length;
 		struct Stmt *typedecl;
 	};
 } TypeDesc;
@@ -116,7 +115,6 @@ typedef struct Scope {
 TypeDesc *new_type(Type type);
 TypeDesc *new_ptr_type(TypeDesc *subtype);
 TypeDesc *new_array_type(int64_t length, TypeDesc *subtype);
-TypeDesc *new_dynarray_type(TypeDesc *subtype);
 TypeDesc *new_func_type(TypeDesc *returntype);
 
 int type_equ(TypeDesc *dtype1, TypeDesc *dtype2);

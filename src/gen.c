@@ -125,9 +125,6 @@ static void gen_type(TypeDesc *dtype)
 		case TY_ARRAY:
 			gen_type(dtype->subtype);
 			break;
-		case TY_DYNARRAY:
-			write("jadynarray");
-			break;
 	}
 }
 
@@ -153,21 +150,6 @@ static void gen_cast(Expr *expr)
 	
 	if(dtype->type == TY_BOOL) {
 		write("(%e ? jatrue : jafalse)", srcexpr);
-	}
-	else if(dtype->type == TY_DYNARRAY) {
-		// to dynarray
-		write("((%Y){.length = ", dtype);
-		
-		if(srctype->type == TY_PTR && srctype->subtype->type == TY_ARRAY) {
-			// from static array
-			write("%i", srctype->subtype->length);
-		}
-		else {
-			// other
-			write("0");
-		}
-		
-		write(", .items = %e})", srcexpr);
 	}
 	else {
 		write("((%Y)%e)", dtype, srcexpr);
@@ -196,16 +178,7 @@ static void gen_expr(Expr *expr)
 			gen_cast(expr);
 			break;
 		case EX_SUBSCRIPT:
-			if(expr->subexpr->dtype->type == TY_DYNARRAY) {
-				write(
-					"(((%Y*)%e.items)[%e])",
-					expr->subexpr->dtype->subtype,
-					expr->subexpr, expr->index
-				);
-			}
-			else {
-				write("(%e[%e])", expr->subexpr, expr->index);
-			}
+			write("(%e[%e])", expr->subexpr, expr->index);
 			break;
 		case EX_BINOP:
 			write(
@@ -432,8 +405,7 @@ static void gen_vardecl(Stmt *stmt)
 		}
 	}
 	else if(
-		stmt->dtype->type == TY_ARRAY || stmt->dtype->type == TY_INST ||
-		stmt->dtype->type == TY_DYNARRAY
+		stmt->dtype->type == TY_ARRAY || stmt->dtype->type == TY_INST
 	) {
 		write(" = {0};\n");
 	}

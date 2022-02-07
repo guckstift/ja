@@ -151,15 +151,6 @@ static TypeDesc *p_type()
 		return dtype;
 	}
 	else if(eat(TK_GREATER)) {
-		if(eat2(TK_LBRACK, TK_RBRACK)) {
-			TypeDesc *subtype = p_type();
-			
-			if(!subtype)
-				error_at_last("expected target type");
-			
-			return new_dynarray_type(subtype);
-		}
-		
 		TypeDesc *subtype = p_type();
 		
 		if(!subtype)
@@ -169,19 +160,19 @@ static TypeDesc *p_type()
 	}
 	else if(eat(TK_LBRACK)) {
 		Token *length = eat(TK_INT);
-		if(length) {
-			if(length->ival <= 0)
-				error_at(length, "array length must be greater than 0");
-		}
-		else if(!eat(TK_QUESTION)) {
-			error_at_cur("expected integer literal for array length or ?");
-		}
+		if(!length)
+			error_at_cur("expected integer literal for array length");
+		if(length->ival <= 0)
+			error_at(length, "array length must be greater than 0");
+		
 		if(!eat(TK_RBRACK))
 			error_after_last("expected ] after array length");
+		
 		TypeDesc *subtype = p_type();
 		if(!subtype)
 			error_at_last("expected element type");
-		return new_array_type(length ? length->ival : -1, subtype);
+		
+		return new_array_type(length->ival, subtype);
 	}
 	
 	return 0;
@@ -193,25 +184,6 @@ static TypeDesc *p_type()
 static Expr *cast_expr(Expr *expr, TypeDesc *dtype, int explicit)
 {
 	TypeDesc *stype = expr->dtype;
-	
-	// automatic array length completion from expr
-	for(
-		TypeDesc *dt = dtype, *st = stype;
-		dt->type == TY_ARRAY && st->type == TY_ARRAY ||
-		dt->type == TY_DYNARRAY && st->type == TY_DYNARRAY ||
-		dt->type == TY_PTR && st->type == TY_PTR ||
-		dt->type == TY_DYNARRAY && st->type == TY_PTR &&
-		st->subtype->type == TY_ARRAY;
-		dt = dt->subtype, st = st->subtype
-	) {
-		if(dt->type == TY_ARRAY && dt->length == -1)
-			dt->length = st->length;
-		else if(
-			dt->type == TY_DYNARRAY && st->type == TY_PTR &&
-			st->subtype->type == TY_ARRAY
-		)
-			st = st->subtype;
-	}
 	
 	// can not cast from none type
 	if(stype->type == TY_NONE)
@@ -230,31 +202,11 @@ static Expr *cast_expr(Expr *expr, TypeDesc *dtype, int explicit)
 		return new_cast_expr(expr, dtype);
 	}
 	
-	// ptr to static array to dynamic array when item types are equal
-	if(
-		stype->type == TY_PTR && stype->subtype->type == TY_ARRAY &&
-		dtype->type == TY_DYNARRAY &&
-		type_equ(stype->subtype->subtype, dtype->subtype)
-	) {
-		return new_cast_expr(expr, dtype);
-	}
-	
 	// arrays with equal length
 	if(
 		stype->type == TY_ARRAY && dtype->type == TY_ARRAY &&
-		(stype->length == dtype->length || dtype->length == -1)
+		stype->length == dtype->length
 	) {
-		// try to complete array lengths in target type
-		for(
-			TypeDesc *dt = dtype, *it = stype;
-			dt->type == TY_ARRAY && it->type == TY_ARRAY ||
-			dt->type == TY_DYNARRAY && it->type == TY_DYNARRAY;
-			dt = dt->subtype, it = it->subtype
-		) {
-			if(dt->type == TY_ARRAY && dt->length == -1)
-				dt->length = it->length;
-		}
-		
 		// array literal => cast each item to subtype
 		if(expr->type == EX_ARRAY) {
 			for(
@@ -269,7 +221,6 @@ static Expr *cast_expr(Expr *expr, TypeDesc *dtype, int explicit)
 				item = new_item;
 			}
 			stype->subtype = dtype->subtype;
-			dtype->length = expr->length;//stype->length;
 			return expr;
 		}
 		// no array literal => create new array literal with cast items
@@ -297,7 +248,6 @@ static Expr *cast_expr(Expr *expr, TypeDesc *dtype, int explicit)
 			expr->dtype = new_type(TY_ARRAY);
 			expr->dtype->subtype = dtype->subtype;
 			expr->dtype->length = stype->length;
-			dtype->length = stype->length;
 			return expr;
 		}
 	}
@@ -416,18 +366,13 @@ static Expr *p_postfix()
 			expr = call;
 		}
 		else if(eat(TK_LBRACK)) {
-			if(
-				expr->dtype->type == TY_ARRAY ||
-				expr->dtype->type == TY_DYNARRAY
-			) {
+			if(expr->dtype->type == TY_ARRAY) {
 				Expr *index = p_expr();
 				if(!index)
 					error_after_last("expected index expression after [");
 				
 				if(!is_integral_type(index->dtype))
 					error_at(index->start, "index is not integral");
-				
-				//index = eval_expr(index);
 				
 				if(
 					expr->dtype->type == TY_ARRAY &&
@@ -455,7 +400,7 @@ static Expr *p_postfix()
 				expr = subscript;
 			}
 			else {
-				error_after_last("need array or dynamic array to subscript");
+				error_after_last("need array to subscript");
 			}
 		}
 		else if(eat(TK_PERIOD)) {
@@ -504,14 +449,7 @@ static Expr *p_prefix()
 		if(!subexpr)
 			error_at_last("expected expression after <");
 		
-		if(subexpr->dtype->type == TY_DYNARRAY) {
-			Expr *expr = new_expr(EX_DEREF, subexpr->start);
-			expr->isconst = 0;
-			expr->islvalue = 1;
-			expr->dtype = new_array_type(-1, subexpr->dtype->subtype);
-			return expr;
-		}
-		else if(subexpr->dtype->type == TY_PTR) {
+		if(subexpr->dtype->type == TY_PTR) {
 			Expr *expr = new_expr(EX_DEREF, subexpr->start);
 			expr->isconst = 0;
 			expr->islvalue = 1;
@@ -519,10 +457,7 @@ static Expr *p_prefix()
 			return expr;
 		}
 		
-		error_at(
-			subexpr->start,
-			"expected pointer or dynamic array to dereference"
-		);
+		error_at(subexpr->start, "expected pointer to dereference");
 	}
 	
 	return p_postfix();
