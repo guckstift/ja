@@ -242,7 +242,7 @@ static void gen_expr(Expr *expr)
 				token_text_equals(expr->member_id, "length")
 			) {
 				if(
-					expr->suebxpr->type == EX_DEREF &&
+					expr->subexpr->type == EX_DEREF &&
 					expr->subexpr->dtype->length == -1 &&
 					token_text_equals(expr->member_id, "length")
 				) {

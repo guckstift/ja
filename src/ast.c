@@ -128,6 +128,18 @@ Expr *new_var_expr(Token *id, TypeDesc *dtype, Token *start)
 	return expr;
 }
 
+Expr *new_array_expr(
+	Expr *exprs, int64_t length, int isconst, TypeDesc *subtype, Token *start
+) {
+	Expr *expr = new_expr(EX_ARRAY, start);
+	expr->exprs = exprs;
+	expr->length = length;
+	expr->isconst = isconst;
+	expr->islvalue = 0;
+	expr->dtype = new_array_type(length, subtype);
+	return expr;
+}
+
 Expr *new_subscript(Expr *subexpr, Expr *index)
 {
 	Expr *expr = new_expr(EX_SUBSCRIPT, subexpr->start);
@@ -157,6 +169,26 @@ Expr *new_member_expr(Expr *subexpr, Token *member_id, TypeDesc *dtype)
 	expr->islvalue = 1;
 	expr->dtype = dtype;
 	expr->subexpr = subexpr;
+	return expr;
+}
+
+Expr *new_deref_expr(Expr *subexpr)
+{
+	Expr *expr = new_expr(EX_DEREF, subexpr->start);
+	expr->subexpr = subexpr;
+	expr->isconst = 0;
+	expr->islvalue = 1;
+	expr->dtype = subexpr->dtype->subtype;
+	return expr;
+}
+
+Expr *new_ptr_expr(Expr *subexpr)
+{
+	Expr *expr = new_expr(EX_PTR, subexpr->start);
+	expr->subexpr = subexpr;
+	expr->isconst = 0;
+	expr->islvalue = 0;
+	expr->dtype = new_ptr_type(subexpr->dtype);
 	return expr;
 }
 

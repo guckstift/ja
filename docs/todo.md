@@ -3,6 +3,7 @@
 * on the fly constant evaluation
 * dynamic arrays (wide array pointers)
 * array.length
+* automatic pointer unpacking on subscript and member access
 
 # todo
 

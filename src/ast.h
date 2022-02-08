@@ -127,9 +127,14 @@ Expr *new_expr(ExprType type, Token *start);
 Expr *new_int_expr(int64_t val, Token *start);
 Expr *new_bool_expr(int64_t val, Token *start);
 Expr *new_var_expr(Token *id, TypeDesc *dtype, Token *start);
+Expr *new_array_expr(
+	Expr *exprs, int64_t length, int isconst, TypeDesc *subtype, Token *start
+);
 Expr *new_subscript(Expr *subexpr, Expr *index);
 Expr *new_cast_expr(Expr *subexpr, TypeDesc *dtype);
 Expr *new_member_expr(Expr *subexpr, Token *member_id, TypeDesc *dtype);
+Expr *new_deref_expr(Expr *subexpr);
+Expr *new_ptr_expr(Expr *subexpr);
 
 Stmt *new_stmt(StmtType type, Token *start, Scope *scope);
 Stmt *new_assign(Expr *target, Expr *expr, Scope *scope);

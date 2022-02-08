@@ -1,12 +1,5 @@
+var x = 9;
+var y = >x;
 
-var x = [1,2,3];
-var y = [4,1,2,3];
-var z = x.length;
-print z;
-
-var f : >[]int = >x;
-print (<f).length;
-
-f = >y;
-print (<f).length;
-
+x = y;
+y = x;
