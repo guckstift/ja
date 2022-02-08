@@ -334,6 +334,9 @@ static Expr *p_atom()
 	
 	if(eat(TK_false) || eat(TK_true))
 		return new_bool_expr(last->type == TK_true, last);
+	
+	if(eat(TK_STRING))
+		return new_string_expr(last->string, last->string_length, last);
 		
 	if(eat(TK_LPAREN)) {
 		Token *start = last;

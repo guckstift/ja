@@ -9,6 +9,7 @@ typedef enum {
 	TY_UINT8,
 	TY_UINT64,
 	TY_BOOL,
+	TY_STRING,
 	TY_PTR, // subtype
 	TY_ARRAY, // subtype, length
 	TY_FUNC, // returntype
@@ -30,7 +31,8 @@ typedef struct TypeDesc {
 
 typedef enum {
 	EX_INT, // ival
-	EX_BOOL, // bval
+	EX_BOOL, // ival
+	EX_STRING, // string, length
 	EX_VAR, // id
 	EX_PTR, // subexpr
 	EX_DEREF, // subexpr
@@ -52,6 +54,7 @@ typedef struct Expr {
 	
 	union {
 		int64_t ival;
+		char *string;
 		Token *id;
 		struct Expr *subexpr;
 		struct Expr *left;
@@ -125,6 +128,7 @@ int is_dynarray_ptr_type(TypeDesc *dt);
 
 Expr *new_expr(ExprType type, Token *start);
 Expr *new_int_expr(int64_t val, Token *start);
+Expr *new_string_expr(char *string, int64_t length, Token *start);
 Expr *new_bool_expr(int64_t val, Token *start);
 Expr *new_var_expr(Token *id, TypeDesc *dtype, Token *start);
 Expr *new_array_expr(

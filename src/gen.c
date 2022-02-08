@@ -74,6 +74,12 @@ static void write(char *msg, ...)
 				Expr *expr = va_arg(args, Expr*);
 				gen_init_expr(expr);
 			}
+			else if(*msg == 'S') {
+				msg++;
+				char *string = va_arg(args, char*);
+				int64_t length = va_arg(args, int64_t);
+				fwrite(string, 1, length, ofs);
+			}
 			else if(*msg == 'I') {
 				msg++;
 				write("ja_%t", va_arg(args, Token*));
@@ -113,6 +119,9 @@ static void gen_type(TypeDesc *dtype)
 			break;
 		case TY_BOOL:
 			write("jabool");
+			break;
+		case TY_STRING:
+			write("jastring");
 			break;
 		case TY_STRUCT:
 			write("%I", dtype->id);
@@ -184,6 +193,12 @@ static void gen_expr(Expr *expr)
 			break;
 		case EX_BOOL:
 			write(expr->ival ? "jatrue" : "jafalse");
+			break;
+		case EX_STRING:
+			write(
+				"((jastring){%i, \"%S\"})",
+				expr->length, expr->string, expr->length
+			);
 			break;
 		case EX_VAR:
 			write("%I", expr->id);
@@ -269,6 +284,9 @@ static void gen_init_expr(Expr *expr)
 			gen_init_expr(item);
 		}
 		write("}");
+	}
+	else if(expr->type == EX_STRING) {
+		write("{%i, \"%S\"}", expr->length, expr->string, expr->length);
 	}
 	else {
 		gen_expr(expr);
@@ -530,6 +548,10 @@ void gen(Unit *unit)
 		INDENT "int64_t length;\n"
 		INDENT "void *items;\n"
 		"} jadynarray;\n"
+		"typedef struct {\n"
+		INDENT "int64_t length;\n"
+		INDENT "char *string;\n"
+		"} jastring;\n"
 	);
 	
 	gen_structdecls(unit->stmts);

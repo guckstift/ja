@@ -176,6 +176,33 @@ Tokens *lex(char *src, int64_t src_len)
 			}
 		}
 		
+		// strings
+		
+		else if(*pos == '"') {
+			int64_t start_line = line;
+			char *start_linep = linep;
+			pos ++;
+			char *str_start = pos;
+			while(pos < src_end && *pos != '"') pos ++;
+			
+			if(pos == src_end) {
+				print_error(
+					start_line, start_linep, src_end, start_linep,
+					"unterminated string literal"
+				);
+				exit(EXIT_FAILURE);
+			}
+			
+			int64_t length = pos - str_start;
+			char *buf = malloc(length + 1);
+			memcpy(buf, str_start, length);
+			buf[length] = 0;
+			pos ++;
+			emit(TK_STRING);
+			last_token->string = buf;
+			last_token->string_length = length;
+		}
+		
 		// punctuators
 		
 		#define F(x, y) \

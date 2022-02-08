@@ -41,6 +41,7 @@ typedef enum {
 	TK_EOF,
 	TK_IDENT,
 	TK_INT,
+	TK_STRING,
 	
 	#define F(x) TK_ ## x,
 	KEYWORDS(F)
@@ -63,8 +64,12 @@ typedef struct Token {
 		uint64_t uval;
 		struct Token *id;
 		char *punct;
+		char *string;
 	};
-	struct Token *next_id;
+	union {
+		struct Token *next_id;
+		int64_t string_length;
+	};
 } Token;
 
 typedef struct {

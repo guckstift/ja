@@ -1,5 +1,5 @@
-var x = 9;
-var y = >x;
+var x = "Hello";
 
-x = y;
-y = x;
+x = "World";
+
+var y = x;

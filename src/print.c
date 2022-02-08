@@ -184,6 +184,13 @@ static void print_float(double val)
 	printf(COL_MAGENTA "%f" COL_RESET, val);
 }
 
+static void print_string(char *string, int64_t length)
+{
+	printf(COL_MAGENTA "\"");
+	fwrite(string, 1, length, stdout);
+	printf("\"" COL_RESET);
+}
+
 static void print_token(Token *token)
 {
 	switch(token->type) {
@@ -194,6 +201,10 @@ static void print_token(Token *token)
 		case TK_INT:
 			printf("INT     ");
 			print_int(token->ival);
+			break;
+		case TK_STRING:
+			printf("STRING  ");
+			print_string(token->string, token->string_length);
 			break;
 		
 		#define F(x) \
@@ -258,6 +269,9 @@ static void fprint_type(FILE *fs, TypeDesc *dtype)
 		case TY_BOOL:
 			fprint_keyword_cstr(fs, "bool");
 			break;
+		case TY_STRING:
+			fprint_keyword_cstr(fs, "string");
+			break;
 		case TY_PTR:
 			fprintf(fs, ">");
 			fprint_type(fs, dtype->subtype);
@@ -293,6 +307,9 @@ static void print_expr(Expr *expr)
 				print_keyword_cstr("true");
 			else
 				print_keyword_cstr("false");
+			break;
+		case EX_STRING:
+			print_string(expr->string, expr->length);
 			break;
 		case EX_VAR:
 			print_ident(expr->id);

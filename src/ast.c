@@ -108,6 +108,17 @@ Expr *new_int_expr(int64_t val, Token *start)
 	return expr;
 }
 
+Expr *new_string_expr(char *string, int64_t length, Token *start)
+{
+	Expr *expr = new_expr(EX_STRING, start);
+	expr->string = string;
+	expr->length = length;
+	expr->isconst = 1;
+	expr->islvalue = 0;
+	expr->dtype = new_type(TY_STRING);
+	return expr;
+}
+
 Expr *new_bool_expr(int64_t val, Token *start)
 {
 	Expr *expr = new_expr(EX_BOOL, start);
