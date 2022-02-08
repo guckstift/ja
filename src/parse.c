@@ -576,7 +576,8 @@ static Stmt *p_print()
 	
 	if(
 		!is_integral_type(stmt->expr->dtype) &&
-		stmt->expr->dtype->type != TY_PTR
+		stmt->expr->dtype->type != TY_PTR &&
+		stmt->expr->dtype->type != TY_STRING
 	) {
 		fatal_at(stmt->expr->start, "can only print numbers or pointers");
 	}

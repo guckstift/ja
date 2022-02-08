@@ -3,3 +3,5 @@ var x = "Hello";
 x = "World";
 
 var y = x;
+
+print "Hello";

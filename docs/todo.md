@@ -5,6 +5,7 @@
 * array.length
 * automatic pointer unpacking on subscript and member access
 * string type (length and char-ptr)
+* print strings
 
 # todo
 
@@ -28,7 +29,6 @@
 * print arrays
 * print structs
 * print ptrs contents
-* print strings
 * chained comparison (a == b > c  is  a == b && b > c)
 * short-circuiting and, or
 * codegen: spare () on equal level binop chains (except explicit ())

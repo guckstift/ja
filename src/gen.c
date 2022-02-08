@@ -319,6 +319,15 @@ static void gen_assign(Expr *target, Expr *expr)
 
 static void gen_print(Expr *expr)
 {
+	if(expr->dtype->type == TY_STRING) {
+		write(
+			"%>fwrite((%e).string, 1, (%e).length, stdout);\n",
+			expr, expr
+		);
+		write("%>printf(\"\\n\");\n");
+		return;
+	}
+	
 	write("%>printf(");
 	
 	switch(expr->dtype->type) {
