@@ -44,7 +44,7 @@ static Scope *scope;
 
 static Stmt *p_stmts(Stmt *func);
 static Expr *p_expr();
-static TypeDesc *p_type();
+static Type *p_type();
 static Expr *p_prefix();
 
 static Stmt *lookup_flat(Token *id)
@@ -86,17 +86,17 @@ static void leave()
 	scope = scope->parent;
 }
 
-static TypeDesc *p_primtype()
+static Type *p_primtype()
 {
-	if(eat(TK_int)) return new_type(TY_INT64);
-	if(eat(TK_uint8)) return new_type(TY_UINT8);
-	if(eat(TK_uint)) return new_type(TY_UINT64);
-	if(eat(TK_bool)) return new_type(TY_BOOL);
-	if(eat(TK_string)) return new_type(TY_STRING);
+	if(eat(TK_int)) return new_type(INT);
+	if(eat(TK_uint8)) return new_type(UINT8);
+	if(eat(TK_uint)) return new_type(UINT64);
+	if(eat(TK_bool)) return new_type(BOOL);
+	if(eat(TK_string)) return new_type(STRING);
 	return 0;
 }
 
-static TypeDesc *p_nametype()
+static Type *p_nametype()
 {
 	Token *ident = eat(TK_IDENT);
 	if(!ident) return 0;
@@ -109,24 +109,24 @@ static TypeDesc *p_nametype()
 	if(decl->type != ST_STRUCTDECL)
 		fatal_at(ident, "%t is not a structure", ident);
 	
-	TypeDesc *dtype = new_type(TY_STRUCT);
+	Type *dtype = new_type(STRUCT);
 	dtype->id = ident->id;
 	dtype->typedecl = decl;
 	return dtype;
 }
 
-static TypeDesc *p_ptrtype()
+static Type *p_ptrtype()
 {
 	if(!eat(TK_GREATER)) return 0;
 	
-	TypeDesc *subtype = p_type();
+	Type *subtype = p_type();
 	if(!subtype)
 		fatal_at(last, "expected target type");
 	
 	return new_ptr_type(subtype);
 }
 
-static TypeDesc *p_arraytype()
+static Type *p_arraytype()
 {
 	if(!eat(TK_LBRACK)) return 0;
 	
@@ -142,16 +142,16 @@ static TypeDesc *p_arraytype()
 			fatal_after(last, "expected integer literal for array length");
 	}
 	
-	TypeDesc *subtype = p_type();
-	if(!subtype)
-		fatal_at(last, "expected element type");
+	Type *itemtype = p_type();
+	if(!itemtype)
+		fatal_at(last, "expected item type");
 	
-	return new_array_type(length ? length->ival : -1, subtype);
+	return new_array_type(length ? length->ival : -1, itemtype);
 }
 
-static TypeDesc *p_type()
+static Type *p_type()
 {
-	TypeDesc *dtype = 0;
+	Type *dtype = 0;
 	(dtype = p_primtype()) ||
 	(dtype = p_nametype()) ||
 	(dtype = p_ptrtype()) ||
@@ -159,13 +159,13 @@ static TypeDesc *p_type()
 	return dtype;
 }
 
-static TypeDesc *complete_type(TypeDesc *dtype, Expr *expr)
+static Type *complete_type(Type *dtype, Expr *expr)
 {
 	// automatic array length completion from expr
 	for(
-		TypeDesc *dt = dtype, *st = expr->dtype;
-		dt->type == TY_ARRAY && st->type == TY_ARRAY;
-		dt = dt->subtype, st = st->subtype
+		Type *dt = dtype, *st = expr->dtype;
+		dt->kind == ARRAY && st->kind == ARRAY;
+		dt = dt->itemtype, st = st->itemtype
 	) {
 		if(dt->length == -1) {
 			dt->length = st->length;
@@ -176,12 +176,12 @@ static TypeDesc *complete_type(TypeDesc *dtype, Expr *expr)
 /*
 	Might modify expr and dtype
 */
-static Expr *cast_expr(Expr *expr, TypeDesc *dtype, int explicit)
+static Expr *cast_expr(Expr *expr, Type *dtype, int explicit)
 {
-	TypeDesc *stype = expr->dtype;
+	Type *stype = expr->dtype;
 	
 	// can not cast from none type
-	if(stype->type == TY_NONE)
+	if(stype->kind == NONE)
 		fatal_at(expr->start, "expression has no value");
 	
 	// types equal => no cast needed
@@ -193,37 +193,37 @@ static Expr *cast_expr(Expr *expr, TypeDesc *dtype, int explicit)
 		return eval_integral_cast(expr, dtype);
 	
 	// one pointer to some other by explicit cast always ok
-	if(explicit && stype->type == TY_PTR && dtype->type == TY_PTR)
+	if(explicit && stype->kind == PTR && dtype->kind == PTR)
 		return new_cast_expr(expr, dtype);
 	
 	// array ptr to dynamic array ptr when same item type
 	if(
-		stype->type == TY_PTR && stype->subtype->type == TY_ARRAY &&
+		stype->kind == PTR && stype->subtype->kind == ARRAY &&
 		is_dynarray_ptr_type(dtype) &&
-		type_equ(stype->subtype->subtype, dtype->subtype->subtype)
+		type_equ(stype->subtype->itemtype, dtype->subtype->itemtype)
 	) {
 		return new_cast_expr(expr, dtype);
 	}
 	
 	// arrays with equal length
 	if(
-		stype->type == TY_ARRAY && dtype->type == TY_ARRAY &&
+		stype->kind == ARRAY && dtype->kind == ARRAY &&
 		stype->length == dtype->length
 	) {
-		// array literal => cast each item to subtype
+		// array literal => cast each item to itemtype
 		if(expr->type == EX_ARRAY) {
 			for(
 				Expr *prev = 0, *item = expr->exprs;
 				item;
 				prev = item, item = item->next
 			) {
-				Expr *new_item = cast_expr(item, dtype->subtype, explicit);
+				Expr *new_item = cast_expr(item, dtype->itemtype, explicit);
 				if(prev) prev->next = new_item;
 				else expr->exprs = new_item;
 				new_item->next = item->next;
 				item = new_item;
 			}
-			stype->subtype = dtype->subtype;
+			stype->itemtype = dtype->itemtype;
 			return expr;
 		}
 		// no array literal => create new array literal with cast items
@@ -233,7 +233,7 @@ static Expr *cast_expr(Expr *expr, TypeDesc *dtype, int explicit)
 			for(int64_t i=0; i < stype->length; i++) {
 				Expr *index = new_int_expr(i, expr->start);
 				Expr *subscript = new_subscript(expr, index);
-				Expr *item = cast_expr(subscript, dtype->subtype, explicit);
+				Expr *item = cast_expr(subscript, dtype->itemtype, explicit);
 				if(first) {
 					last->next = item;
 					last = item;
@@ -248,8 +248,8 @@ static Expr *cast_expr(Expr *expr, TypeDesc *dtype, int explicit)
 			expr->length = stype->length;
 			expr->isconst = 0;
 			expr->islvalue = 0;
-			expr->dtype = new_type(TY_ARRAY);
-			expr->dtype->subtype = dtype->subtype;
+			expr->dtype = new_type(ARRAY);
+			expr->dtype->itemtype = dtype->itemtype;
 			expr->dtype->length = stype->length;
 			return expr;
 		}
@@ -295,7 +295,7 @@ static Expr *p_array()
 	Token *start = last;
 	Expr *first = 0;
 	Expr *last_expr = 0;
-	TypeDesc *subtype = 0;
+	Type *itemtype = 0;
 	uint64_t length = 0;
 	int isconst = 1;
 	
@@ -304,8 +304,8 @@ static Expr *p_array()
 		if(!item) break;
 		isconst = isconst && item->isconst;
 		if(first) {
-			if(!type_equ(subtype, item->dtype)) {
-				item = cast_expr(item, subtype, 0);
+			if(!type_equ(itemtype, item->dtype)) {
+				item = cast_expr(item, itemtype, 0);
 			}
 			last_expr->next = item;
 			last_expr = item;
@@ -313,7 +313,7 @@ static Expr *p_array()
 		else {
 			first = item;
 			last_expr = item;
-			subtype = item->dtype;
+			itemtype = item->dtype;
 		}
 		length ++;
 		if(!eat(TK_COMMA)) break;
@@ -325,7 +325,7 @@ static Expr *p_array()
 	if(length == 0)
 		fatal_at(last, "empty array literal is not allowed");
 	
-	return new_array_expr(first, length, isconst, subtype, start);
+	return new_array_expr(first, length, isconst, itemtype, start);
 }
 
 static Expr *p_atom()
@@ -357,7 +357,7 @@ static Expr *p_cast_x(Expr *expr)
 {
 	if(!eat(TK_as)) return 0;
 	
-	TypeDesc *dtype = p_type();
+	Type *dtype = p_type();
 	if(!dtype)
 		fatal_after(last, "expected type after as");
 	
@@ -368,7 +368,7 @@ static Expr *p_call_x(Expr *expr)
 {
 	if(!eat(TK_LPAREN)) return 0;
 	
-	if(expr->dtype->type != TY_FUNC)
+	if(expr->dtype->kind != FUNC)
 		fatal_at(expr->start, "not a function you are calling");
 	
 	if(!eat(TK_RPAREN))
@@ -386,11 +386,11 @@ static Expr *p_subscript_x(Expr *expr)
 {
 	if(!eat(TK_LBRACK)) return 0;
 	
-	while(expr->dtype->type == TY_PTR) {
+	while(expr->dtype->kind == PTR) {
 		expr = new_deref_expr(expr);
 	}
 	
-	if(expr->dtype->type != TY_ARRAY) {
+	if(expr->dtype->kind != ARRAY) {
 		fatal_after(last, "need array to subscript");
 	}
 
@@ -402,7 +402,7 @@ static Expr *p_subscript_x(Expr *expr)
 		fatal_at(index->start, "index is not integral");
 	
 	if(
-		expr->dtype->type == TY_ARRAY &&
+		expr->dtype->kind == ARRAY &&
 		expr->dtype->length >= 0 &&
 		index->isconst
 	) {
@@ -424,7 +424,7 @@ static Expr *p_member_x(Expr *expr)
 {
 	if(!eat(TK_PERIOD)) return 0;
 	
-	while(expr->dtype->type == TY_PTR) {
+	while(expr->dtype->kind == PTR) {
 		expr = new_deref_expr(expr);
 	}
 	
@@ -432,12 +432,12 @@ static Expr *p_member_x(Expr *expr)
 	if(!ident)
 		fatal_at(last, "expected id of member to access");
 		
-	TypeDesc *dtype = expr->dtype;
+	Type *dtype = expr->dtype;
 	
-	if(dtype->type == TY_ARRAY && token_text_equals(ident, "length"))
-		return new_member_expr(expr, ident->id, new_type(TY_INT64));
+	if(dtype->kind == ARRAY && token_text_equals(ident, "length"))
+		return new_member_expr(expr, ident->id, new_type(INT64));
 	
-	if(dtype->type != TY_STRUCT)
+	if(dtype->kind != STRUCT)
 		fatal_at(expr->start, "no instance to get member");
 	
 	Stmt *struct_decl = dtype->typedecl;
@@ -495,7 +495,7 @@ static Expr *p_deref()
 	if(!subexpr)
 		fatal_at(last, "expected expression to dereference");
 		
-	if(subexpr->dtype->type != TY_PTR)
+	if(subexpr->dtype->kind != PTR)
 		fatal_at(subexpr->start, "expected pointer to dereference");
 	
 	if(subexpr->type == EX_PTR)
@@ -538,11 +538,11 @@ static Expr *p_binop()
 		expr->operator = operator;
 		expr->isconst = left->isconst && right->isconst;
 		expr->islvalue = 0;
-		TypeDesc *ltype = left->dtype;
-		TypeDesc *rtype = right->dtype;
+		Type *ltype = left->dtype;
+		Type *rtype = right->dtype;
 		
 		if(is_integral_type(ltype) && is_integral_type(rtype)) {
-			expr->dtype = new_type(TY_INT64);
+			expr->dtype = new_type(INT64);
 			expr->left = cast_expr(expr->left, expr->dtype, 0);
 			expr->right = cast_expr(expr->right, expr->dtype, 0);
 		}
@@ -577,8 +577,8 @@ static Stmt *p_print()
 	
 	if(
 		!is_integral_type(stmt->expr->dtype) &&
-		stmt->expr->dtype->type != TY_PTR &&
-		stmt->expr->dtype->type != TY_STRING
+		stmt->expr->dtype->kind != PTR &&
+		stmt->expr->dtype->kind != STRING
 	) {
 		fatal_at(stmt->expr->start, "can only print numbers or pointers");
 	}
@@ -597,7 +597,7 @@ static Stmt *p_vardecl()
 	Token *ident = eat(TK_IDENT);
 	if(!ident) fatal_after(last, "expected identifier after keyword var");
 	
-	TypeDesc *dtype = 0;
+	Type *dtype = 0;
 	if(eat(TK_COLON)) {
 		dtype = p_type();
 		if(!dtype) fatal_after(last, "expected type after colon");
@@ -610,10 +610,10 @@ static Stmt *p_vardecl()
 		
 		Token *init_start = init->start;
 		
-		if(init->dtype->type == TY_FUNC)
+		if(init->dtype->kind == FUNC)
 			fatal_at(init_start, "can not use function as value");
 		
-		if(init->dtype->type == TY_NONE)
+		if(init->dtype->kind == NONE)
 			fatal_at(init_start, "expression has no value");
 	
 		if(scope->struc && !init->isconst)
@@ -686,7 +686,7 @@ static Stmt *p_funcdecl()
 	if(!eat(TK_RPAREN))
 		fatal_after(last, "expected ) after (");
 	
-	TypeDesc *dtype = new_type(TY_NONE);
+	Type *dtype = new_type(NONE);
 	if(eat(TK_COLON)) {
 		dtype = p_type();
 		if(!dtype) fatal_after(last, "expected return type after colon");
@@ -797,11 +797,11 @@ static Stmt *p_returnstmt()
 	if(!func)
 		fatal_at(last, "return outside of any function");
 	
-	TypeDesc *dtype = func->dtype;
+	Type *dtype = func->dtype;
 	Stmt *stmt = new_stmt(ST_RETURN, last, scope);
 	stmt->expr = p_expr();
 	
-	if(dtype->type == TY_NONE) {
+	if(dtype->kind == NONE) {
 		if(stmt->expr)
 			fatal_at(stmt->expr->start, "function should not return values");
 	}

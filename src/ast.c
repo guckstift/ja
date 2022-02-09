@@ -1,92 +1,102 @@
 #include <stdlib.h>
 #include "ast.h"
 
-TypeDesc *new_type(Type type)
+Type *new_type(Kind kind)
 {
-	TypeDesc *dtype = malloc(sizeof(TypeDesc));
-	dtype->type = type;
+	static Type *primtypebuf[_PRIMKIND_COUNT] = {0};
+	
+	if(kind < _PRIMKIND_COUNT) {
+		if(primtypebuf[kind] == 0) {
+			primtypebuf[kind] = malloc(sizeof(Type));
+			primtypebuf[kind]->kind = kind;
+		}
+		
+		return primtypebuf[kind];
+	}
+	
+	Type *dtype = malloc(sizeof(Type));
+	dtype->kind = kind;
 	return dtype;
 }
 
-TypeDesc *new_ptr_type(TypeDesc *subtype)
+Type *new_ptr_type(Type *subtype)
 {
-	TypeDesc *dtype = malloc(sizeof(TypeDesc));
-	dtype->type = TY_PTR;
+	Type *dtype = malloc(sizeof(Type));
+	dtype->kind = PTR;
 	dtype->subtype = subtype;
 	return dtype;
 }
 
-TypeDesc *new_array_type(int64_t length, TypeDesc *subtype)
+Type *new_array_type(int64_t length, Type *itemtype)
 {
-	TypeDesc *dtype = malloc(sizeof(TypeDesc));
-	dtype->type = TY_ARRAY;
-	dtype->subtype = subtype;
+	Type *dtype = malloc(sizeof(Type));
+	dtype->kind = ARRAY;
+	dtype->itemtype = itemtype;
 	dtype->length = length;
 	return dtype;
 }
 
-TypeDesc *new_func_type(TypeDesc *returntype)
+Type *new_func_type(Type *returntype)
 {
-	TypeDesc *dtype = malloc(sizeof(TypeDesc));
-	dtype->type = TY_FUNC;
+	Type *dtype = malloc(sizeof(Type));
+	dtype->kind = FUNC;
 	dtype->returntype = returntype;
 	return dtype;
 }
 
-int type_equ(TypeDesc *dtype1, TypeDesc *dtype2)
+int type_equ(Type *dtype1, Type *dtype2)
 {
-	if(dtype1->type == TY_PTR && dtype2->type == TY_PTR) {
+	if(dtype1->kind == PTR && dtype2->kind == PTR) {
 		return type_equ(dtype1->subtype, dtype2->subtype);
 	}
 	
-	if(dtype1->type == TY_ARRAY && dtype2->type == TY_ARRAY) {
+	if(dtype1->kind == ARRAY && dtype2->kind == ARRAY) {
 		return
 			dtype1->length == dtype2->length &&
-			type_equ(dtype1->subtype, dtype2->subtype);
+			type_equ(dtype1->itemtype, dtype2->itemtype);
 	}
 	
-	if(dtype1->type == TY_STRUCT && dtype2->type == TY_STRUCT) {
+	if(dtype1->kind == STRUCT && dtype2->kind == STRUCT) {
 		return dtype1->id == dtype2->id;
 	}
 	
-	return dtype1->type == dtype2->type;
+	return dtype1->kind == dtype2->kind;
 }
 
-int is_integer_type(TypeDesc *dtype)
+int is_integer_type(Type *dtype)
 {
-	Type type = dtype->type;
-	return type == TY_INT64 || type == TY_UINT8 || type == TY_UINT64;
+	Kind kind = dtype->kind;
+	return kind == INT64 || kind == UINT8 || kind == UINT64;
 }
 
-int is_integral_type(TypeDesc *dtype)
+int is_integral_type(Type *dtype)
 {
-	Type type = dtype->type;
-	return is_integer_type(dtype) || type == TY_BOOL;
+	return is_integer_type(dtype) || dtype->kind == BOOL;
 }
 
-int is_complete_type(TypeDesc *dt)
+int is_complete_type(Type *dt)
 {
-	if(dt->type == TY_PTR) {
-		if(dt->subtype->type == TY_ARRAY) {
-			return is_complete_type(dt->subtype->subtype);
+	if(dt->kind == PTR) {
+		if(dt->subtype->kind == ARRAY) {
+			return is_complete_type(dt->subtype->itemtype);
 		}
 		
 		return is_complete_type(dt->subtype);
 	}
 	
-	if(dt->type == TY_ARRAY) {
-		return dt->length >= 0 && is_complete_type(dt->subtype);
+	if(dt->kind == ARRAY) {
+		return dt->length >= 0 && is_complete_type(dt->itemtype);
 	}
 	
 	return 1;
 }
 
-int is_dynarray_ptr_type(TypeDesc *dt)
+int is_dynarray_ptr_type(Type *dtype)
 {
 	return
-		dt->type == TY_PTR &&
-		dt->subtype->type == TY_ARRAY &&
-		dt->subtype->length == -1 ;
+		dtype->kind == PTR &&
+		dtype->subtype->kind == ARRAY &&
+		dtype->subtype->length == -1 ;
 }
 
 Expr *new_expr(ExprType type, Token *start)
@@ -104,7 +114,7 @@ Expr *new_int_expr(int64_t val, Token *start)
 	expr->ival = val;
 	expr->isconst = 1;
 	expr->islvalue = 0;
-	expr->dtype = new_type(TY_INT64);
+	expr->dtype = new_type(INT64);
 	return expr;
 }
 
@@ -115,7 +125,7 @@ Expr *new_string_expr(char *string, int64_t length, Token *start)
 	expr->length = length;
 	expr->isconst = 1;
 	expr->islvalue = 0;
-	expr->dtype = new_type(TY_STRING);
+	expr->dtype = new_type(STRING);
 	return expr;
 }
 
@@ -125,29 +135,29 @@ Expr *new_bool_expr(int64_t val, Token *start)
 	expr->ival = val;
 	expr->isconst = 1;
 	expr->islvalue = 0;
-	expr->dtype = new_type(TY_BOOL);
+	expr->dtype = new_type(BOOL);
 	return expr;
 }
 
-Expr *new_var_expr(Token *id, TypeDesc *dtype, Token *start)
+Expr *new_var_expr(Token *id, Type *dtype, Token *start)
 {
 	Expr *expr = new_expr(EX_VAR, start);
 	expr->id = id;
 	expr->isconst = 0;
-	expr->islvalue = dtype->type != TY_FUNC;
+	expr->islvalue = dtype->kind != FUNC;
 	expr->dtype = dtype;
 	return expr;
 }
 
 Expr *new_array_expr(
-	Expr *exprs, int64_t length, int isconst, TypeDesc *subtype, Token *start
+	Expr *exprs, int64_t length, int isconst, Type *itemtype, Token *start
 ) {
 	Expr *expr = new_expr(EX_ARRAY, start);
 	expr->exprs = exprs;
 	expr->length = length;
 	expr->isconst = isconst;
 	expr->islvalue = 0;
-	expr->dtype = new_array_type(length, subtype);
+	expr->dtype = new_array_type(length, itemtype);
 	return expr;
 }
 
@@ -158,11 +168,11 @@ Expr *new_subscript(Expr *subexpr, Expr *index)
 	expr->index = index;
 	expr->isconst = 0;
 	expr->islvalue = 1;
-	expr->dtype = subexpr->dtype->subtype;
+	expr->dtype = subexpr->dtype->itemtype;
 	return expr;
 }
 
-Expr *new_cast_expr(Expr *subexpr, TypeDesc *dtype)
+Expr *new_cast_expr(Expr *subexpr, Type *dtype)
 {
 	Expr *expr = new_expr(EX_CAST, subexpr->start);
 	expr->isconst = subexpr->isconst;
@@ -172,7 +182,7 @@ Expr *new_cast_expr(Expr *subexpr, TypeDesc *dtype)
 	return expr;
 }
 
-Expr *new_member_expr(Expr *subexpr, Token *member_id, TypeDesc *dtype)
+Expr *new_member_expr(Expr *subexpr, Token *member_id, Type *dtype)
 {
 	Expr *expr = new_expr(EX_MEMBER, subexpr->start);
 	expr->member_id =member_id;

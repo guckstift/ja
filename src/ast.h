@@ -4,30 +4,43 @@
 #include "lex.h"
 
 typedef enum {
-	TY_NONE,
-	TY_INT64,
-	TY_UINT8,
-	TY_UINT64,
-	TY_BOOL,
-	TY_STRING,
-	TY_PTR, // subtype
-	TY_ARRAY, // subtype, length
-	TY_FUNC, // returntype
-	TY_STRUCT, // id, typedecl
-} Type;
+	NONE,
+	INT8,
+	INT16,
+	INT32,
+	INT64,
+	INT = INT64,
+	UINT8,
+	UINT16,
+	UINT32,
+	UINT64,
+	UINT = UINT64,
+	BOOL,
+	STRING,
+	
+	_PRIMKIND_COUNT,
+	
+	PTR,
+	ARRAY,
+	FUNC,
+	STRUCT,
+	
+	_KIND_COUNT,
+} Kind;
 
-typedef struct TypeDesc {
-	Type type;
+typedef struct Type {
+	Kind kind;
 	union {
-		struct TypeDesc *subtype;
-		struct TypeDesc *returntype;
-		Token *id;
+		struct Type *subtype; // ptr
+		struct Type *itemtype; // array
+		struct Type *returntype; // func
+		Token *id; // struct
 	};
 	union {
-		int64_t length; // -1 = incomplete
-		struct Stmt *typedecl;
+		int64_t length; // array (-1 = incomplete)
+		struct Stmt *typedecl; // struct
 	};
-} TypeDesc;
+} Type;
 
 typedef enum {
 	EX_INT, // ival
@@ -49,7 +62,7 @@ typedef struct Expr {
 	Token *start;
 	int isconst;
 	int islvalue;
-	TypeDesc *dtype;
+	Type *dtype;
 	struct Expr *next; // next in a list
 	
 	union {
@@ -101,7 +114,7 @@ typedef struct Stmt {
 		Expr *target;
 	};
 	union {
-		TypeDesc *dtype;
+		Type *dtype;
 		struct Stmt *else_body;
 	};
 	struct Stmt *next_decl; // next declaration in scope
@@ -115,28 +128,28 @@ typedef struct Scope {
 	Stmt *struc;
 } Scope;
 
-TypeDesc *new_type(Type type);
-TypeDesc *new_ptr_type(TypeDesc *subtype);
-TypeDesc *new_array_type(int64_t length, TypeDesc *subtype);
-TypeDesc *new_func_type(TypeDesc *returntype);
+Type *new_type(Kind kind);
+Type *new_ptr_type(Type *subtype);
+Type *new_array_type(int64_t length, Type *subtype);
+Type *new_func_type(Type *returntype);
 
-int type_equ(TypeDesc *dtype1, TypeDesc *dtype2);
-int is_integer_type(TypeDesc *dtype);
-int is_integral_type(TypeDesc *dtype);
-int is_complete_type(TypeDesc *dtype);
-int is_dynarray_ptr_type(TypeDesc *dt);
+int type_equ(Type *dtype1, Type *dtype2);
+int is_integer_type(Type *dtype);
+int is_integral_type(Type *dtype);
+int is_complete_type(Type *dtype);
+int is_dynarray_ptr_type(Type *dtype);
 
 Expr *new_expr(ExprType type, Token *start);
 Expr *new_int_expr(int64_t val, Token *start);
 Expr *new_string_expr(char *string, int64_t length, Token *start);
 Expr *new_bool_expr(int64_t val, Token *start);
-Expr *new_var_expr(Token *id, TypeDesc *dtype, Token *start);
+Expr *new_var_expr(Token *id, Type *dtype, Token *start);
 Expr *new_array_expr(
-	Expr *exprs, int64_t length, int isconst, TypeDesc *subtype, Token *start
+	Expr *exprs, int64_t length, int isconst, Type *subtype, Token *start
 );
 Expr *new_subscript(Expr *subexpr, Expr *index);
-Expr *new_cast_expr(Expr *subexpr, TypeDesc *dtype);
-Expr *new_member_expr(Expr *subexpr, Token *member_id, TypeDesc *dtype);
+Expr *new_cast_expr(Expr *subexpr, Type *dtype);
+Expr *new_member_expr(Expr *subexpr, Token *member_id, Type *dtype);
 Expr *new_deref_expr(Expr *subexpr);
 Expr *new_ptr_expr(Expr *subexpr);
 

@@ -25,23 +25,23 @@ Expr *eval_binop(Expr *expr)
 	return expr;
 }
 
-Expr *eval_integral_cast(Expr *expr, TypeDesc *dtype)
+Expr *eval_integral_cast(Expr *expr, Type *dtype)
 {
-	TypeDesc *src_type = expr->dtype;
+	Type *src_type = expr->dtype;
 	
 	if(expr->isconst) {
 		expr->dtype = dtype;
 		
-		switch(dtype->type) {
-			case TY_UINT8:
+		switch(dtype->kind) {
+			case UINT8:
 				expr->type = EX_INT;
 				expr->ival = (uint8_t)expr->ival;
 				break;
-			case TY_INT64:
-			case TY_UINT64:
+			case INT64:
+			case UINT64:
 				expr->type = EX_INT;
 				break;
-			case TY_BOOL:
+			case BOOL:
 				expr->type = EX_BOOL;
 				expr->ival = expr->ival != 0;
 				break;

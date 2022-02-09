@@ -16,7 +16,7 @@
 static int64_t level;
 
 static void print_stmts(Stmt *stmts);
-static void fprint_type(FILE *fs, TypeDesc *dtype);
+static void fprint_type(FILE *fs, Type *dtype);
 
 void vprint_error(
 	int64_t line, char *linep, char *src_end, char *err_pos, char *msg,
@@ -46,7 +46,7 @@ void vprint_error(
 			}
 			else if(*msg == 'y') {
 				msg++;
-				TypeDesc *dtype = va_arg(args, TypeDesc*);
+				Type *dtype = va_arg(args, Type*);
 				fprint_type(stderr, dtype);
 			}
 			else if(*msg == 'u') {
@@ -251,47 +251,47 @@ static void print_indent()
 	for(int64_t i=0; i<level; i++) printf("  ");
 }
 
-static void fprint_type(FILE *fs, TypeDesc *dtype)
+static void fprint_type(FILE *fs, Type *dtype)
 {
-	switch(dtype->type) {
-		case TY_NONE:
+	switch(dtype->kind) {
+		case NONE:
 			fprint_keyword_cstr(fs, "none");
 			break;
-		case TY_INT64:
+		case INT64:
 			fprint_keyword_cstr(fs, "int64");
 			break;
-		case TY_UINT8:
+		case UINT8:
 			fprint_keyword_cstr(fs, "uint8");
 			break;
-		case TY_UINT64:
+		case UINT64:
 			fprint_keyword_cstr(fs, "uint64");
 			break;
-		case TY_BOOL:
+		case BOOL:
 			fprint_keyword_cstr(fs, "bool");
 			break;
-		case TY_STRING:
+		case STRING:
 			fprint_keyword_cstr(fs, "string");
 			break;
-		case TY_PTR:
+		case PTR:
 			fprintf(fs, ">");
 			fprint_type(fs, dtype->subtype);
 			break;
-		case TY_ARRAY:
+		case ARRAY:
 			fprintf(fs, "[");
 			if(dtype->length >= 0) fprint_int(fs, dtype->length);
 			fprintf(fs, "]");
-			fprint_type(fs, dtype->subtype);
+			fprint_type(fs, dtype->itemtype);
 			break;
-		case TY_FUNC:
+		case FUNC:
 			fprint_keyword_cstr(fs, "function");
 			break;
-		case TY_STRUCT:
+		case STRUCT:
 			fprint_ident(fs, dtype->id);
 			break;
 	}
 }
 
-static void print_type(TypeDesc *dtype)
+static void print_type(Type *dtype)
 {
 	fprint_type(stdout, dtype);
 }

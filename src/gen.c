@@ -15,8 +15,8 @@ static void gen_stmts(Stmt *stmts);
 static void gen_vardecls(Stmt *stmts);
 static void gen_vardecl(Stmt *stmt);
 static void gen_assign(Expr *target, Expr *expr);
-static void gen_type(TypeDesc *dtype);
-static void gen_type_postfix(TypeDesc *dtype);
+static void gen_type(Type *dtype);
+static void gen_type_postfix(Type *dtype);
 static void gen_expr(Expr *expr);
 static void gen_init_expr(Expr *expr);
 
@@ -51,17 +51,17 @@ static void write(char *msg, ...)
 			}
 			else if(*msg == 'y') {
 				msg++;
-				TypeDesc *dtype = va_arg(args, TypeDesc*);
+				Type *dtype = va_arg(args, Type*);
 				gen_type(dtype);
 			}
 			else if(*msg == 'z') {
 				msg++;
-				TypeDesc *dtype = va_arg(args, TypeDesc*);
+				Type *dtype = va_arg(args, Type*);
 				gen_type_postfix(dtype);
 			}
 			else if(*msg == 'Y') {
 				msg++;
-				TypeDesc *dtype = va_arg(args, TypeDesc*);
+				Type *dtype = va_arg(args, Type*);
 				gen_type(dtype);
 				gen_type_postfix(dtype);
 			}
@@ -103,74 +103,74 @@ static void write(char *msg, ...)
 	va_end(args);
 }
 
-static void gen_type(TypeDesc *dtype)
+static void gen_type(Type *dtype)
 {
-	switch(dtype->type) {
-		case TY_NONE:
+	switch(dtype->kind) {
+		case NONE:
 			write("void");
 			break;
-		case TY_INT64:
+		case INT64:
 			write("int64_t");
 			break;
-		case TY_UINT8:
+		case UINT8:
 			write("uint8_t");
 			break;
-		case TY_UINT64:
+		case UINT64:
 			write("uint64_t");
 			break;
-		case TY_BOOL:
+		case BOOL:
 			write("jabool");
 			break;
-		case TY_STRING:
+		case STRING:
 			write("jastring");
 			break;
-		case TY_STRUCT:
+		case STRUCT:
 			write("%I", dtype->id);
 			break;
-		case TY_PTR:
+		case PTR:
 			if(is_dynarray_ptr_type(dtype)) {
 				write("jadynarray");
 			}
 			else {
 				gen_type(dtype->subtype);
-				if(dtype->subtype->type == TY_ARRAY) write("(");
+				if(dtype->subtype->kind == ARRAY) write("(");
 				write("*");
 			}
 			break;
-		case TY_ARRAY:
-			gen_type(dtype->subtype);
+		case ARRAY:
+			gen_type(dtype->itemtype);
 			break;
 	}
 }
 
-static void gen_type_postfix(TypeDesc *dtype)
+static void gen_type_postfix(Type *dtype)
 {
-	switch(dtype->type) {
-		case TY_PTR:
+	switch(dtype->kind) {
+		case PTR:
 			if(is_dynarray_ptr_type(dtype)) break;
-			if(dtype->subtype->type == TY_ARRAY) write(")");
+			if(dtype->subtype->kind == ARRAY) write(")");
 			gen_type_postfix(dtype->subtype);
 			break;
-		case TY_ARRAY:
-			write("[%u]%z", dtype->length, dtype->subtype);
+		case ARRAY:
+			write("[%u]%z", dtype->length, dtype->itemtype);
 			break;
 	}
 }
 
 static void gen_cast(Expr *expr)
 {
-	TypeDesc *dtype = expr->dtype;
-	TypeDesc *subtype = dtype->subtype;
+	Type *dtype = expr->dtype;
+	Type *subtype = dtype->subtype;
 	Expr *srcexpr = expr->subexpr;
-	TypeDesc *srctype = srcexpr->dtype;
+	Type *srctype = srcexpr->dtype;
 	
-	if(dtype->type == TY_BOOL) {
+	if(dtype->kind == BOOL) {
 		write("(%e ? jatrue : jafalse)", srcexpr);
 	}
 	else if(is_dynarray_ptr_type(dtype)) {
 		write("((%Y){.length = ", dtype);
 		
-		if(srctype->subtype->type == TY_ARRAY) {
+		if(srctype->subtype->kind == ARRAY) {
 			// from static array
 			write("%i", srctype->subtype->length);
 		}
@@ -220,7 +220,7 @@ static void gen_expr(Expr *expr)
 			) {
 				Expr *dynarray = expr->subexpr->subexpr;
 				Expr *index = expr->index;
-				TypeDesc *itemtype = expr->dtype;
+				Type *itemtype = expr->dtype;
 				
 				write(
 					"(((%y(*)%z)%e.items)[%e])",
@@ -247,14 +247,14 @@ static void gen_expr(Expr *expr)
 			break;
 		case EX_CALL:
 			write("(%e()", expr->callee);
-			if(expr->callee->dtype->returntype->type == TY_ARRAY) {
+			if(expr->callee->dtype->returntype->kind == ARRAY) {
 				write(".a");
 			}
 			write(")");
 			break;
 		case EX_MEMBER:
 			if(
-				expr->subexpr->dtype->type == TY_ARRAY &&
+				expr->subexpr->dtype->kind == ARRAY &&
 				token_text_equals(expr->member_id, "length")
 			) {
 				if(
@@ -296,7 +296,7 @@ static void gen_init_expr(Expr *expr)
 
 static void gen_assign(Expr *target, Expr *expr)
 {
-	if(target->dtype->type == TY_ARRAY) {
+	if(target->dtype->kind == ARRAY) {
 		if(expr->type == EX_ARRAY) {
 			Expr *item = expr->exprs;
 			for(uint64_t i=0; i < expr->length; i++, item = item->next) {
@@ -320,7 +320,7 @@ static void gen_assign(Expr *target, Expr *expr)
 
 static void gen_print(Expr *expr)
 {
-	if(expr->dtype->type == TY_STRING) {
+	if(expr->dtype->kind == STRING) {
 		if(expr->type == EX_STRING) {
 			write(
 				"%>fwrite(\"%S\", 1, %i, stdout);\n",
@@ -339,32 +339,32 @@ static void gen_print(Expr *expr)
 	
 	write("%>printf(");
 	
-	switch(expr->dtype->type) {
-		case TY_INT64:
+	switch(expr->dtype->kind) {
+		case INT64:
 			write("\"%%\" PRId64");
 			break;
-		case TY_UINT8:
+		case UINT8:
 			write("\"%%\" PRIu8");
 			break;
-		case TY_UINT64:
+		case UINT64:
 			write("\"%%\" PRIu64");
 			break;
-		case TY_BOOL:
+		case BOOL:
 			write("\"%%s\"");
 			break;
-		case TY_PTR:
+		case PTR:
 			write("\"%%p\"");
 			break;
 	}
 	
 	write(" \"\\n\", ");
 	
-	if(expr->dtype->type == TY_PTR)
+	if(expr->dtype->kind == PTR)
 		write("(void*)");
 	
 	gen_expr(expr);
 	
-	if(expr->dtype->type == TY_BOOL)
+	if(expr->dtype->kind == BOOL)
 		write(" ? \"true\" : \"false\"");
 	
 	write(");\n");
@@ -416,8 +416,8 @@ static void gen_stmt(Stmt *stmt)
 		case ST_RETURN:
 			if(stmt->expr) {
 				Expr *result = stmt->expr;
-				TypeDesc *dtype = result->dtype;
-				if(dtype->type == TY_ARRAY) {
+				Type *dtype = result->dtype;
+				if(dtype->kind == ARRAY) {
 					if(result->type == EX_ARRAY) {
 						write(
 							"%>return (rt%I){%E};\n",
@@ -493,8 +493,8 @@ static void gen_vardecl(Stmt *stmt)
 		}
 	}
 	else if(
-		stmt->dtype->type == TY_ARRAY || stmt->dtype->type == TY_STRUCT ||
-		stmt->dtype->type == TY_STRING ||
+		stmt->dtype->kind == ARRAY || stmt->dtype->kind == STRUCT ||
+		stmt->dtype->kind == STRING ||
 		is_dynarray_ptr_type(stmt->dtype)
 	) {
 		write(" = {0};\n");
@@ -506,9 +506,9 @@ static void gen_vardecl(Stmt *stmt)
 
 static void gen_funcdecl(Stmt *stmt)
 {
-	TypeDesc *returntype = stmt->dtype;
+	Type *returntype = stmt->dtype;
 	
-	if(returntype->type == TY_ARRAY) {
+	if(returntype->kind == ARRAY) {
 		write(
 			"%>typedef struct { %y a%z; } rt%I;\n",
 			returntype, returntype, stmt->id
