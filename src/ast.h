@@ -3,6 +3,8 @@
 
 #include "lex.h"
 
+typedef struct Unit Unit;
+
 typedef enum {
 	NONE,
 	INT8,
@@ -38,6 +40,7 @@ typedef enum {
 	WHILE,
 	ASSIGN,
 	RETURN,
+	IMPORT,
 } Kind;
 
 typedef struct Type {
@@ -91,18 +94,24 @@ typedef struct Stmt {
 		Expr *call; // call
 		struct Stmt *func_body; // func
 		struct Stmt *struct_body; // struct
+		Token *filename; // import
 	};
 	union {
 		Token *id; // var, func, struct
 		struct Stmt *if_body; // if
 		struct Stmt *while_body; // while
 		Expr *target; // assign
+		Unit *unit; // import
 	};
 	union {
 		Type *dtype; // var, func
 		struct Stmt *else_body; // if
 	};
-	struct Stmt *next_decl; // next declaration in scope (var, func, struct)
+	union {
+		// next declaration in scope (var, func, struct)
+		struct Stmt *next_decl;
+		struct Stmt *next_import; // import
+	};
 } Stmt;
 
 typedef struct Scope {
@@ -111,6 +120,8 @@ typedef struct Scope {
 	struct Scope *parent;
 	Stmt *func;
 	Stmt *struc;
+	Stmt *first_import;
+	Stmt *last_import;
 } Scope;
 
 Type *new_type(Kind kind);
@@ -143,6 +154,7 @@ Stmt *new_vardecl(
 	Token *id, Type *dtype, Expr *init, Token *start, Scope *scope
 );
 Stmt *new_assign(Expr *target, Expr *expr, Scope *scope);
+Stmt *new_import(Token *filename, Unit *unit, Token *start, Scope *scope);
 
 Stmt *lookup_flat_in(Token *id, Scope *scope);
 Stmt *lookup_in(Token *id, Scope *scope);

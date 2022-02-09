@@ -470,6 +470,13 @@ static void print_stmt(Stmt *stmt)
 			if(stmt->expr)
 				print_expr(stmt->expr);
 			break;
+		case IMPORT:
+			print_keyword_cstr("import ");
+			print_string(
+				stmt->filename->string,
+				stmt->filename->string_length
+			);
+			break;
 	}
 }
 
@@ -500,6 +507,5 @@ void print_c_code(char *c_filename)
 		fputc(ch, stdout);
 	}
 	
-	printf(COL_YELLOW "=== end ===" COL_RESET "\n");
 	fclose(fs);
 }

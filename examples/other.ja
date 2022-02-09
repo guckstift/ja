@@ -1,0 +1,4 @@
+import "./another.ja";
+
+print "hello from other.ja";
+

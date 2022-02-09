@@ -10,6 +10,7 @@
 	_(false) \
 	_(function) \
 	_(if) \
+	_(import) \
 	_(int) \
 	_(int8) \
 	_(int16) \

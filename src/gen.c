@@ -464,6 +464,9 @@ static void gen_stmt(Stmt *stmt)
 				write("%>return;\n");
 			}
 			break;
+		case IMPORT:
+			write("%>main_%s(0, 0);\n", stmt->unit->unit_id);
+			break;
 	}
 }
 
@@ -580,19 +583,39 @@ static void gen_funcdecls(Stmt *stmts)
 	}
 }
 
-void gen(Unit *unit)
+static void gen_imports(Stmt *stmts)
+{
+	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
+		if(stmt->kind == IMPORT) {
+			write("#include \"%s\"\n", stmt->unit->h_filename);
+		}
+	}
+}
+
+static void gen_h(Unit *unit)
+{
+	ofs = fopen(unit->h_filename, "wb");
+	write("int main_%s(int argc, char **argv);\n", unit->unit_id);
+	fclose(ofs);
+}
+
+static void gen_c(Unit *unit)
 {
 	ofs = fopen(unit->c_filename, "wb");
 	level = 0;
 	
 	write(RUNTIME_H_SRC);
+	gen_imports(unit->stmts);
 	gen_structdecls(unit->stmts);
 	gen_vardecls(unit->stmts);
 	gen_funcdecls(unit->stmts);
 	write("static jadynarray ja_argv;\n");
-	write("int main(int argc, char **argv) {\n");
+	write("static int main_was_called;\n");
+	write("int main_%s(int argc, char **argv) {\n", unit->unit_id);
 	
 	write(
+		INDENT "if(main_was_called) return 0;\n"
+		INDENT "main_was_called = 1;\n"
 		INDENT "ja_argv.length = argc;\n"
 		INDENT "ja_argv.items = malloc(sizeof(jastring) * argc);\n"
 		INDENT "for(int64_t i=0; i < argc; i++) "
@@ -602,5 +625,29 @@ void gen(Unit *unit)
 	
 	gen_stmts(unit->stmts);
 	write("}\n");
+	
 	fclose(ofs);
+}
+
+static void gen_main_c(Unit *unit)
+{
+	ofs = fopen(unit->c_main_filename, "wb");
+	
+	write(
+		"#include \"%s\"\n"
+		"int main(int argc, char **argv) {\n"
+		INDENT "main_%s(argc, argv);\n"
+		"}\n",
+		unit->h_filename,
+		unit->unit_id
+	);
+	
+	fclose(ofs);
+}
+
+void gen(Unit *unit)
+{
+	gen_h(unit);
+	gen_c(unit);
+	gen_main_c(unit);
 }

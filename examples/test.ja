@@ -1,5 +1,5 @@
-struct Foo {
-	var x = 90;
-}
+import "./other.ja";
+import "./another.ja";
 
-var y : Foo;
+print "hello from test.ja";
+

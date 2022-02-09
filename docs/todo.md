@@ -8,6 +8,15 @@
 * print strings
 * argv
 
+# wip
+
+* import (
+	X import "./file.ja"; # only side effects
+	import sym from "./some/file.ja"; # exclusive symbols
+	import * from "./myfile.ja"; # all exported symbols
+	import "./file.ja" as unit; # import in namespace
+	)
+
 # todo
 
 * use default struct member inits
@@ -20,12 +29,6 @@
 * function prototypes
 * refer to struct before definition (if ptr to)
 * export (vars, functions, types)
-* import (
-	import "./file.ja"; # only side effects
-	import sym from "./some/file.ja"; # exclusive symbols
-	import * from "./myfile.ja"; # all exported symbols
-	import "./file.ja" as unit; # import in namespace
-	)
 * new/delete/resize
 * auto pointer unpacking/packing
 * pseudo ptr arithmetic via @ index

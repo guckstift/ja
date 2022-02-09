@@ -4,6 +4,8 @@
 #include "parse.h"
 #include "print.h"
 #include "eval.h"
+#include "build.h"
+#include "string.h"
 
 #define match(t) (cur->type == (t))
 #define match2(t1, t2) (cur[0].type == (t1) && cur[1].type == (t2))
@@ -101,6 +103,8 @@ static void enter()
 	scope->last_decl = 0;
 	scope->func = scope->parent ? scope->parent->func : 0;
 	scope->struc = 0;
+	scope->first_import = 0;
+	scope->last_import = 0;
 }
 
 static void leave()
@@ -842,6 +846,46 @@ static Stmt *p_returnstmt()
 	return stmt;
 }
 
+static Stmt *p_import()
+{
+	Token *start = cur;
+	if(!eat(TK_import)) return 0;
+	
+	if(scope->parent)
+		fatal_at(last, "imports can only be used at top level");
+	
+	Token *filename = eat(TK_STRING);
+	if(!filename)
+		error_after(last, "expected filename string to import");
+	
+	if(!eat(TK_SEMICOLON))
+		error_after(last, "expected semicolon after import statement");
+	
+	Unit *unit = import(filename->string);
+	
+	for(
+		Stmt *import = scope->first_import;
+		import;
+		import = import->next_import
+	) {
+		if(unit == import->unit)
+			fatal_at(start, "unit already imported");
+	}
+	
+	Stmt *import = new_import(filename, unit, start, scope);
+	
+	if(scope->first_import) {
+		scope->last_import->next_import = import;
+		scope->last_import = import;
+	}
+	else {
+		scope->first_import = import;
+		scope->last_import = import;
+	}
+	
+	return import;
+}
+
 static Stmt *p_assign()
 {
 	Expr *target = p_expr();
@@ -878,6 +922,7 @@ static Stmt *p_stmt()
 	(stmt = p_ifstmt()) ||
 	(stmt = p_whilestmt()) ||
 	(stmt = p_returnstmt()) ||
+	(stmt = p_import()) ||
 	(stmt = p_assign()) ;
 	return stmt;
 }
@@ -902,6 +947,12 @@ static Stmt *p_stmts(Stmt *func)
 
 Stmt *parse(Tokens *tokens)
 {
+	// save states
+	Token *old_cur = cur;
+	Token *old_last = last;
+	char *old_src_end = src_end;
+	Scope *old_scope = scope;
+	
 	cur = tokens->first;
 	last = 0;
 	src_end = tokens->last->start + tokens->last->length;
@@ -909,5 +960,12 @@ Stmt *parse(Tokens *tokens)
 	Stmt *stmts = p_stmts(0);
 	if(!eat(TK_EOF))
 		fatal_at(cur, "invalid statement");
+	
+	// restore states
+	cur = old_cur;
+	last = old_last;
+	src_end = old_src_end;
+	scope = old_scope;
+	
 	return stmts;
 }

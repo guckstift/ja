@@ -244,6 +244,15 @@ Stmt *new_vardecl(
 	return stmt;
 }
 
+Stmt *new_import(Token *filename, Unit *unit, Token *start, Scope *scope)
+{
+	Stmt *stmt = new_stmt(IMPORT, start, scope);
+	stmt->filename = filename;
+	stmt->unit = unit;
+	stmt->next_import = 0;
+	return stmt;
+}
+
 Stmt *lookup_flat_in(Token *id, Scope *scope)
 {
 	for(Stmt *decl = scope->first_decl; decl; decl = decl->next_decl) {
