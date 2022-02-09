@@ -9,6 +9,7 @@
 
 # todo
 
+* namespaces
 * function parameters
 * else-if
 * binops + - * / // %
@@ -29,6 +30,7 @@
 * print arrays
 * print structs
 * print ptrs contents
+* print multiple arguments
 * chained comparison (a == b > c  is  a == b && b > c)
 * short-circuiting and, or
 * codegen: spare () on equal level binop chains (except explicit ())

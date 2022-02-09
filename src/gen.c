@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <inttypes.h>
 #include "gen.h"
+#include "runtime.inc.h"
 
 #define INDENT      "    "
 #define COL_YELLOW  "\x1b[38;2;255;255;0m"
@@ -320,10 +321,18 @@ static void gen_assign(Expr *target, Expr *expr)
 static void gen_print(Expr *expr)
 {
 	if(expr->dtype->type == TY_STRING) {
-		write(
-			"%>fwrite((%e).string, 1, (%e).length, stdout);\n",
-			expr, expr
-		);
+		if(expr->type == EX_STRING) {
+			write(
+				"%>fwrite(\"%S\", 1, %i, stdout);\n",
+				expr->string, expr->length, expr->length
+			);
+		}
+		else {
+			write(
+				"%>fwrite(%e.string, 1, %e.length, stdout);\n",
+				expr, expr
+			);
+		}
 		write("%>printf(\"\\n\");\n");
 		return;
 	}
@@ -485,6 +494,7 @@ static void gen_vardecl(Stmt *stmt)
 	}
 	else if(
 		stmt->dtype->type == TY_ARRAY || stmt->dtype->type == TY_STRUCT ||
+		stmt->dtype->type == TY_STRING ||
 		is_dynarray_ptr_type(stmt->dtype)
 	) {
 		write(" = {0};\n");
@@ -545,24 +555,7 @@ void gen(Unit *unit)
 	ofs = fopen(unit->c_filename, "wb");
 	level = 0;
 	
-	write(
-		"#include <stdio.h>\n"
-		"#include <stdint.h>\n"
-		"#include <inttypes.h>\n"
-		"#include <string.h>\n"
-		"#define jafalse ((jabool)0)\n"
-		"#define jatrue ((jabool)1)\n"
-		"typedef uint8_t jabool;\n"
-		"typedef struct {\n"
-		INDENT "int64_t length;\n"
-		INDENT "void *items;\n"
-		"} jadynarray;\n"
-		"typedef struct {\n"
-		INDENT "int64_t length;\n"
-		INDENT "char *string;\n"
-		"} jastring;\n"
-	);
-	
+	write(RUNTIME_H_SRC);
 	gen_structdecls(unit->stmts);
 	gen_vardecls(unit->stmts);
 	gen_funcdecls(unit->stmts);

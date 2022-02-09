@@ -12,6 +12,7 @@
 	_(if) \
 	_(int) \
 	_(print) \
+	_(string) \
 	_(struct) \
 	_(return) \
 	_(true) \

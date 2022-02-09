@@ -1,7 +1,3 @@
-var x = "Hello";
+var argv: string;
 
-x = "World";
-
-var y = x;
-
-print "Hello";
+print argv;

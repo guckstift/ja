@@ -92,6 +92,7 @@ static TypeDesc *p_primtype()
 	if(eat(TK_uint8)) return new_type(TY_UINT8);
 	if(eat(TK_uint)) return new_type(TY_UINT64);
 	if(eat(TK_bool)) return new_type(TY_BOOL);
+	if(eat(TK_string)) return new_type(TY_STRING);
 	return 0;
 }
 
