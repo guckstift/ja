@@ -1,13 +1,5 @@
-var b : int8 = 510;
-var c : int16;
-var d : int32;
-var e : int64;
-var a : int;
+struct Foo {
+	var x = 90;
+}
 
-var ub : uint8 = 0-1;
-var uc : uint16 = 0-1;
-var ud : uint32 = 0-1;
-var ue : uint64;
-var ua : uint;
-
-print ub;
+var y : Foo;

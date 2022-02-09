@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define jafalse ((jabool)0)
 #define jatrue ((jabool)1)

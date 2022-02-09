@@ -139,6 +139,9 @@ Expr *new_deref_expr(Expr *subexpr);
 Expr *new_ptr_expr(Expr *subexpr);
 
 Stmt *new_stmt(Kind kind, Token *start, Scope *scope);
+Stmt *new_vardecl(
+	Token *id, Type *dtype, Expr *init, Token *start, Scope *scope
+);
 Stmt *new_assign(Expr *target, Expr *expr, Scope *scope);
 
 Stmt *lookup_flat_in(Token *id, Scope *scope);

@@ -233,6 +233,17 @@ Stmt *new_assign(Expr *target, Expr *expr, Scope *scope)
 	return stmt;
 }
 
+Stmt *new_vardecl(
+	Token *id, Type *dtype, Expr *init, Token *start, Scope *scope
+) {
+	Stmt *stmt = new_stmt(VAR, start, scope);
+	stmt->id = id;
+	stmt->dtype = dtype;
+	stmt->expr = init;
+	stmt->next_decl = 0;
+	return stmt;
+}
+
 Stmt *lookup_flat_in(Token *id, Scope *scope)
 {
 	for(Stmt *decl = scope->first_decl; decl; decl = decl->next_decl) {

@@ -1,0 +1,15 @@
+var c = argv.length;
+
+print c;
+
+print argv[0];
+
+if 1 {
+	var argv : int;
+}
+
+struct Foo {
+	var argv = 90;
+}
+
+var x : Foo;

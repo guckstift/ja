@@ -589,7 +589,17 @@ void gen(Unit *unit)
 	gen_structdecls(unit->stmts);
 	gen_vardecls(unit->stmts);
 	gen_funcdecls(unit->stmts);
+	write("static jadynarray ja_argv;\n");
 	write("int main(int argc, char **argv) {\n");
+	
+	write(
+		INDENT "ja_argv.length = argc;\n"
+		INDENT "ja_argv.items = malloc(sizeof(jastring) * argc);\n"
+		INDENT "for(int64_t i=0; i < argc; i++) "
+			"((jastring*)ja_argv.items)[i] = "
+			"(jastring){strlen(argv[i]), argv[i]};\n"
+	);
+	
 	gen_stmts(unit->stmts);
 	write("}\n");
 	fclose(ofs);

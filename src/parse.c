@@ -47,13 +47,35 @@ static Expr *p_expr();
 static Type *p_type();
 static Expr *p_prefix();
 
+static Stmt *lookup_builtin(Token *id)
+{
+	if(scope->parent) return 0;
+	
+	if(token_text_equals(id, "argv")) {
+		static Stmt *argv = 0;
+		if(argv == 0) {
+			argv = new_vardecl(
+				id, new_ptr_type(new_array_type(-1, new_type(STRING))),
+				0, 0, scope
+			);
+		}
+		return argv;
+	}
+	
+	return 0;
+}
+
 static Stmt *lookup_flat(Token *id)
 {
+	Stmt *decl = lookup_builtin(id);
+	if(decl) return decl;
 	return lookup_flat_in(id, scope);
 }
 
 static Stmt *lookup(Token *id)
 {
+	Stmt *decl = lookup_builtin(id);
+	if(decl) return decl;
 	return lookup_in(id, scope);
 }
 
@@ -646,11 +668,7 @@ static Stmt *p_vardecl()
 	if(!is_complete_type(dtype))
 		fatal_at(ident, "variable with incomplete type  %y  declared", dtype);
 	
-	Stmt *stmt = new_stmt(VAR, start, scope);
-	stmt->id = ident->id;
-	stmt->dtype = dtype;
-	stmt->expr = init;
-	stmt->next_decl = 0;
+	Stmt *stmt = new_vardecl(ident->id, dtype, init, start, scope);
 	
 	if(!declare(stmt))
 		fatal_at(ident, "name %t already declared", ident);

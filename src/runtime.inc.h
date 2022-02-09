@@ -3,6 +3,7 @@
 	"#include <stdint.h>\n" \
 	"#include <inttypes.h>\n" \
 	"#include <string.h>\n" \
+	"#include <stdlib.h>\n" \
 	"\n" \
 	"#define jafalse ((jabool)0)\n" \
 	"#define jatrue ((jabool)1)\n" \

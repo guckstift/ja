@@ -6,9 +6,11 @@
 * automatic pointer unpacking on subscript and member access
 * string type (length and char-ptr)
 * print strings
+* argv
 
 # todo
 
+* use default struct member inits
 * namespaces
 * function parameters
 * else-if
@@ -56,7 +58,6 @@
 * namespaces
 * external methods
 * forced inline
-* argv
 * file functions
 * optional arguments
 * variable arguments
