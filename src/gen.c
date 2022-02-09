@@ -109,11 +109,26 @@ static void gen_type(Type *dtype)
 		case NONE:
 			write("void");
 			break;
+		case INT8:
+			write("int8_t");
+			break;
+		case INT16:
+			write("int16_t");
+			break;
+		case INT32:
+			write("int32_t");
+			break;
 		case INT64:
 			write("int64_t");
 			break;
 		case UINT8:
 			write("uint8_t");
+			break;
+		case UINT16:
+			write("uint16_t");
+			break;
+		case UINT32:
+			write("uint32_t");
 			break;
 		case UINT64:
 			write("uint64_t");
@@ -188,34 +203,34 @@ static void gen_cast(Expr *expr)
 
 static void gen_expr(Expr *expr)
 {
-	switch(expr->type) {
-		case EX_INT:
+	switch(expr->kind) {
+		case INT:
 			write("%i", expr->ival);
 			break;
-		case EX_BOOL:
+		case BOOL:
 			write(expr->ival ? "jatrue" : "jafalse");
 			break;
-		case EX_STRING:
+		case STRING:
 			write(
 				"((jastring){%i, \"%S\"})",
 				expr->length, expr->string, expr->length
 			);
 			break;
-		case EX_VAR:
+		case VAR:
 			write("%I", expr->id);
 			break;
-		case EX_PTR:
+		case PTR:
 			write("(&%e)", expr->subexpr);
 			break;
-		case EX_DEREF:
+		case DEREF:
 			write("(*%e)", expr->subexpr);
 			break;
-		case EX_CAST:
+		case CAST:
 			gen_cast(expr);
 			break;
-		case EX_SUBSCRIPT:
+		case SUBSCRIPT:
 			if(
-				expr->subexpr->type == EX_DEREF &&
+				expr->subexpr->kind == DEREF &&
 				is_dynarray_ptr_type(expr->subexpr->subexpr->dtype)
 			) {
 				Expr *dynarray = expr->subexpr->subexpr;
@@ -231,12 +246,12 @@ static void gen_expr(Expr *expr)
 				write("(%e[%e])", expr->subexpr, expr->index);
 			}
 			break;
-		case EX_BINOP:
+		case BINOP:
 			write(
 				"(%e %s %e)", expr->left, expr->operator->punct, expr->right
 			);
 			break;
-		case EX_ARRAY:
+		case ARRAY:
 			write("((%Y){", expr->dtype);
 			for(Expr *item = expr->exprs; item; item = item->next) {
 				if(item != expr->exprs)
@@ -245,20 +260,20 @@ static void gen_expr(Expr *expr)
 			}
 			write("})");
 			break;
-		case EX_CALL:
+		case CALL:
 			write("(%e()", expr->callee);
 			if(expr->callee->dtype->returntype->kind == ARRAY) {
 				write(".a");
 			}
 			write(")");
 			break;
-		case EX_MEMBER:
+		case MEMBER:
 			if(
 				expr->subexpr->dtype->kind == ARRAY &&
 				token_text_equals(expr->member_id, "length")
 			) {
 				if(
-					expr->subexpr->type == EX_DEREF &&
+					expr->subexpr->kind == DEREF &&
 					expr->subexpr->dtype->length == -1 &&
 					token_text_equals(expr->member_id, "length")
 				) {
@@ -277,7 +292,7 @@ static void gen_expr(Expr *expr)
 
 static void gen_init_expr(Expr *expr)
 {
-	if(expr->type == EX_ARRAY) {
+	if(expr->kind == ARRAY) {
 		write("{");
 		for(Expr *item = expr->exprs; item; item = item->next) {
 			if(item != expr->exprs)
@@ -286,7 +301,7 @@ static void gen_init_expr(Expr *expr)
 		}
 		write("}");
 	}
-	else if(expr->type == EX_STRING) {
+	else if(expr->kind == STRING) {
 		write("{%i, \"%S\"}", expr->length, expr->string, expr->length);
 	}
 	else {
@@ -297,7 +312,7 @@ static void gen_init_expr(Expr *expr)
 static void gen_assign(Expr *target, Expr *expr)
 {
 	if(target->dtype->kind == ARRAY) {
-		if(expr->type == EX_ARRAY) {
+		if(expr->kind == ARRAY) {
 			Expr *item = expr->exprs;
 			for(uint64_t i=0; i < expr->length; i++, item = item->next) {
 				gen_assign(
@@ -321,7 +336,7 @@ static void gen_assign(Expr *target, Expr *expr)
 static void gen_print(Expr *expr)
 {
 	if(expr->dtype->kind == STRING) {
-		if(expr->type == EX_STRING) {
+		if(expr->kind == STRING) {
 			write(
 				"%>fwrite(\"%S\", 1, %i, stdout);\n",
 				expr->string, expr->length, expr->length
@@ -340,11 +355,26 @@ static void gen_print(Expr *expr)
 	write("%>printf(");
 	
 	switch(expr->dtype->kind) {
+		case INT8:
+			write("\"%%\" PRId8");
+			break;
+		case INT16:
+			write("\"%%\" PRId16");
+			break;
+		case INT32:
+			write("\"%%\" PRId32");
+			break;
 		case INT64:
 			write("\"%%\" PRId64");
 			break;
 		case UINT8:
 			write("\"%%\" PRIu8");
+			break;
+		case UINT16:
+			write("\"%%\" PRIu16");
+			break;
+		case UINT32:
+			write("\"%%\" PRIu32");
 			break;
 		case UINT64:
 			write("\"%%\" PRIu64");
@@ -372,11 +402,11 @@ static void gen_print(Expr *expr)
 
 static void gen_stmt(Stmt *stmt)
 {
-	switch(stmt->type) {
-		case ST_PRINT:
+	switch(stmt->kind) {
+		case PRINT:
 			gen_print(stmt->expr);
 			break;
-		case ST_VARDECL:
+		case VAR:
 			if(stmt->scope->parent) {
 				// local var
 				gen_vardecl(stmt);
@@ -392,7 +422,7 @@ static void gen_stmt(Stmt *stmt)
 				}
 			}
 			break;
-		case ST_IFSTMT:
+		case IF:
 			write("%>if(%e) {\n", stmt->expr);
 			gen_stmts(stmt->if_body);
 			write("%>}\n");
@@ -402,23 +432,23 @@ static void gen_stmt(Stmt *stmt)
 				write("%>}\n");
 			}
 			break;
-		case ST_WHILESTMT:
+		case WHILE:
 			write("%>while(%e) {\n", stmt->expr);
 			gen_stmts(stmt->while_body);
 			write("%>}\n");
 			break;
-		case ST_ASSIGN:
+		case ASSIGN:
 			gen_assign(stmt->target, stmt->expr);
 			break;
-		case ST_CALL:
+		case CALL:
 			write("%>%e;\n", stmt->call);
 			break;
-		case ST_RETURN:
+		case RETURN:
 			if(stmt->expr) {
 				Expr *result = stmt->expr;
 				Type *dtype = result->dtype;
 				if(dtype->kind == ARRAY) {
-					if(result->type == EX_ARRAY) {
+					if(result->kind == ARRAY) {
 						write(
 							"%>return (rt%I){%E};\n",
 							stmt->scope->func->id,
@@ -472,7 +502,7 @@ static void gen_vardecl(Stmt *stmt)
 		// has initializer
 		if(
 			stmt->expr->isconst ||
-			stmt->scope->parent && stmt->expr->type != EX_ARRAY
+			stmt->scope->parent && stmt->expr->kind != ARRAY
 		) {
 			// is constant or for local var (no array literal)
 			// => in-place init possible
@@ -480,7 +510,7 @@ static void gen_vardecl(Stmt *stmt)
 			gen_init_expr(stmt->expr);
 			write(";\n");
 		}
-		else if(stmt->scope->parent && stmt->expr->type == EX_ARRAY) {
+		else if(stmt->scope->parent && stmt->expr->kind == ARRAY) {
 			// array literal initializer for local var
 			write(";\n");
 			gen_assign(
@@ -526,7 +556,7 @@ static void gen_funcdecl(Stmt *stmt)
 static void gen_structdecls(Stmt *stmts)
 {
 	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
-		if(stmt->type == ST_STRUCTDECL) {
+		if(stmt->kind == STRUCT) {
 			gen_structdecl(stmt);
 		}
 	}
@@ -535,7 +565,7 @@ static void gen_structdecls(Stmt *stmts)
 static void gen_vardecls(Stmt *stmts)
 {
 	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
-		if(stmt->type == ST_VARDECL) {
+		if(stmt->kind == VAR) {
 			gen_vardecl(stmt);
 		}
 	}
@@ -544,7 +574,7 @@ static void gen_vardecls(Stmt *stmts)
 static void gen_funcdecls(Stmt *stmts)
 {
 	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
-		if(stmt->type == ST_FUNCDECL) {
+		if(stmt->kind == FUNC) {
 			gen_funcdecl(stmt);
 		}
 	}

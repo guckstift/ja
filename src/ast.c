@@ -66,7 +66,9 @@ int type_equ(Type *dtype1, Type *dtype2)
 int is_integer_type(Type *dtype)
 {
 	Kind kind = dtype->kind;
-	return kind == INT64 || kind == UINT8 || kind == UINT64;
+	return
+		kind == INT8 || kind == INT16 || kind == INT32 || kind == INT64 ||
+		kind == UINT8 || kind == UINT16 || kind == UINT32 || kind == UINT64 ;
 }
 
 int is_integral_type(Type *dtype)
@@ -99,10 +101,10 @@ int is_dynarray_ptr_type(Type *dtype)
 		dtype->subtype->length == -1 ;
 }
 
-Expr *new_expr(ExprType type, Token *start)
+Expr *new_expr(Kind kind, Token *start)
 {
 	Expr *expr = malloc(sizeof(Expr));
-	expr->type = type;
+	expr->kind = kind;
 	expr->start = start;
 	expr->next = 0;
 	return expr;
@@ -110,7 +112,7 @@ Expr *new_expr(ExprType type, Token *start)
 
 Expr *new_int_expr(int64_t val, Token *start)
 {
-	Expr *expr = new_expr(EX_INT, start);
+	Expr *expr = new_expr(INT, start);
 	expr->ival = val;
 	expr->isconst = 1;
 	expr->islvalue = 0;
@@ -120,7 +122,7 @@ Expr *new_int_expr(int64_t val, Token *start)
 
 Expr *new_string_expr(char *string, int64_t length, Token *start)
 {
-	Expr *expr = new_expr(EX_STRING, start);
+	Expr *expr = new_expr(STRING, start);
 	expr->string = string;
 	expr->length = length;
 	expr->isconst = 1;
@@ -131,7 +133,7 @@ Expr *new_string_expr(char *string, int64_t length, Token *start)
 
 Expr *new_bool_expr(int64_t val, Token *start)
 {
-	Expr *expr = new_expr(EX_BOOL, start);
+	Expr *expr = new_expr(BOOL, start);
 	expr->ival = val;
 	expr->isconst = 1;
 	expr->islvalue = 0;
@@ -141,7 +143,7 @@ Expr *new_bool_expr(int64_t val, Token *start)
 
 Expr *new_var_expr(Token *id, Type *dtype, Token *start)
 {
-	Expr *expr = new_expr(EX_VAR, start);
+	Expr *expr = new_expr(VAR, start);
 	expr->id = id;
 	expr->isconst = 0;
 	expr->islvalue = dtype->kind != FUNC;
@@ -152,7 +154,7 @@ Expr *new_var_expr(Token *id, Type *dtype, Token *start)
 Expr *new_array_expr(
 	Expr *exprs, int64_t length, int isconst, Type *itemtype, Token *start
 ) {
-	Expr *expr = new_expr(EX_ARRAY, start);
+	Expr *expr = new_expr(ARRAY, start);
 	expr->exprs = exprs;
 	expr->length = length;
 	expr->isconst = isconst;
@@ -163,7 +165,7 @@ Expr *new_array_expr(
 
 Expr *new_subscript(Expr *subexpr, Expr *index)
 {
-	Expr *expr = new_expr(EX_SUBSCRIPT, subexpr->start);
+	Expr *expr = new_expr(SUBSCRIPT, subexpr->start);
 	expr->subexpr = subexpr;
 	expr->index = index;
 	expr->isconst = 0;
@@ -174,7 +176,7 @@ Expr *new_subscript(Expr *subexpr, Expr *index)
 
 Expr *new_cast_expr(Expr *subexpr, Type *dtype)
 {
-	Expr *expr = new_expr(EX_CAST, subexpr->start);
+	Expr *expr = new_expr(CAST, subexpr->start);
 	expr->isconst = subexpr->isconst;
 	expr->islvalue = 0;
 	expr->subexpr = subexpr;
@@ -184,7 +186,7 @@ Expr *new_cast_expr(Expr *subexpr, Type *dtype)
 
 Expr *new_member_expr(Expr *subexpr, Token *member_id, Type *dtype)
 {
-	Expr *expr = new_expr(EX_MEMBER, subexpr->start);
+	Expr *expr = new_expr(MEMBER, subexpr->start);
 	expr->member_id =member_id;
 	expr->isconst = 0;
 	expr->islvalue = 1;
@@ -195,7 +197,7 @@ Expr *new_member_expr(Expr *subexpr, Token *member_id, Type *dtype)
 
 Expr *new_deref_expr(Expr *subexpr)
 {
-	Expr *expr = new_expr(EX_DEREF, subexpr->start);
+	Expr *expr = new_expr(DEREF, subexpr->start);
 	expr->subexpr = subexpr;
 	expr->isconst = 0;
 	expr->islvalue = 1;
@@ -205,7 +207,7 @@ Expr *new_deref_expr(Expr *subexpr)
 
 Expr *new_ptr_expr(Expr *subexpr)
 {
-	Expr *expr = new_expr(EX_PTR, subexpr->start);
+	Expr *expr = new_expr(PTR, subexpr->start);
 	expr->subexpr = subexpr;
 	expr->isconst = 0;
 	expr->islvalue = 0;
@@ -213,10 +215,10 @@ Expr *new_ptr_expr(Expr *subexpr)
 	return expr;
 }
 
-Stmt *new_stmt(StmtType type, Token *start, Scope *scope)
+Stmt *new_stmt(Kind kind, Token *start, Scope *scope)
 {
 	Stmt *stmt = malloc(sizeof(Stmt));
-	stmt->type = type;
+	stmt->kind = kind;
 	stmt->start = start;
 	stmt->next = 0;
 	stmt->scope = scope;
@@ -225,7 +227,7 @@ Stmt *new_stmt(StmtType type, Token *start, Scope *scope)
 
 Stmt *new_assign(Expr *target, Expr *expr, Scope *scope)
 {
-	Stmt *stmt = new_stmt(ST_ASSIGN, target->start, scope);
+	Stmt *stmt = new_stmt(ASSIGN, target->start, scope);
 	stmt->target = target;
 	stmt->expr = expr;
 	return stmt;

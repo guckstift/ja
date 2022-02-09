@@ -257,11 +257,26 @@ static void fprint_type(FILE *fs, Type *dtype)
 		case NONE:
 			fprint_keyword_cstr(fs, "none");
 			break;
+		case INT8:
+			fprint_keyword_cstr(fs, "int8");
+			break;
+		case INT16:
+			fprint_keyword_cstr(fs, "int16");
+			break;
+		case INT32:
+			fprint_keyword_cstr(fs, "int32");
+			break;
 		case INT64:
 			fprint_keyword_cstr(fs, "int64");
 			break;
 		case UINT8:
 			fprint_keyword_cstr(fs, "uint8");
+			break;
+		case UINT16:
+			fprint_keyword_cstr(fs, "uint16");
+			break;
+		case UINT32:
+			fprint_keyword_cstr(fs, "uint32");
 			break;
 		case UINT64:
 			fprint_keyword_cstr(fs, "uint64");
@@ -298,40 +313,40 @@ static void print_type(Type *dtype)
 
 static void print_expr(Expr *expr)
 {
-	switch(expr->type) {
-		case EX_INT:
+	switch(expr->kind) {
+		case INT:
 			print_int(expr->ival);
 			break;
-		case EX_BOOL:
+		case BOOL:
 			if(expr->ival)
 				print_keyword_cstr("true");
 			else
 				print_keyword_cstr("false");
 			break;
-		case EX_STRING:
+		case STRING:
 			print_string(expr->string, expr->length);
 			break;
-		case EX_VAR:
+		case VAR:
 			print_ident(expr->id);
 			break;
-		case EX_PTR:
+		case PTR:
 			printf("(>");
 			print_expr(expr->subexpr);
 			printf(")");
 			break;
-		case EX_DEREF:
+		case DEREF:
 			printf("(<");
 			print_expr(expr->subexpr);
 			printf(")");
 			break;
-		case EX_CAST:
+		case CAST:
 			printf("(");
 			print_expr(expr->subexpr);
 			print_keyword_cstr(" as ");
 			print_type(expr->dtype);
 			printf(")");
 			break;
-		case EX_SUBSCRIPT:
+		case SUBSCRIPT:
 			printf("(");
 			print_expr(expr->subexpr);
 			printf("[");
@@ -339,14 +354,14 @@ static void print_expr(Expr *expr)
 			printf("]");
 			printf(")");
 			break;
-		case EX_BINOP:
+		case BINOP:
 			printf("(");
 			print_expr(expr->left);
 			printf(" %s ", expr->operator->punct);
 			print_expr(expr->right);
 			printf(")");
 			break;
-		case EX_ARRAY:
+		case ARRAY:
 			printf("[");
 			for(Expr *item = expr->exprs; item; item = item->next) {
 				if(item != expr->exprs)
@@ -355,13 +370,13 @@ static void print_expr(Expr *expr)
 			}
 			printf("]");
 			break;
-		case EX_CALL:
+		case CALL:
 			printf("(");
 			print_expr(expr->callee);
 			printf("()");
 			printf(")");
 			break;
-		case EX_MEMBER:
+		case MEMBER:
 			print_expr(expr->subexpr);
 			printf(".");
 			print_ident(expr->member_id);
@@ -371,12 +386,12 @@ static void print_expr(Expr *expr)
 
 static void print_stmt(Stmt *stmt)
 {
-	switch(stmt->type) {
-		case ST_PRINT:
+	switch(stmt->kind) {
+		case PRINT:
 			print_keyword_cstr("print ");
 			print_expr(stmt->expr);
 			break;
-		case ST_VARDECL:
+		case VAR:
 			print_keyword_cstr("var ");
 			print_ident(stmt->id);
 			printf(" : ");
@@ -386,7 +401,7 @@ static void print_stmt(Stmt *stmt)
 				print_expr(stmt->expr);
 			}
 			break;
-		case ST_FUNCDECL:
+		case FUNC:
 			print_keyword_cstr("function ");
 			print_ident(stmt->id);
 			printf("()");
@@ -401,7 +416,7 @@ static void print_stmt(Stmt *stmt)
 			print_indent();
 			printf("}");
 			break;
-		case ST_STRUCTDECL:
+		case STRUCT:
 			print_keyword_cstr("struct ");
 			print_ident(stmt->id);
 			printf(" {\n");
@@ -411,7 +426,7 @@ static void print_stmt(Stmt *stmt)
 			print_indent();
 			printf("}");
 			break;
-		case ST_IFSTMT:
+		case IF:
 			print_keyword_cstr("if ");
 			print_expr(stmt->expr);
 			printf(" {\n");
@@ -432,7 +447,7 @@ static void print_stmt(Stmt *stmt)
 				printf("}");
 			}
 			break;
-		case ST_WHILESTMT:
+		case WHILE:
 			print_keyword_cstr("while ");
 			print_expr(stmt->expr);
 			printf(" {\n");
@@ -442,15 +457,15 @@ static void print_stmt(Stmt *stmt)
 			print_indent();
 			printf("}");
 			break;
-		case ST_ASSIGN:
+		case ASSIGN:
 			print_expr(stmt->target);
 			printf(" = ");
 			print_expr(stmt->expr);
 			break;
-		case ST_CALL:
+		case CALL:
 			print_expr(stmt->call);
 			break;
-		case ST_RETURN:
+		case RETURN:
 			print_keyword_cstr("return ");
 			if(stmt->expr)
 				print_expr(stmt->expr);

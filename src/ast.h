@@ -25,7 +25,19 @@ typedef enum {
 	FUNC,
 	STRUCT,
 	
-	_KIND_COUNT,
+	VAR,
+	DEREF,
+	CAST,
+	SUBSCRIPT,
+	BINOP,
+	CALL,
+	MEMBER,
+	
+	PRINT,
+	IF,
+	WHILE,
+	ASSIGN,
+	RETURN,
 } Kind;
 
 typedef struct Type {
@@ -42,82 +54,55 @@ typedef struct Type {
 	};
 } Type;
 
-typedef enum {
-	EX_INT, // ival
-	EX_BOOL, // ival
-	EX_STRING, // string, length
-	EX_VAR, // id
-	EX_PTR, // subexpr
-	EX_DEREF, // subexpr
-	EX_CAST, // subexpr, (dtype)
-	EX_SUBSCRIPT, // subexpr, index
-	EX_BINOP, // left, right, operator
-	EX_ARRAY, // exprs, length
-	EX_CALL, // callee
-	EX_MEMBER, // subexpr, member_id
-} ExprType;
-
 typedef struct Expr {
-	ExprType type;
+	Kind kind;
 	Token *start;
 	int isconst;
 	int islvalue;
-	Type *dtype;
+	Type *dtype; // (cast)
 	struct Expr *next; // next in a list
 	
 	union {
-		int64_t ival;
-		char *string;
-		Token *id;
-		struct Expr *subexpr;
-		struct Expr *left;
-		struct Expr *exprs;
-		struct Expr *callee;
+		int64_t ival; // int, bool
+		char *string; // string
+		Token *id; // var
+		struct Expr *subexpr; // ptr, deref, cast, subscript, member
+		struct Expr *left; // binop
+		struct Expr *exprs; // array
+		struct Expr *callee; // call
 	};
 	union {
-		struct Expr *right;
-		struct Expr *index;
-		int64_t length;
-		Token *member_id;
+		struct Expr *right; // binop
+		struct Expr *index; // subscript
+		int64_t length; // string, array
+		Token *member_id; // member
 	};
-	Token *operator;
+	Token *operator; // binop
 } Expr;
 
-typedef enum {
-	ST_PRINT, // expr
-	ST_VARDECL, // id, dtype, expr, next_decl
-	ST_FUNCDECL, // id, dtype, func_body
-	ST_STRUCTDECL, // id, struct_body
-	ST_IFSTMT, // expr, body, else_body
-	ST_WHILESTMT, // expr, body
-	ST_ASSIGN, // target, expr
-	ST_CALL, // call
-	ST_RETURN, // expr
-} StmtType;
-
 typedef struct Stmt {
-	StmtType type;
+	Kind kind;
 	Token *start;
 	struct Stmt *next; // next in a list
 	struct Scope *scope;
 	
 	union {
-		Expr *expr;
-		Expr *call;
-		struct Stmt *func_body;
-		struct Stmt *struct_body;
+		Expr *expr; // print, if, while, assign, return
+		Expr *call; // call
+		struct Stmt *func_body; // func
+		struct Stmt *struct_body; // struct
 	};
 	union {
-		Token *id;
-		struct Stmt *if_body;
-		struct Stmt *while_body;
-		Expr *target;
+		Token *id; // var, func, struct
+		struct Stmt *if_body; // if
+		struct Stmt *while_body; // while
+		Expr *target; // assign
 	};
 	union {
-		Type *dtype;
-		struct Stmt *else_body;
+		Type *dtype; // var, func
+		struct Stmt *else_body; // if
 	};
-	struct Stmt *next_decl; // next declaration in scope
+	struct Stmt *next_decl; // next declaration in scope (var, func, struct)
 } Stmt;
 
 typedef struct Scope {
@@ -139,7 +124,7 @@ int is_integral_type(Type *dtype);
 int is_complete_type(Type *dtype);
 int is_dynarray_ptr_type(Type *dtype);
 
-Expr *new_expr(ExprType type, Token *start);
+Expr *new_expr(Kind kind, Token *start);
 Expr *new_int_expr(int64_t val, Token *start);
 Expr *new_string_expr(char *string, int64_t length, Token *start);
 Expr *new_bool_expr(int64_t val, Token *start);
@@ -153,7 +138,7 @@ Expr *new_member_expr(Expr *subexpr, Token *member_id, Type *dtype);
 Expr *new_deref_expr(Expr *subexpr);
 Expr *new_ptr_expr(Expr *subexpr);
 
-Stmt *new_stmt(StmtType type, Token *start, Scope *scope);
+Stmt *new_stmt(Kind kind, Token *start, Scope *scope);
 Stmt *new_assign(Expr *target, Expr *expr, Scope *scope);
 
 Stmt *lookup_flat_in(Token *id, Scope *scope);

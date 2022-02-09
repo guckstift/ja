@@ -11,6 +11,10 @@
 	_(function) \
 	_(if) \
 	_(int) \
+	_(int8) \
+	_(int16) \
+	_(int32) \
+	_(int64) \
 	_(print) \
 	_(string) \
 	_(struct) \
@@ -18,6 +22,9 @@
 	_(true) \
 	_(uint) \
 	_(uint8) \
+	_(uint16) \
+	_(uint32) \
+	_(uint64) \
 	_(var) \
 	_(while) \
 

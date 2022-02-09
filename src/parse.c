@@ -89,8 +89,15 @@ static void leave()
 static Type *p_primtype()
 {
 	if(eat(TK_int)) return new_type(INT);
+	if(eat(TK_int8)) return new_type(INT8);
+	if(eat(TK_int16)) return new_type(INT16);
+	if(eat(TK_int32)) return new_type(INT32);
+	if(eat(TK_int64)) return new_type(INT64);
+	if(eat(TK_uint)) return new_type(UINT);
 	if(eat(TK_uint8)) return new_type(UINT8);
-	if(eat(TK_uint)) return new_type(UINT64);
+	if(eat(TK_uint16)) return new_type(UINT16);
+	if(eat(TK_uint32)) return new_type(UINT32);
+	if(eat(TK_uint64)) return new_type(UINT64);
 	if(eat(TK_bool)) return new_type(BOOL);
 	if(eat(TK_string)) return new_type(STRING);
 	return 0;
@@ -106,7 +113,7 @@ static Type *p_nametype()
 	if(!decl)
 		fatal_at(ident, "name %t not declared", ident);
 	
-	if(decl->type != ST_STRUCTDECL)
+	if(decl->kind != STRUCT)
 		fatal_at(ident, "%t is not a structure", ident);
 	
 	Type *dtype = new_type(STRUCT);
@@ -211,7 +218,7 @@ static Expr *cast_expr(Expr *expr, Type *dtype, int explicit)
 		stype->length == dtype->length
 	) {
 		// array literal => cast each item to itemtype
-		if(expr->type == EX_ARRAY) {
+		if(expr->kind == ARRAY) {
 			for(
 				Expr *prev = 0, *item = expr->exprs;
 				item;
@@ -243,7 +250,7 @@ static Expr *cast_expr(Expr *expr, Type *dtype, int explicit)
 					last = item;
 				}
 			}
-			expr = new_expr(EX_ARRAY, expr->start);
+			expr = new_expr(ARRAY, expr->start);
 			expr->exprs = first;
 			expr->length = stype->length;
 			expr->isconst = 0;
@@ -271,10 +278,10 @@ static Expr *p_var()
 	if(!decl)
 		fatal_at(last, "name %t not declared", ident);
 	
-	if(decl->type == ST_STRUCTDECL)
+	if(decl->kind == STRUCT)
 		fatal_at(last, "%t is the name of a structure", ident);
 	
-	if(decl->type == ST_FUNCDECL)
+	if(decl->kind == FUNC)
 		return new_var_expr(
 			ident->id,
 			new_func_type(decl->dtype),
@@ -374,7 +381,7 @@ static Expr *p_call_x(Expr *expr)
 	if(!eat(TK_RPAREN))
 		fatal_after(last, "expected ) after (");
 	
-	Expr *call = new_expr(EX_CALL, expr->start);
+	Expr *call = new_expr(CALL, expr->start);
 	call->callee = expr;
 	call->isconst = 0;
 	call->islvalue = 0;
@@ -480,7 +487,7 @@ static Expr *p_ptr()
 	if(!subexpr->islvalue)
 		fatal_at(subexpr->start, "target is not addressable");
 	
-	if(subexpr->type == EX_DEREF)
+	if(subexpr->kind == DEREF)
 		return subexpr->subexpr;
 	
 	return new_ptr_expr(subexpr);
@@ -498,7 +505,7 @@ static Expr *p_deref()
 	if(subexpr->dtype->kind != PTR)
 		fatal_at(subexpr->start, "expected pointer to dereference");
 	
-	if(subexpr->type == EX_PTR)
+	if(subexpr->kind == PTR)
 		return subexpr->subexpr;
 	
 	return new_deref_expr(subexpr);
@@ -532,7 +539,7 @@ static Expr *p_binop()
 		Expr *right = p_prefix();
 		if(!right)
 			fatal_after(last, "expected right side after %t", operator);
-		Expr *expr = new_expr(EX_BINOP, left->start);
+		Expr *expr = new_expr(BINOP, left->start);
 		expr->left = left;
 		expr->right = right;
 		expr->operator = operator;
@@ -569,7 +576,7 @@ static Expr *p_expr()
 static Stmt *p_print()
 {
 	if(!eat(TK_print)) return 0;
-	Stmt *stmt = new_stmt(ST_PRINT, last, scope);
+	Stmt *stmt = new_stmt(PRINT, last, scope);
 	stmt->expr = p_expr();
 	
 	if(!stmt->expr)
@@ -639,7 +646,7 @@ static Stmt *p_vardecl()
 	if(!is_complete_type(dtype))
 		fatal_at(ident, "variable with incomplete type  %y  declared", dtype);
 	
-	Stmt *stmt = new_stmt(ST_VARDECL, start, scope);
+	Stmt *stmt = new_stmt(VAR, start, scope);
 	stmt->id = ident->id;
 	stmt->dtype = dtype;
 	stmt->expr = init;
@@ -697,7 +704,7 @@ static Stmt *p_funcdecl()
 			);
 	}
 	
-	Stmt *stmt = new_stmt(ST_FUNCDECL, start, scope);
+	Stmt *stmt = new_stmt(FUNC, start, scope);
 	stmt->id = ident->id;
 	stmt->dtype = dtype;
 	stmt->next_decl = 0;
@@ -727,7 +734,7 @@ static Stmt *p_structdecl()
 	Token *ident = eat(TK_IDENT);
 	if(!ident) fatal_after(last, "expected identifier after keyword struct");
 	
-	Stmt *stmt = new_stmt(ST_STRUCTDECL, start, scope);
+	Stmt *stmt = new_stmt(STRUCT, start, scope);
 	stmt->id = ident->id;
 	stmt->next_decl = 0;
 	
@@ -750,7 +757,7 @@ static Stmt *p_structdecl()
 static Stmt *p_ifstmt()
 {
 	if(!eat(TK_if)) return 0;
-	Stmt *stmt = new_stmt(ST_IFSTMT, last, scope);
+	Stmt *stmt = new_stmt(IF, last, scope);
 	stmt->expr = p_expr();
 	if(!stmt->expr)
 		fatal_at(last, "expected condition after if");
@@ -777,7 +784,7 @@ static Stmt *p_ifstmt()
 static Stmt *p_whilestmt()
 {
 	if(!eat(TK_while)) return 0;
-	Stmt *stmt = new_stmt(ST_WHILESTMT, last, scope);
+	Stmt *stmt = new_stmt(WHILE, last, scope);
 	stmt->expr = p_expr();
 	if(!stmt->expr)
 		fatal_at(last, "expected condition after while");
@@ -798,7 +805,7 @@ static Stmt *p_returnstmt()
 		fatal_at(last, "return outside of any function");
 	
 	Type *dtype = func->dtype;
-	Stmt *stmt = new_stmt(ST_RETURN, last, scope);
+	Stmt *stmt = new_stmt(RETURN, last, scope);
 	stmt->expr = p_expr();
 	
 	if(dtype->kind == NONE) {
@@ -822,15 +829,15 @@ static Stmt *p_assign()
 	Expr *target = p_expr();
 	if(!target) return 0;
 	
-	if(target->type == EX_CALL && eat(TK_SEMICOLON)) {
-		Stmt *stmt = new_stmt(ST_CALL, target->start, scope);
+	if(target->kind == CALL && eat(TK_SEMICOLON)) {
+		Stmt *stmt = new_stmt(CALL, target->start, scope);
 		stmt->call = target;
 		return stmt;
 	}
 	
 	if(!target->islvalue)
 		fatal_at(target->start, "left side is not assignable");
-	Stmt *stmt = new_stmt(ST_ASSIGN, target->start, scope);
+	Stmt *stmt = new_stmt(ASSIGN, target->start, scope);
 	stmt->target = target;
 	if(!eat(TK_ASSIGN))
 		fatal_after(last, "expected = after left side");
