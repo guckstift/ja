@@ -1,3 +1,6 @@
+#ifndef JA_RUNTIME_H
+#define JA_RUNTIME_H
+
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -19,3 +22,4 @@ typedef struct {
 	char *string;
 } jastring;
 
+#endif

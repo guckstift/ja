@@ -12,15 +12,16 @@
 
 * import (
 	X import "./file.ja"; # only side effects
-	import sym from "./some/file.ja"; # exclusive symbols
+	X import sym, sym2 from "./some/file.ja"; # exclusive symbols
 	import * from "./myfile.ja"; # all exported symbols
 	import "./file.ja" as unit; # import in namespace
 	)
 
 # todo
 
+* bug: auto import struct return types of imported functions
+* codegen: externalize runtime.h
 * use default struct member inits
-* namespaces
 * function parameters
 * else-if
 * binops + - * / // %

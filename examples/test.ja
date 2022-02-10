@@ -1,7 +1,14 @@
-import public_var, foo from "./other.ja";
+import public_var, foo2, ExportedStruct from "./other.ja";
+
+struct Goo {
+	var okay = 8;
+}
 
 print public_var;
-var x = foo();
+var x = foo2();
 print public_var;
 
-print x.length;
+print x.x.jo;
+
+var okay: ExportedStruct;
+

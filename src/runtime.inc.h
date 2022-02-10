@@ -1,4 +1,7 @@
 #define RUNTIME_H_SRC \
+	"#ifndef JA_RUNTIME_H\n" \
+	"#define JA_RUNTIME_H\n" \
+	"\n" \
 	"#include <stdio.h>\n" \
 	"#include <stdint.h>\n" \
 	"#include <inttypes.h>\n" \
@@ -20,4 +23,5 @@
 	"	char *string;\n" \
 	"} jastring;\n" \
 	"\n" \
+	"#endif\n" \
 

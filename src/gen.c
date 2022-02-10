@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include "gen.h"
 #include "runtime.inc.h"
+#include "utils.h"
 
 #define INDENT      "    "
 #define COL_YELLOW  "\x1b[38;2;255;255;0m"
@@ -11,6 +12,7 @@
 static FILE *ofs;
 static int64_t level;
 static Unit *cur_unit;
+static int in_header;
 
 static void gen_stmts(Stmt *stmts);
 static void gen_vardecls(Stmt *stmts);
@@ -145,7 +147,12 @@ static void gen_type(Type *dtype)
 			write("jastring");
 			break;
 		case STRUCT:
-			write("%I", dtype->id);
+			if(dtype->typedecl->exported && in_header) {
+				write("%X", dtype->id);
+			}
+			else {
+				write("%I", dtype->id);
+			}
 			break;
 		case PTR:
 			if(is_dynarray_ptr_type(dtype)) {
@@ -258,7 +265,7 @@ static void gen_expr(Expr *expr)
 			break;
 		case ARRAY:
 			write("((%Y){", expr->dtype);
-			for(Expr *item = expr->exprs; item; item = item->next) {
+			for_list(Expr, item, expr->exprs, next) {
 				if(item != expr->exprs)
 					write(", ");
 				gen_expr(item);
@@ -299,7 +306,7 @@ static void gen_init_expr(Expr *expr)
 {
 	if(expr->kind == ARRAY) {
 		write("{");
-		for(Expr *item = expr->exprs; item; item = item->next) {
+		for_list(Expr, item, expr->exprs, next) {
 			if(item != expr->exprs)
 				write(", ");
 			gen_init_expr(item);
@@ -481,7 +488,7 @@ static void gen_stmts(Stmt *stmts)
 	
 	level ++;
 	
-	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
+	for_list(Stmt, stmt, stmts, next) {
 		gen_stmt(stmt);
 	}
 	
@@ -495,11 +502,21 @@ static void gen_export_alias(Token *ident, Unit *unit)
 
 static void gen_structdecl(Stmt *stmt)
 {
+	if(stmt->exported && !in_header) {
+		gen_export_alias(stmt->id, cur_unit);
+	}
+	
 	write("%>typedef struct {\n");
 	level ++;
 	gen_vardecls(stmt->struct_body);
 	level --;
-	write("%>} %I;\n", stmt->id);
+	
+	if(stmt->exported && in_header) {
+		write("%>} %X;\n", stmt->id);
+	}
+	else {
+		write("%>} %I;\n", stmt->id);
+	}
 }
 
 static void gen_vardecl(Stmt *stmt)
@@ -544,8 +561,7 @@ static void gen_vardecl(Stmt *stmt)
 	}
 	else if(
 		stmt->dtype->kind == ARRAY || stmt->dtype->kind == STRUCT ||
-		stmt->dtype->kind == STRING ||
-		is_dynarray_ptr_type(stmt->dtype)
+		stmt->dtype->kind == STRING || is_dynarray_ptr_type(stmt->dtype)
 	) {
 		write(" = {0};\n");
 	}
@@ -554,7 +570,7 @@ static void gen_vardecl(Stmt *stmt)
 	}
 }
 
-static void gen_func_returntype_decl(Stmt *func, int in_header)
+static void gen_func_returntype_decl(Stmt *func)
 {
 	Type *returntype = func->dtype;
 	if(returntype->kind == ARRAY) {
@@ -582,13 +598,12 @@ static void gen_func_returntype_decl(Stmt *func, int in_header)
 	}
 }
 
-static void gen_func_head(Stmt *stmt, int in_header)
+static void gen_func_head(Stmt *stmt)
 {
 	Type *returntype = stmt->dtype;
-	char *static_prefix = stmt->exported ? "" : "static ";
 	
 	if(returntype->kind == ARRAY) {
-		gen_func_returntype_decl(stmt, in_header);
+		gen_func_returntype_decl(stmt);
 		if(stmt->exported) {
 			if(in_header) {
 				write("%>rt%X %X()", stmt->id, stmt->id);
@@ -622,15 +637,17 @@ static void gen_funcdecl(Stmt *stmt)
 		gen_export_alias(stmt->id, cur_unit);
 	}
 	
-	gen_func_head(stmt, 0);
-	write("%>{\n");
+	gen_func_head(stmt);
+	write(" {\n");
 	gen_stmts(stmt->func_body);
 	write("%>}\n");
 }
 
 static void gen_structdecls(Stmt *stmts)
 {
-	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
+	write("// structures\n");
+	
+	for_list(Stmt, stmt, stmts, next) {
 		if(stmt->kind == STRUCT) {
 			gen_structdecl(stmt);
 		}
@@ -639,7 +656,9 @@ static void gen_structdecls(Stmt *stmts)
 
 static void gen_vardecls(Stmt *stmts)
 {
-	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
+	if(stmts && !stmts->scope->parent) write("// variables\n");
+	
+	for_list(Stmt, stmt, stmts, next) {
 		if(stmt->kind == VAR) {
 			gen_vardecl(stmt);
 		}
@@ -648,7 +667,9 @@ static void gen_vardecls(Stmt *stmts)
 
 static void gen_funcdecls(Stmt *stmts)
 {
-	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
+	write("// functions\n");
+	
+	for_list(Stmt, stmt, stmts, next) {
 		if(stmt->kind == FUNC) {
 			gen_funcdecl(stmt);
 		}
@@ -657,7 +678,9 @@ static void gen_funcdecls(Stmt *stmts)
 
 static void gen_imports(Stmt *stmts)
 {
-	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
+	write("// imports\n");
+	
+	for_list(Stmt, stmt, stmts, next) {
 		if(stmt->kind == IMPORT) {
 			write("#include \"%s\"\n", stmt->unit->h_filename);
 			
@@ -671,24 +694,33 @@ static void gen_imports(Stmt *stmts)
 
 static void gen_h()
 {
+	in_header = 1;
 	ofs = fopen(cur_unit->h_filename, "wb");
-	write("#include <stdint.h>\n");
+
+	write(RUNTIME_H_SRC);
 	write("int _%s_main(int argc, char **argv);\n", cur_unit->unit_id);
 	
-	for(Stmt *stmt = cur_unit->stmts; stmt; stmt = stmt->next) {
+	for_list(Stmt, stmt, cur_unit->stmts, next) {
+		if(stmt->kind == STRUCT && stmt->exported) {
+			gen_structdecl(stmt);
+		}
+	}
+	
+	for_list(Stmt, stmt, cur_unit->stmts, next) {
 		if(stmt->kind == FUNC && stmt->exported) {
-			gen_func_head(stmt, 1);
+			gen_func_head(stmt);
 			write(";\n");
 		}
 	}
 	
-	for(Stmt *stmt = cur_unit->stmts; stmt; stmt = stmt->next) {
+	for_list(Stmt, stmt, cur_unit->stmts, next) {
 		if(stmt->kind == VAR && stmt->exported) {
 			write("extern %y %X%z;\n", stmt->dtype, stmt->id, stmt->dtype);
 		}
 	}
 	
 	fclose(ofs);
+	in_header = 0;
 }
 
 static void gen_c()
@@ -696,6 +728,7 @@ static void gen_c()
 	ofs = fopen(cur_unit->c_filename, "wb");
 	level = 0;
 	
+	write("// runtime\n");
 	write(RUNTIME_H_SRC);
 	
 	gen_imports(cur_unit->stmts);
@@ -703,8 +736,10 @@ static void gen_c()
 	gen_vardecls(cur_unit->stmts);
 	gen_funcdecls(cur_unit->stmts);
 	
+	write("// control variables\n");
 	write("static jadynarray ja_argv;\n");
 	write("static int main_was_called;\n");
+	write("// main function\n");
 	write("int _%s_main(int argc, char **argv) {\n", cur_unit->unit_id);
 	
 	write(

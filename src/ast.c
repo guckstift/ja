@@ -215,6 +215,13 @@ Expr *new_ptr_expr(Expr *subexpr)
 	return expr;
 }
 
+Stmt *clone_stmt(Stmt *stmt)
+{
+	Stmt *new_stmt = malloc(sizeof(Stmt));
+	*new_stmt = *stmt;
+	return new_stmt;
+}
+
 Stmt *new_stmt(Kind kind, Token *start, Scope *scope)
 {
 	Stmt *stmt = malloc(sizeof(Stmt));
@@ -223,7 +230,6 @@ Stmt *new_stmt(Kind kind, Token *start, Scope *scope)
 	stmt->next = 0;
 	stmt->scope = scope;
 	stmt->exported = 0;
-	stmt->next_export = 0;
 	return stmt;
 }
 

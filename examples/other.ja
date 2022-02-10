@@ -1,8 +1,35 @@
+export struct Foo {
+	var x = 9;
+}
+
+export function foo() : Foo
+{
+}
+
+var bar : Foo;
+export var bar2 : Foo;
+
 export var public_var = 90;
 
-export function foo() : [2]int
+struct Bar {
+	var jo = "Hai";
+}
+
+struct Goo {
+	var x : Bar;
+}
+
+export function foo2() : Goo
 {
 	public_var = 40;
-	
-	return [23, 42];
+	var foo2 : Goo;
+	foo2.x.jo = "Nar";
+	return foo2;
 }
+
+export struct ExportedStruct {
+	var someStuff = true;
+}
+
+var private_Stuff = "Hello";
+

@@ -114,8 +114,6 @@ typedef struct Stmt {
 		struct Stmt *next_import; // next import in scope (import)
 	};
 	union {
-		// next exported decl in scope (var, func, struct)
-		struct Stmt *next_export;
 		int64_t imported_ident_count; // import
 	};
 } Stmt;
@@ -128,8 +126,6 @@ typedef struct Scope {
 	Stmt *struc;
 	Stmt *first_import;
 	Stmt *last_import;
-	Stmt *first_export;
-	Stmt *last_export;
 } Scope;
 
 Type *new_type(Kind kind);
@@ -157,6 +153,7 @@ Expr *new_member_expr(Expr *subexpr, Token *member_id, Type *dtype);
 Expr *new_deref_expr(Expr *subexpr);
 Expr *new_ptr_expr(Expr *subexpr);
 
+Stmt *clone_stmt(Stmt *stmt);
 Stmt *new_stmt(Kind kind, Token *start, Scope *scope);
 Stmt *new_vardecl(
 	Token *id, Type *dtype, Expr *init, Token *start, Scope *scope

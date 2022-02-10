@@ -84,24 +84,17 @@ static Stmt *lookup(Token *id)
 
 static int declare(Stmt *new_decl)
 {
-	if(lookup_flat(new_decl->id))
-		return 0;
-	
-	list_push(scope, first_decl, last_decl, next_decl, new_decl);
-	
-	if(new_decl->exported) {
-		list_push(scope, first_export, last_export, next_export, new_decl);
+	if(new_decl->scope != scope) {
+		// from foreign scope => import
+		new_decl = clone_stmt(new_decl);
+		new_decl->next_decl = 0;
 	}
 	
-	return 1;
-}
-
-static int pullin_imported(Stmt *imported_decl)
-{
-	if(lookup_flat(imported_decl->id))
+	if(lookup_flat(new_decl->id)) {
 		return 0;
+	}
 	
-	list_push(scope, first_decl, last_decl, next_decl, imported_decl);
+	list_push(scope, first_decl, last_decl, next_decl, new_decl);
 	
 	return 1;
 }
@@ -117,8 +110,6 @@ static void enter()
 	scope->struc = 0;
 	scope->first_import = 0;
 	scope->last_import = 0;
-	scope->first_export = 0;
-	scope->last_export = 0;
 }
 
 static void leave()
@@ -283,15 +274,10 @@ static Expr *cast_expr(Expr *expr, Type *dtype, int explicit)
 				Expr *item = cast_expr(subscript, dtype->itemtype, explicit);
 				headless_list_push(first, last, next, item);
 			}
-			expr = new_expr(ARRAY, expr->start);
-			expr->exprs = first;
-			expr->length = stype->length;
-			expr->isconst = 0;
-			expr->islvalue = 0;
-			expr->dtype = new_type(ARRAY);
-			expr->dtype->itemtype = dtype->itemtype;
-			expr->dtype->length = stype->length;
-			return expr;
+			return new_array_expr(
+				first, stype->length, expr->isconst,
+				dtype->itemtype, expr->start
+			);
 		}
 	}
 	
@@ -315,17 +301,9 @@ static Expr *p_var()
 		fatal_at(last, "%t is the name of a structure", ident);
 	
 	if(decl->kind == FUNC)
-		return new_var_expr(
-			ident->id,
-			new_func_type(decl->dtype),
-			ident
-		);
+		return new_var_expr(ident->id, new_func_type(decl->dtype), ident);
 	
-	return new_var_expr(
-		ident->id,
-		decl->dtype,
-		ident
-	);
+	return new_var_expr(ident->id, decl->dtype, ident);
 }
 
 static Expr *p_array()
@@ -430,7 +408,7 @@ static Expr *p_subscript_x(Expr *expr)
 	if(expr->dtype->kind != ARRAY) {
 		fatal_after(last, "need array to subscript");
 	}
-
+	
 	Expr *index = p_expr();
 	if(!index)
 		fatal_after(last, "expected index expression after [");
@@ -474,8 +452,10 @@ static Expr *p_member_x(Expr *expr)
 	if(dtype->kind == ARRAY && token_text_equals(ident, "length"))
 		return new_member_expr(expr, ident->id, new_type(INT64));
 	
-	if(dtype->kind != STRUCT)
+	if(dtype->kind != STRUCT) {
+		printf("kind %i\n", dtype->kind);
 		fatal_at(expr->start, "no instance to get member");
+	}
 	
 	Stmt *struct_decl = dtype->typedecl;
 	Scope *struct_scope = struct_decl->struct_body->scope;
@@ -626,6 +606,21 @@ static Stmt *p_print()
 	return stmt;
 }
 
+static void make_type_exportable(Type *dtype)
+{
+	while(dtype->kind == PTR || dtype->kind == ARRAY) {
+		dtype = dtype->subtype;
+	}
+	
+	if(dtype->kind == STRUCT && dtype->typedecl->exported != 1) {
+		dtype->typedecl->exported = 1;
+		
+		for_list(Stmt, member, dtype->typedecl->struct_body, next) {
+			make_type_exportable(member->dtype);
+		}
+	}
+}
+
 static Stmt *p_vardecl(int exported)
 {
 	Token *start = eat(TK_var);
@@ -675,6 +670,10 @@ static Stmt *p_vardecl(int exported)
 	
 	if(!is_complete_type(dtype))
 		fatal_at(ident, "variable with incomplete type  %y  declared", dtype);
+	
+	if(exported) {
+		make_type_exportable(dtype);
+	}
 	
 	Stmt *stmt = new_vardecl(ident->id, dtype, init, start, scope);
 	stmt->exported = exported;
@@ -728,6 +727,10 @@ static Stmt *p_funcdecl(int exported)
 			fatal_at(
 				ident, "function with incomplete type  %y  declared", dtype
 			);
+		
+		if(exported) {
+			make_type_exportable(dtype);
+		}
 	}
 	
 	Stmt *stmt = new_stmt(FUNC, start, scope);
@@ -916,7 +919,9 @@ static Stmt *p_import()
 		if(!found_decl)
 			fatal_at(ident, "could not find symbol %t in unit", ident);
 		
-		pullin_imported(found_decl);
+		if(!declare(found_decl))
+			fatal_at(ident, "name %t already declared", ident);
+		
 		ident += 2; // move to next ident (skip comma token)
 	}
 	
