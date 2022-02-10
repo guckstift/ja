@@ -46,17 +46,17 @@ static char *src_end;
 static Scope *scope;
 static char *unit_id;
 
-static Stmt *p_stmts(Stmt *func);
+static Stmt *p_stmts(Decl *func);
 static Expr *p_expr();
 static Type *p_type();
 static Expr *p_prefix();
 
-static Stmt *lookup_builtin(Token *id)
+static Decl *lookup_builtin(Token *id)
 {
 	if(scope->parent) return 0;
 	
 	if(token_text_equals(id, "argv")) {
-		static Stmt *argv = 0;
+		static Decl *argv = 0;
 		if(argv == 0) {
 			argv = new_vardecl(
 				id, new_ptr_type(new_array_type(-1, new_type(STRING))),
@@ -69,25 +69,25 @@ static Stmt *lookup_builtin(Token *id)
 	return 0;
 }
 
-static Stmt *lookup_flat(Token *id)
+static Decl *lookup_flat(Token *id)
 {
-	Stmt *decl = lookup_builtin(id);
+	Decl *decl = lookup_builtin(id);
 	if(decl) return decl;
 	return lookup_flat_in(id, scope);
 }
 
-static Stmt *lookup(Token *id)
+static Decl *lookup(Token *id)
 {
-	Stmt *decl = lookup_builtin(id);
+	Decl *decl = lookup_builtin(id);
 	if(decl) return decl;
 	return lookup_in(id, scope);
 }
 
-static int declare(Stmt *new_decl)
+static int declare(Decl *new_decl)
 {
 	if(new_decl->scope != scope) {
 		// from foreign scope => import
-		new_decl = clone_stmt(new_decl);
+		new_decl = (Decl*)clone_stmt((Stmt*)new_decl);
 		new_decl->next_decl = 0;
 		new_decl->imported = 1;
 	}
@@ -148,7 +148,7 @@ static Type *p_nametype()
 	Token *ident = eat(TK_IDENT);
 	if(!ident) return 0;
 	
-	Stmt *decl = lookup(ident->id);
+	Decl *decl = lookup(ident->id);
 	
 	if(!decl)
 		fatal_at(ident, "name %t not declared", ident);
@@ -301,7 +301,7 @@ static Expr *p_var()
 {
 	if(!eat(TK_IDENT)) return 0;
 	Token *ident = last;
-	Stmt *decl = lookup(ident->id);
+	Decl *decl = lookup(ident->id);
 	
 	if(!decl)
 		fatal_at(last, "name %t not declared", ident);
@@ -466,9 +466,9 @@ static Expr *p_member_x(Expr *expr)
 		fatal_at(expr->start, "no instance to get member");
 	}
 	
-	Stmt *struct_decl = dtype->typedecl;
-	Scope *struct_scope = struct_decl->struct_body->scope;
-	Stmt *decl = lookup_flat_in(ident->id, struct_scope);
+	Decl *struct_decl = dtype->typedecl;
+	Scope *struct_scope = struct_decl->body->scope;
+	Decl *decl = lookup_flat_in(ident->id, struct_scope);
 	
 	if(!decl)
 		fatal_at(ident, "name %t not declared in struct", ident);
@@ -595,24 +595,24 @@ static Expr *p_expr()
 static Stmt *p_print()
 {
 	if(!eat(TK_print)) return 0;
-	Stmt *stmt = new_stmt(PRINT, last, scope);
-	stmt->expr = p_expr();
+	Print *print = (Print*)new_stmt(PRINT, last, scope);
+	print->expr = p_expr();
 	
-	if(!stmt->expr)
+	if(!print->expr)
 		fatal_after(last, "expected expression to print");
 	
 	if(
-		!is_integral_type(stmt->expr->dtype) &&
-		stmt->expr->dtype->kind != PTR &&
-		stmt->expr->dtype->kind != STRING
+		!is_integral_type(print->expr->dtype) &&
+		print->expr->dtype->kind != PTR &&
+		print->expr->dtype->kind != STRING
 	) {
-		fatal_at(stmt->expr->start, "can only print numbers or pointers");
+		fatal_at(print->expr->start, "can only print numbers or pointers");
 	}
 	
 	if(!eat(TK_SEMICOLON))
 		error_after(last, "expected semicolon after print statement");
 	
-	return stmt;
+	return (Stmt*)print;
 }
 
 static void make_type_exportable(Type *dtype)
@@ -624,8 +624,8 @@ static void make_type_exportable(Type *dtype)
 	if(dtype->kind == STRUCT && dtype->typedecl->exported != 1) {
 		dtype->typedecl->exported = 1;
 		
-		for_list(Stmt, member, dtype->typedecl->struct_body, next) {
-			make_type_exportable(member->dtype);
+		for_list(Stmt, member, dtype->typedecl->body, next) {
+			make_type_exportable(member->as_decl.dtype);
 		}
 	}
 }
@@ -684,16 +684,16 @@ static Stmt *p_vardecl(int exported)
 		make_type_exportable(dtype);
 	}
 	
-	Stmt *stmt = new_vardecl(ident->id, dtype, init, start, scope);
-	stmt->exported = exported;
+	Decl *decl = new_vardecl(ident->id, dtype, init, start, scope);
+	decl->exported = exported;
 	
-	if(!declare(stmt))
+	if(!declare(decl))
 		fatal_at(ident, "name %t already declared", ident);
 	
-	return stmt;
+	return (Stmt*)decl;
 }
 
-static Stmt *p_vardecls(Stmt *struc)
+static Stmt *p_vardecls(Decl *struc)
 {
 	enter();
 	if(struc) scope->struc = struc;
@@ -742,24 +742,24 @@ static Stmt *p_funcdecl(int exported)
 		}
 	}
 	
-	Stmt *stmt = new_stmt(FUNC, start, scope);
-	stmt->exported = exported;
-	stmt->id = ident->id;
-	stmt->dtype = dtype;
-	stmt->next_decl = 0;
+	Decl *decl = (Decl*)new_stmt(FUNC, start, scope);
+	decl->exported = exported;
+	decl->id = ident->id;
+	decl->dtype = dtype;
+	decl->next_decl = 0;
 	
-	if(!declare(stmt))
+	if(!declare(decl))
 		fatal_at(ident, "name %t already declared", ident);
 	
 	if(!eat(TK_LCURLY))
 		fatal_after(last, "expected {");
 	
-	stmt->func_body = p_stmts(stmt);
+	decl->body = p_stmts(decl);
 	
 	if(!eat(TK_RCURLY))
 		fatal_after(last, "expected } after function body");
 	
-	return stmt;
+	return (Stmt*)decl;
 }
 
 static Stmt *p_structdecl(int exported)
@@ -773,31 +773,31 @@ static Stmt *p_structdecl(int exported)
 	Token *ident = eat(TK_IDENT);
 	if(!ident) fatal_after(last, "expected identifier after keyword struct");
 	
-	Stmt *stmt = new_stmt(STRUCT, start, scope);
-	stmt->exported = exported;
-	stmt->id = ident->id;
-	stmt->next_decl = 0;
+	Decl *decl = (Decl*)new_stmt(STRUCT, start, scope);
+	decl->exported = exported;
+	decl->id = ident->id;
+	decl->next_decl = 0;
 	
-	if(!declare(stmt))
+	if(!declare(decl))
 		fatal_at(ident, "name %t already declared", ident);
 	
 	if(!eat(TK_LCURLY))
 		fatal_after(last, "expected {");
 	
-	stmt->struct_body = p_vardecls(stmt);
-	if(stmt->struct_body == 0)
-		fatal_at(stmt->start, "empty structure");
+	decl->body = p_vardecls(decl);
+	if(decl->body == 0)
+		fatal_at(decl->start, "empty structure");
 	
 	if(!eat(TK_RCURLY))
 		fatal_after(last, "expected } after function body");
 	
-	return stmt;
+	return (Stmt*)decl;
 }
 
 static Stmt *p_ifstmt()
 {
 	if(!eat(TK_if)) return 0;
-	Stmt *stmt = new_stmt(IF, last, scope);
+	If *stmt = (If*)new_stmt(IF, last, scope);
 	stmt->expr = p_expr();
 	if(!stmt->expr)
 		fatal_at(last, "expected condition after if");
@@ -818,13 +818,13 @@ static Stmt *p_ifstmt()
 		stmt->else_body = 0;
 	}
 	
-	return stmt;
+	return (Stmt*)stmt;
 }
 
 static Stmt *p_whilestmt()
 {
 	if(!eat(TK_while)) return 0;
-	Stmt *stmt = new_stmt(WHILE, last, scope);
+	While *stmt = (While*)new_stmt(WHILE, last, scope);
 	stmt->expr = p_expr();
 	if(!stmt->expr)
 		fatal_at(last, "expected condition after while");
@@ -833,19 +833,19 @@ static Stmt *p_whilestmt()
 	stmt->while_body = p_stmts(0);
 	if(!eat(TK_RCURLY))
 		fatal_after(last, "expected } after while-body");
-	return stmt;
+	return (Stmt*)stmt;
 }
 
 static Stmt *p_returnstmt()
 {
 	if(!eat(TK_return)) return 0;
-	Stmt *func = scope->func;
+	Decl *func = scope->func;
 	
 	if(!func)
 		fatal_at(last, "return outside of any function");
 	
 	Type *dtype = func->dtype;
-	Stmt *stmt = new_stmt(RETURN, last, scope);
+	Return *stmt = (Return*)new_stmt(RETURN, last, scope);
 	stmt->expr = p_expr();
 	
 	if(dtype->kind == NONE) {
@@ -861,7 +861,7 @@ static Stmt *p_returnstmt()
 	if(!eat(TK_SEMICOLON))
 		error_after(last, "expected semicolon after return statement");
 	
-	return stmt;
+	return (Stmt*)stmt;
 }
 
 static Stmt *p_import()
@@ -905,7 +905,7 @@ static Stmt *p_import()
 	
 	Unit *unit = import(filename->string);
 	
-	for_list(Stmt, import, scope->first_import, next_import) {
+	for_list(Import, import, scope->first_import, next_import) {
 		if(unit == import->unit)
 			fatal_at(start, "unit already imported");
 	}
@@ -914,11 +914,11 @@ static Stmt *p_import()
 	
 	for(int64_t i=0; i < ident_count; i++) {
 		Stmt *unit_stmts = unit->stmts;
-		Stmt *found_decl = 0;
+		Decl *found_decl = 0;
 		
 		if(unit_stmts) {
 			Scope *unit_scope = unit_stmts->scope;
-			Stmt *decl = lookup_in(ident->id, unit_scope);
+			Decl *decl = lookup_in(ident->id, unit_scope);
 			
 			if(decl && decl->exported) {
 				found_decl = decl;
@@ -934,12 +934,12 @@ static Stmt *p_import()
 		ident += 2; // move to next ident (skip comma token)
 	}
 	
-	Stmt *import = new_import(filename, unit, start, scope);
+	Import *import = new_import(filename, unit, start, scope);
 	import->imported_idents = first_ident;
 	import->imported_ident_count = ident_count;
 	list_push(scope, first_import, last_import, next_import, import);
 	
-	return import;
+	return (Stmt*)import;
 }
 
 static Stmt *p_export()
@@ -969,14 +969,14 @@ static Stmt *p_assign()
 	if(!target) return 0;
 	
 	if(target->kind == CALL && eat(TK_SEMICOLON)) {
-		Stmt *stmt = new_stmt(CALL, target->start, scope);
-		stmt->call = target;
-		return stmt;
+		Call *call = (Call*)new_stmt(CALL, target->start, scope);
+		call->call = target;
+		return (Stmt*)call;
 	}
 	
 	if(!target->islvalue)
 		fatal_at(target->start, "left side is not assignable");
-	Stmt *stmt = new_stmt(ASSIGN, target->start, scope);
+	Assign *stmt = (Assign*)new_stmt(ASSIGN, target->start, scope);
 	stmt->target = target;
 	if(!eat(TK_ASSIGN))
 		fatal_after(last, "expected = after left side");
@@ -986,7 +986,7 @@ static Stmt *p_assign()
 	stmt->expr = cast_expr(stmt->expr, stmt->target->dtype, 0);
 	if(!eat(TK_SEMICOLON))
 		error_after(last, "expected semicolon after variable declaration");
-	return stmt;
+	return (Stmt*)stmt;
 }
 
 static Stmt *p_stmt()
@@ -1005,7 +1005,7 @@ static Stmt *p_stmt()
 	return stmt;
 }
 
-static Stmt *p_stmts(Stmt *func)
+static Stmt *p_stmts(Decl *func)
 {
 	enter();
 	if(func) scope->func = func;

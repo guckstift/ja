@@ -19,7 +19,6 @@
 
 # todo
 
-* bug: auto import struct return types of imported functions
 * codegen: externalize runtime.h
 * use default struct member inits
 * function parameters

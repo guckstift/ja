@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "ast.h"
+#include "utils.h"
 
 Type *new_type(Kind kind)
 {
@@ -229,51 +230,51 @@ Stmt *new_stmt(Kind kind, Token *start, Scope *scope)
 	stmt->start = start;
 	stmt->next = 0;
 	stmt->scope = scope;
-	stmt->exported = 0;
-	stmt->imported = 0;
+	stmt->as_decl.exported = 0;
+	stmt->as_decl.imported = 0;
 	return stmt;
 }
 
-Stmt *new_assign(Expr *target, Expr *expr, Scope *scope)
+Assign *new_assign(Expr *target, Expr *expr, Scope *scope)
 {
-	Stmt *stmt = new_stmt(ASSIGN, target->start, scope);
-	stmt->target = target;
-	stmt->expr = expr;
-	return stmt;
+	Assign *assign = (Assign*)new_stmt(ASSIGN, target->start, scope);
+	assign->target = target;
+	assign->expr = expr;
+	return assign;
 }
 
-Stmt *new_vardecl(
+Decl *new_vardecl(
 	Token *id, Type *dtype, Expr *init, Token *start, Scope *scope
 ) {
-	Stmt *stmt = new_stmt(VAR, start, scope);
-	stmt->id = id;
-	stmt->dtype = dtype;
-	stmt->expr = init;
-	stmt->next_decl = 0;
-	return stmt;
+	Decl *decl = (Decl*)new_stmt(VAR, start, scope);
+	decl->id = id;
+	decl->dtype = dtype;
+	decl->init = init;
+	decl->next_decl = 0;
+	return decl;
 }
 
-Stmt *new_import(Token *filename, Unit *unit, Token *start, Scope *scope)
+Import *new_import(Token *filename, Unit *unit, Token *start, Scope *scope)
 {
-	Stmt *stmt = new_stmt(IMPORT, start, scope);
-	stmt->filename = filename;
-	stmt->unit = unit;
-	stmt->next_import = 0;
-	return stmt;
+	Import *import = (Import*)new_stmt(IMPORT, start, scope);
+	import->filename = filename;
+	import->unit = unit;
+	import->next_import = 0;
+	return import;
 }
 
-Stmt *lookup_flat_in(Token *id, Scope *scope)
+Decl *lookup_flat_in(Token *id, Scope *scope)
 {
-	for(Stmt *decl = scope->first_decl; decl; decl = decl->next_decl) {
+	for_list(Decl, decl, scope->first_decl, next_decl) {
 		if(decl->id == id) return decl;
 	}
 	
 	return 0;
 }
 
-Stmt *lookup_in(Token *id, Scope *scope)
+Decl *lookup_in(Token *id, Scope *scope)
 {
-	Stmt *decl = lookup_flat_in(id, scope);
+	Decl *decl = lookup_flat_in(id, scope);
 	
 	if(decl) {
 		return decl;

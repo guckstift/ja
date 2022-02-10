@@ -53,7 +53,7 @@ typedef struct Type {
 	};
 	union {
 		int64_t length; // array (-1 = incomplete)
-		struct Stmt *typedecl; // struct
+		struct Decl *typedecl; // struct
 	};
 } Type;
 
@@ -83,54 +83,101 @@ typedef struct Expr {
 	Token *operator; // binop
 } Expr;
 
-typedef struct Stmt {
-	Kind kind;
-	Token *start;
-	struct Stmt *next; // next in a list
-	struct Scope *scope;
-	int exported; // var, func, struct
+#define Stmt_head \
+	Kind kind; \
+	Token *start; \
+	struct Stmt *next; /* next stmt in a list */ \
+	struct Scope *scope; \
+
+typedef struct Import {
+	Stmt_head
+	
+	Token *filename; // import
+	Unit *unit; // import
+	Token *imported_idents; // import
+	struct Import *next_import; // next import in scope (import)
+	int64_t imported_ident_count; // import
+} Import;
+
+typedef struct Decl {
+	Stmt_head
 	
 	union {
-		Expr *expr; // print, if, while, assign, return
-		Expr *call; // call
-		struct Stmt *func_body; // func
-		struct Stmt *struct_body; // struct
-		Token *filename; // import
+		Expr *init; // var
+		struct Stmt *body; // func, struct
 	};
+	
+	Token *id; // var, func, struct
+	Type *dtype; // var, func
+	struct Decl *next_decl; // next decl in scope (var, func, struct)
+	int imported; // this decl is declared as a clone via import
+	              // (var, func, struct)
+	char *public_id; // for exported var, func, struct
+	int exported; // var, func, struct
+} Decl;
+
+typedef struct If {
+	Stmt_head
+	
+	Expr *expr;
+	struct Stmt *if_body;
+	struct Stmt *else_body;
+} If;
+
+typedef struct While {
+	Stmt_head
+	
+	Expr *expr;
+	struct Stmt *while_body;
+} While;
+
+typedef struct Assign {
+	Stmt_head
+	
+	Expr *expr;
+	Expr *target;
+} Assign;
+
+typedef struct Call {
+	Stmt_head
+	
+	Expr *call;
+} Call;
+
+typedef struct Print {
+	Stmt_head
+	
+	Expr *expr;
+} Print;
+
+typedef struct Return {
+	Stmt_head
+	
+	Expr *expr;
+} Return;
+
+typedef struct Stmt {
 	union {
-		Token *id; // var, func, struct
-		struct Stmt *if_body; // if
-		struct Stmt *while_body; // while
-		Expr *target; // assign
-		Unit *unit; // import
-	};
-	union {
-		Type *dtype; // var, func
-		struct Stmt *else_body; // if
-		Token *imported_idents; // import
-	};
-	union {
-		struct Stmt *next_decl; // next decl in scope (var, func, struct)
-		struct Stmt *next_import; // next import in scope (import)
-	};
-	union {
-		int64_t imported_ident_count; // import
-		// this decl is declared as a clone via import (var, func, struct)
-		int imported;
-	};
-	union {
-		char *public_id; // for exported var, func, struct
+		Import as_import;
+		Decl as_decl;
+		If as_if;
+		While as_while;
+		Assign as_assign;
+		Call as_call;
+		Print as_print;
+		Return as_return;
+		struct { Stmt_head };
 	};
 } Stmt;
 
 typedef struct Scope {
-	Stmt *first_decl;
-	Stmt *last_decl;
+	Decl *first_decl;
+	Decl *last_decl;
 	struct Scope *parent;
-	Stmt *func;
-	Stmt *struc;
-	Stmt *first_import;
-	Stmt *last_import;
+	Decl *func;
+	Decl *struc;
+	Import *first_import;
+	Import *last_import;
 } Scope;
 
 Type *new_type(Kind kind);
@@ -160,13 +207,13 @@ Expr *new_ptr_expr(Expr *subexpr);
 
 Stmt *clone_stmt(Stmt *stmt);
 Stmt *new_stmt(Kind kind, Token *start, Scope *scope);
-Stmt *new_vardecl(
+Decl *new_vardecl(
 	Token *id, Type *dtype, Expr *init, Token *start, Scope *scope
 );
-Stmt *new_assign(Expr *target, Expr *expr, Scope *scope);
-Stmt *new_import(Token *filename, Unit *unit, Token *start, Scope *scope);
+Assign *new_assign(Expr *target, Expr *expr, Scope *scope);
+Import *new_import(Token *filename, Unit *unit, Token *start, Scope *scope);
 
-Stmt *lookup_flat_in(Token *id, Scope *scope);
-Stmt *lookup_in(Token *id, Scope *scope);
+Decl *lookup_flat_in(Token *id, Scope *scope);
+Decl *lookup_in(Token *id, Scope *scope);
 
 #endif

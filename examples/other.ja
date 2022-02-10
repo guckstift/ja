@@ -1,8 +1,11 @@
 struct Foo {
-	var x = 9;
+	var x = "Hello";
 }
 
 export function foo() : Foo
 {
+	var res : Foo;
+	res.x = "World";
+	return res;
 }
 

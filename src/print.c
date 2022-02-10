@@ -389,59 +389,59 @@ static void print_stmt(Stmt *stmt)
 	switch(stmt->kind) {
 		case PRINT:
 			print_keyword_cstr("print ");
-			print_expr(stmt->expr);
+			print_expr(stmt->as_print.expr);
 			break;
 		case VAR:
 			print_keyword_cstr("var ");
-			print_ident(stmt->id);
+			print_ident(stmt->as_decl.id);
 			printf(" : ");
-			print_type(stmt->dtype);
-			if(stmt->expr) {
+			print_type(stmt->as_decl.dtype);
+			if(stmt->as_decl.init) {
 				printf(" = ");
-				print_expr(stmt->expr);
+				print_expr(stmt->as_decl.init);
 			}
 			break;
 		case FUNC:
 			print_keyword_cstr("function ");
-			print_ident(stmt->id);
+			print_ident(stmt->as_decl.id);
 			printf("()");
-			if(stmt->dtype) {
+			if(stmt->as_decl.dtype) {
 				printf(" : ");
-				print_type(stmt->dtype);
+				print_type(stmt->as_decl.dtype);
 			}
 			printf(" {\n");
 			level ++;
-			print_stmts(stmt->func_body);
+			print_stmts(stmt->as_decl.body);
 			level --;
 			print_indent();
 			printf("}");
 			break;
 		case STRUCT:
 			print_keyword_cstr("struct ");
-			print_ident(stmt->id);
+			print_ident(stmt->as_decl.id);
 			printf(" {\n");
 			level ++;
-			print_stmts(stmt->struct_body);
+			print_stmts(stmt->as_decl.body);
 			level --;
 			print_indent();
 			printf("}");
 			break;
 		case IF:
 			print_keyword_cstr("if ");
-			print_expr(stmt->expr);
+			print_expr(stmt->as_if.expr);
 			printf(" {\n");
 			level ++;
-			print_stmts(stmt->if_body);
+			print_stmts(stmt->as_if.if_body);
 			level --;
 			print_indent();
 			printf("}");
-			if(stmt->else_body) {
+			if(stmt->as_if.else_body) {
 				printf("\n");
 				print_indent();
 				print_keyword_cstr("else");
 				printf(" {\n");
 				level ++;
-				print_stmts(stmt->else_body);
+				print_stmts(stmt->as_if.else_body);
 				level --;
 				print_indent();
 				printf("}");
@@ -449,32 +449,32 @@ static void print_stmt(Stmt *stmt)
 			break;
 		case WHILE:
 			print_keyword_cstr("while ");
-			print_expr(stmt->expr);
+			print_expr(stmt->as_while.expr);
 			printf(" {\n");
 			level ++;
-			print_stmts(stmt->while_body);
+			print_stmts(stmt->as_while.while_body);
 			level --;
 			print_indent();
 			printf("}");
 			break;
 		case ASSIGN:
-			print_expr(stmt->target);
+			print_expr(stmt->as_assign.target);
 			printf(" = ");
-			print_expr(stmt->expr);
+			print_expr(stmt->as_assign.expr);
 			break;
 		case CALL:
-			print_expr(stmt->call);
+			print_expr(stmt->as_call.call);
 			break;
 		case RETURN:
 			print_keyword_cstr("return ");
-			if(stmt->expr)
-				print_expr(stmt->expr);
+			if(stmt->as_return.expr)
+				print_expr(stmt->as_return.expr);
 			break;
 		case IMPORT:
 			print_keyword_cstr("import ");
 			print_string(
-				stmt->filename->string,
-				stmt->filename->string_length
+				stmt->as_import.filename->string,
+				stmt->as_import.filename->string_length
 			);
 			break;
 	}
