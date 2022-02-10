@@ -1,5 +1,7 @@
-import "./other.ja";
-import "./another.ja";
+import public_var, foo from "./other.ja";
 
-print "hello from test.ja";
+print public_var;
+var x = foo();
+print public_var;
 
+print x.length;

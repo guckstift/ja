@@ -7,7 +7,7 @@
 | 8  | `int8`  | `uint8`  |
 | 16 | `int16` | `uint16` |
 | 32 | `int32` | `uint32` |
-| 64 | `int64` | `uint64` |
+| 64 | `int64` (alias `int`) | `uint64` (alias `uint`) |
 
 ## bool
 

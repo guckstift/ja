@@ -7,7 +7,9 @@
 	_(as) \
 	_(bool) \
 	_(else) \
+	_(export) \
 	_(false) \
+	_(from) \
 	_(function) \
 	_(if) \
 	_(import) \

@@ -5,6 +5,10 @@
 #include <inttypes.h>
 #include "lex.h"
 #include "print.h"
+#include "utils.h"
+	
+static Token *first_id = 0;
+static Token *last_id = 0;
 
 char *get_token_type_name(TokenType type)
 {
@@ -126,8 +130,8 @@ Tokens *lex(char *src, int64_t src_len)
 		
 		// identifiers / keywords
 		
-		else if(isalpha(*pos)) {
-			while(isalnum(*pos)) pos ++;
+		else if(isalpha(*pos) || *pos == '_') {
+			while(isalnum(*pos) || *pos == '_') pos ++;
 			emit(TK_IDENT);
 			
 			#define F(x) \
@@ -241,9 +245,6 @@ Tokens *lex(char *src, int64_t src_len)
 	char *start = pos;
 	emit(TK_EOF);
 	
-	Token *first_id = 0;
-	Token *last_id = 0;
-	
 	for(Token *token = token_array; token->type != TK_EOF; token ++) {
 		if(token->type == TK_IDENT) {
 			token->id = 0;
@@ -256,8 +257,7 @@ Tokens *lex(char *src, int64_t src_len)
 			}
 			if(token->id == 0) {
 				token->id = token;
-				if(last_id) last_id = last_id->next_id = token;
-				else first_id = last_id = token;
+				headless_list_push(first_id, last_id, next_id, token);
 			}
 		}
 	}

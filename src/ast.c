@@ -222,6 +222,8 @@ Stmt *new_stmt(Kind kind, Token *start, Scope *scope)
 	stmt->start = start;
 	stmt->next = 0;
 	stmt->scope = scope;
+	stmt->exported = 0;
+	stmt->next_export = 0;
 	return stmt;
 }
 

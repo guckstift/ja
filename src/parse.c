@@ -1,11 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <string.h>
 #include "parse.h"
 #include "print.h"
 #include "eval.h"
 #include "build.h"
-#include "string.h"
+#include "utils.h"
 
 #define match(t) (cur->type == (t))
 #define match2(t1, t2) (cur[0].type == (t1) && cur[1].type == (t2))
@@ -86,10 +87,21 @@ static int declare(Stmt *new_decl)
 	if(lookup_flat(new_decl->id))
 		return 0;
 	
-	if(scope->first_decl)
-		scope->last_decl = scope->last_decl->next_decl = new_decl;
-	else
-		scope->first_decl = scope->last_decl = new_decl;
+	list_push(scope, first_decl, last_decl, next_decl, new_decl);
+	
+	if(new_decl->exported) {
+		list_push(scope, first_export, last_export, next_export, new_decl);
+	}
+	
+	return 1;
+}
+
+static int pullin_imported(Stmt *imported_decl)
+{
+	if(lookup_flat(imported_decl->id))
+		return 0;
+	
+	list_push(scope, first_decl, last_decl, next_decl, imported_decl);
 	
 	return 1;
 }
@@ -105,6 +117,8 @@ static void enter()
 	scope->struc = 0;
 	scope->first_import = 0;
 	scope->last_import = 0;
+	scope->first_export = 0;
+	scope->last_export = 0;
 }
 
 static void leave()
@@ -267,14 +281,7 @@ static Expr *cast_expr(Expr *expr, Type *dtype, int explicit)
 				Expr *index = new_int_expr(i, expr->start);
 				Expr *subscript = new_subscript(expr, index);
 				Expr *item = cast_expr(subscript, dtype->itemtype, explicit);
-				if(first) {
-					last->next = item;
-					last = item;
-				}
-				else {
-					first = item;
-					last = item;
-				}
+				headless_list_push(first, last, next, item);
 			}
 			expr = new_expr(ARRAY, expr->start);
 			expr->exprs = first;
@@ -340,14 +347,11 @@ static Expr *p_array()
 			if(!type_equ(itemtype, item->dtype)) {
 				item = cast_expr(item, itemtype, 0);
 			}
-			last_expr->next = item;
-			last_expr = item;
 		}
 		else {
-			first = item;
-			last_expr = item;
 			itemtype = item->dtype;
 		}
+		headless_list_push(first, last_expr, next, item);
 		length ++;
 		if(!eat(TK_COMMA)) break;
 	}
@@ -622,7 +626,7 @@ static Stmt *p_print()
 	return stmt;
 }
 
-static Stmt *p_vardecl()
+static Stmt *p_vardecl(int exported)
 {
 	Token *start = eat(TK_var);
 	if(!start) return 0;
@@ -673,6 +677,7 @@ static Stmt *p_vardecl()
 		fatal_at(ident, "variable with incomplete type  %y  declared", dtype);
 	
 	Stmt *stmt = new_vardecl(ident->id, dtype, init, start, scope);
+	stmt->exported = exported;
 	
 	if(!declare(stmt))
 		fatal_at(ident, "name %t already declared", ident);
@@ -688,17 +693,16 @@ static Stmt *p_vardecls(Stmt *struc)
 	Stmt *first_decl = 0;
 	Stmt *last_decl = 0;
 	while(1) {
-		Stmt *decl = p_vardecl();
+		Stmt *decl = p_vardecl(0);
 		if(!decl) break;
-		if(first_decl) last_decl = last_decl->next = decl;
-		else first_decl = last_decl = decl;
+		headless_list_push(first_decl, last_decl, next, decl);
 	}
 	
 	leave();
 	return first_decl;
 }
 
-static Stmt *p_funcdecl()
+static Stmt *p_funcdecl(int exported)
 {
 	Token *start = eat(TK_function);
 	if(!start) return 0;
@@ -727,6 +731,7 @@ static Stmt *p_funcdecl()
 	}
 	
 	Stmt *stmt = new_stmt(FUNC, start, scope);
+	stmt->exported = exported;
 	stmt->id = ident->id;
 	stmt->dtype = dtype;
 	stmt->next_decl = 0;
@@ -745,7 +750,7 @@ static Stmt *p_funcdecl()
 	return stmt;
 }
 
-static Stmt *p_structdecl()
+static Stmt *p_structdecl(int exported)
 {
 	Token *start = eat(TK_struct);
 	if(!start) return 0;
@@ -757,6 +762,7 @@ static Stmt *p_structdecl()
 	if(!ident) fatal_after(last, "expected identifier after keyword struct");
 	
 	Stmt *stmt = new_stmt(STRUCT, start, scope);
+	stmt->exported = exported;
 	stmt->id = ident->id;
 	stmt->next_decl = 0;
 	
@@ -855,35 +861,92 @@ static Stmt *p_import()
 		fatal_at(last, "imports can only be used at top level");
 	
 	Token *filename = eat(TK_STRING);
-	if(!filename)
-		error_after(last, "expected filename string to import");
+	Token *first_ident = 0;
+	int64_t ident_count = 0;
+	
+	if(!filename) {
+		while(1) {
+			Token *ident = eat(TK_IDENT);
+			if(!ident) break;
+			ident_count ++;
+			if(!first_ident) first_ident = ident;
+			if(!eat(TK_COMMA)) break;
+		}
+		
+		if(!first_ident) {
+			fatal_after(
+				start,
+				"expected identifier list or filename string to import"
+			);
+		}
+		
+		if(!eat(TK_from))
+			error_at(cur, "expected 'from' after identifier list");
+		
+		filename = eat(TK_STRING);
+		if(!filename)
+			fatal_at(cur, "expected filename string to import from");
+	}
 	
 	if(!eat(TK_SEMICOLON))
 		error_after(last, "expected semicolon after import statement");
 	
 	Unit *unit = import(filename->string);
 	
-	for(
-		Stmt *import = scope->first_import;
-		import;
-		import = import->next_import
-	) {
+	for_list(Stmt, import, scope->first_import, next_import) {
 		if(unit == import->unit)
 			fatal_at(start, "unit already imported");
 	}
 	
-	Stmt *import = new_import(filename, unit, start, scope);
+	Token *ident = first_ident;
 	
-	if(scope->first_import) {
-		scope->last_import->next_import = import;
-		scope->last_import = import;
+	for(int64_t i=0; i < ident_count; i++) {
+		Stmt *unit_stmts = unit->stmts;
+		Stmt *found_decl = 0;
+		
+		if(unit_stmts) {
+			Scope *unit_scope = unit_stmts->scope;
+			Stmt *decl = lookup_in(ident->id, unit_scope);
+			
+			if(decl && decl->exported) {
+				found_decl = decl;
+			}
+		}
+		
+		if(!found_decl)
+			fatal_at(ident, "could not find symbol %t in unit", ident);
+		
+		pullin_imported(found_decl);
+		ident += 2; // move to next ident (skip comma token)
 	}
-	else {
-		scope->first_import = import;
-		scope->last_import = import;
-	}
+	
+	Stmt *import = new_import(filename, unit, start, scope);
+	import->imported_idents = first_ident;
+	import->imported_ident_count = ident_count;
+	list_push(scope, first_import, last_import, next_import, import);
 	
 	return import;
+}
+
+static Stmt *p_export()
+{
+	if(!eat(TK_export)) return 0;
+	
+	if(scope->parent)
+		fatal_at(last, "exports can only be done at top level");
+	
+	Stmt *stmt = 0;
+	(stmt = p_vardecl(1)) ||
+	(stmt = p_funcdecl(1)) ||
+	(stmt = p_structdecl(1)) ;
+	
+	if(!stmt) {
+		fatal_at(
+			cur, "you can only export variables, structures or functions"
+		);
+	}
+	
+	return stmt;
 }
 
 static Stmt *p_assign()
@@ -916,13 +979,14 @@ static Stmt *p_stmt()
 {
 	Stmt *stmt = 0;
 	(stmt = p_print()) ||
-	(stmt = p_vardecl()) ||
-	(stmt = p_funcdecl()) ||
-	(stmt = p_structdecl()) ||
+	(stmt = p_vardecl(0)) ||
+	(stmt = p_funcdecl(0)) ||
+	(stmt = p_structdecl(0)) ||
 	(stmt = p_ifstmt()) ||
 	(stmt = p_whilestmt()) ||
 	(stmt = p_returnstmt()) ||
 	(stmt = p_import()) ||
+	(stmt = p_export()) ||
 	(stmt = p_assign()) ;
 	return stmt;
 }
@@ -937,8 +1001,7 @@ static Stmt *p_stmts(Stmt *func)
 	while(1) {
 		Stmt *stmt = p_stmt();
 		if(!stmt) break;
-		if(first_stmt) last_stmt = last_stmt->next = stmt;
-		else first_stmt = last_stmt = stmt;
+		headless_list_push(first_stmt, last_stmt, next, stmt);
 	}
 	
 	leave();

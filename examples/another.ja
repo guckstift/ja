@@ -1,1 +1,2 @@
 print "hello from another.ja";
+print argv[0];

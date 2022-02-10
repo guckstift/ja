@@ -88,6 +88,7 @@ typedef struct Stmt {
 	Token *start;
 	struct Stmt *next; // next in a list
 	struct Scope *scope;
+	int exported; // var, func, struct
 	
 	union {
 		Expr *expr; // print, if, while, assign, return
@@ -106,11 +107,16 @@ typedef struct Stmt {
 	union {
 		Type *dtype; // var, func
 		struct Stmt *else_body; // if
+		Token *imported_idents; // import
 	};
 	union {
-		// next declaration in scope (var, func, struct)
-		struct Stmt *next_decl;
-		struct Stmt *next_import; // import
+		struct Stmt *next_decl; // next decl in scope (var, func, struct)
+		struct Stmt *next_import; // next import in scope (import)
+	};
+	union {
+		// next exported decl in scope (var, func, struct)
+		struct Stmt *next_export;
+		int64_t imported_ident_count; // import
 	};
 } Stmt;
 
@@ -122,6 +128,8 @@ typedef struct Scope {
 	Stmt *struc;
 	Stmt *first_import;
 	Stmt *last_import;
+	Stmt *first_export;
+	Stmt *last_export;
 } Scope;
 
 Type *new_type(Kind kind);

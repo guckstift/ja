@@ -10,6 +10,7 @@
 
 static FILE *ofs;
 static int64_t level;
+static Unit *cur_unit;
 
 static void gen_stmts(Stmt *stmts);
 static void gen_vardecls(Stmt *stmts);
@@ -84,6 +85,10 @@ static void write(char *msg, ...)
 			else if(*msg == 'I') {
 				msg++;
 				write("ja_%t", va_arg(args, Token*));
+			}
+			else if(*msg == 'X') {
+				msg++;
+				write("_%s_%t", cur_unit->unit_id, va_arg(args, Token*));
 			}
 			else if(*msg == 'i') {
 				msg++;
@@ -465,7 +470,7 @@ static void gen_stmt(Stmt *stmt)
 			}
 			break;
 		case IMPORT:
-			write("%>main_%s(0, 0);\n", stmt->unit->unit_id);
+			write("%>_%s_main(argc, argv);\n", stmt->unit->unit_id);
 			break;
 	}
 }
@@ -483,6 +488,11 @@ static void gen_stmts(Stmt *stmts)
 	level --;
 }
 
+static void gen_export_alias(Token *ident, Unit *unit)
+{
+	write("#define %I _%s_%t\n", ident, unit->unit_id, ident);
+}
+
 static void gen_structdecl(Stmt *stmt)
 {
 	write("%>typedef struct {\n");
@@ -494,8 +504,15 @@ static void gen_structdecl(Stmt *stmt)
 
 static void gen_vardecl(Stmt *stmt)
 {
+	if(stmt->exported) {
+		gen_export_alias(stmt->id, cur_unit);
+	}
+	
 	write("%>");
-	if(!stmt->scope->parent && !stmt->scope->struc) write("static ");
+	
+	if(!stmt->scope->parent && !stmt->scope->struc && !stmt->exported)
+		write("static ");
+	
 	write("%y %I%z", stmt->dtype, stmt->id, stmt->dtype);
 	
 	if(stmt->scope->struc) {
@@ -537,21 +554,76 @@ static void gen_vardecl(Stmt *stmt)
 	}
 }
 
-static void gen_funcdecl(Stmt *stmt)
+static void gen_func_returntype_decl(Stmt *func, int in_header)
+{
+	Type *returntype = func->dtype;
+	if(returntype->kind == ARRAY) {
+		if(func->exported) {
+			if(in_header) {
+				write(
+					"%>typedef struct { %y a%z; } rt%X;\n",
+					returntype, returntype, func->id
+				);
+			}
+			else {
+				write("#define rt%I rt%X\n", func->id, func->id);
+				write(
+					"%>typedef struct { %y a%z; } rt%I;\n",
+					returntype, returntype, func->id
+				);
+			}
+		}
+		else {
+			write(
+				"%>typedef struct { %y a%z; } rt%I;\n",
+				returntype, returntype, func->id
+			);
+		}
+	}
+}
+
+static void gen_func_head(Stmt *stmt, int in_header)
 {
 	Type *returntype = stmt->dtype;
+	char *static_prefix = stmt->exported ? "" : "static ";
 	
 	if(returntype->kind == ARRAY) {
-		write(
-			"%>typedef struct { %y a%z; } rt%I;\n",
-			returntype, returntype, stmt->id
-		);
-		write("%>static rt%I %I() {\n", stmt->id, stmt->id);
+		gen_func_returntype_decl(stmt, in_header);
+		if(stmt->exported) {
+			if(in_header) {
+				write("%>rt%X %X()", stmt->id, stmt->id);
+			}
+			else {
+				write("%>rt%I %I()", stmt->id, stmt->id);
+			}
+		}
+		else {
+			write("%>static rt%I %I()", stmt->id, stmt->id);
+		}
 	}
 	else {
-		write("%>static %y %I()%z {\n", returntype, stmt->id, returntype);
+		if(stmt->exported) {
+			if(in_header) {
+				write("%>%y %X()%z", returntype, stmt->id, returntype);
+			}
+			else {
+				write("%>%y %I()%z", returntype, stmt->id, returntype);
+			}
+		}
+		else {
+			write("%>static %y %I()%z", returntype, stmt->id, returntype);
+		}
+	}
+}
+
+static void gen_funcdecl(Stmt *stmt)
+{
+	if(stmt->exported) {
+		gen_export_alias(stmt->id, cur_unit);
 	}
 	
+	gen_func_head(stmt, 0);
+	write("%>{\n");
 	gen_stmts(stmt->func_body);
 	write("%>}\n");
 }
@@ -588,30 +660,52 @@ static void gen_imports(Stmt *stmts)
 	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
 		if(stmt->kind == IMPORT) {
 			write("#include \"%s\"\n", stmt->unit->h_filename);
+			
+			for(int64_t i=0; i < stmt->imported_ident_count; i++) {
+				Token *ident = stmt->imported_idents + i * 2;
+				gen_export_alias(ident, stmt->unit);
+			}
 		}
 	}
 }
 
-static void gen_h(Unit *unit)
+static void gen_h()
 {
-	ofs = fopen(unit->h_filename, "wb");
-	write("int main_%s(int argc, char **argv);\n", unit->unit_id);
+	ofs = fopen(cur_unit->h_filename, "wb");
+	write("#include <stdint.h>\n");
+	write("int _%s_main(int argc, char **argv);\n", cur_unit->unit_id);
+	
+	for(Stmt *stmt = cur_unit->stmts; stmt; stmt = stmt->next) {
+		if(stmt->kind == FUNC && stmt->exported) {
+			gen_func_head(stmt, 1);
+			write(";\n");
+		}
+	}
+	
+	for(Stmt *stmt = cur_unit->stmts; stmt; stmt = stmt->next) {
+		if(stmt->kind == VAR && stmt->exported) {
+			write("extern %y %X%z;\n", stmt->dtype, stmt->id, stmt->dtype);
+		}
+	}
+	
 	fclose(ofs);
 }
 
-static void gen_c(Unit *unit)
+static void gen_c()
 {
-	ofs = fopen(unit->c_filename, "wb");
+	ofs = fopen(cur_unit->c_filename, "wb");
 	level = 0;
 	
 	write(RUNTIME_H_SRC);
-	gen_imports(unit->stmts);
-	gen_structdecls(unit->stmts);
-	gen_vardecls(unit->stmts);
-	gen_funcdecls(unit->stmts);
+	
+	gen_imports(cur_unit->stmts);
+	gen_structdecls(cur_unit->stmts);
+	gen_vardecls(cur_unit->stmts);
+	gen_funcdecls(cur_unit->stmts);
+	
 	write("static jadynarray ja_argv;\n");
 	write("static int main_was_called;\n");
-	write("int main_%s(int argc, char **argv) {\n", unit->unit_id);
+	write("int _%s_main(int argc, char **argv) {\n", cur_unit->unit_id);
 	
 	write(
 		INDENT "if(main_was_called) return 0;\n"
@@ -623,23 +717,23 @@ static void gen_c(Unit *unit)
 			"(jastring){strlen(argv[i]), argv[i]};\n"
 	);
 	
-	gen_stmts(unit->stmts);
+	gen_stmts(cur_unit->stmts);
 	write("}\n");
 	
 	fclose(ofs);
 }
 
-static void gen_main_c(Unit *unit)
+static void gen_main_c()
 {
-	ofs = fopen(unit->c_main_filename, "wb");
+	ofs = fopen(cur_unit->c_main_filename, "wb");
 	
 	write(
 		"#include \"%s\"\n"
 		"int main(int argc, char **argv) {\n"
-		INDENT "main_%s(argc, argv);\n"
+		INDENT "_%s_main(argc, argv);\n"
 		"}\n",
-		unit->h_filename,
-		unit->unit_id
+		cur_unit->h_filename,
+		cur_unit->unit_id
 	);
 	
 	fclose(ofs);
@@ -647,7 +741,8 @@ static void gen_main_c(Unit *unit)
 
 void gen(Unit *unit)
 {
-	gen_h(unit);
-	gen_c(unit);
-	gen_main_c(unit);
+	cur_unit = unit;
+	gen_h();
+	gen_c();
+	gen_main_c();
 }

@@ -50,7 +50,7 @@ static char *_str_append(char *dest, char *app)
 static char *idfy(char *input)
 {
 	uint64_t len = strlen(input);
-	uint64_t olen = len * 4 + 1;
+	uint64_t olen = len * 4 + 1 + 2;
 	char *output = malloc(olen);
 	char *ip = input;
 	char *op = output;
@@ -94,6 +94,8 @@ static char *idfy(char *input)
 		}
 		ip++;
 	}
+	*op++ = '_';
+	*op++ = 'X';
 	*op = 0;
 	return output;
 }
