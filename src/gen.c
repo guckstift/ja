@@ -150,6 +150,12 @@ static void gen_type(Type *dtype)
 			if(dtype->typedecl->exported && in_header) {
 				write("%X", dtype->id);
 			}
+			else if(
+				dtype->typedecl->scope != cur_unit->stmts->scope &&
+				dtype->typedecl->imported == 0
+			) {
+				write("%s", dtype->typedecl->public_id);
+			}
 			else {
 				write("%I", dtype->id);
 			}

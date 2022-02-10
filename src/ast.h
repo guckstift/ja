@@ -115,6 +115,11 @@ typedef struct Stmt {
 	};
 	union {
 		int64_t imported_ident_count; // import
+		// this decl is declared as a clone via import (var, func, struct)
+		int imported;
+	};
+	union {
+		char *public_id; // for exported var, func, struct
 	};
 } Stmt;
 

@@ -11,6 +11,7 @@
 #include "build.h"
 #include "print.h"
 #include "gen.h"
+#include "utils.h"
 
 #define COL_YELLOW  "\x1b[38;2;255;255;0m"
 #define COL_RESET   "\x1b[0m"
@@ -31,20 +32,6 @@ static void error(char *msg, ...)
 	vprint_error(0, 0, 0, 0, msg, args);
 	va_end(args);
 	exit(EXIT_FAILURE);
-}
-
-static char *_str_append(char *dest, char *app)
-{
-	uint64_t newlen = (dest ? strlen(dest) : 0) + strlen(app);
-	if(dest) {
-		dest = realloc(dest, newlen + 1);
-		strcat(dest, app);
-	}
-	else {
-		dest = malloc(newlen + 1);
-		strcpy(dest, app);
-	}
-	return dest;
 }
 
 static char *idfy(char *input)
@@ -171,7 +158,7 @@ static Unit *build_unit(char *filename, int ismain)
 	print_tokens(unit->tokens);
 	#endif
 	
-	unit->stmts = parse(unit->tokens);
+	unit->stmts = parse(unit->tokens, unit->unit_id);
 	#ifdef JA_DEBUG
 	print_ast(unit->stmts);
 	#endif

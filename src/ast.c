@@ -230,6 +230,7 @@ Stmt *new_stmt(Kind kind, Token *start, Scope *scope)
 	stmt->next = 0;
 	stmt->scope = scope;
 	stmt->exported = 0;
+	stmt->imported = 0;
 	return stmt;
 }
 
