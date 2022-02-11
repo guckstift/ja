@@ -770,6 +770,8 @@ static void gen_c()
 
 static void gen_main_c()
 {
+	if(!cur_unit->ismain) return;
+	
 	ofs = fopen(cur_unit->c_main_filename, "wb");
 	
 	write(

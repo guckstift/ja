@@ -185,13 +185,15 @@ static Unit *build_unit(char *filename, int ismain)
 	int res = run_cmd(cmd);
 	if(res) error("could not compile the C code");
 	
-	char *cmd2 = 0;
-	str_append(cmd2, "gcc -c -std=c17 -pedantic-errors -o ");
-	str_append(cmd2, unit->obj_main_filename);
-	str_append(cmd2, " ");
-	str_append(cmd2, unit->c_main_filename);
-	int res2 = run_cmd(cmd2);
-	if(res2) error("could not compile the C main code");
+	if(unit->ismain) {
+		char *cmd = 0;
+		str_append(cmd, "gcc -c -std=c17 -pedantic-errors -o ");
+		str_append(cmd, unit->obj_main_filename);
+		str_append(cmd, " ");
+		str_append(cmd, unit->c_main_filename);
+		int res = run_cmd(cmd);
+		if(res) error("could not compile the C main code");
+	}
 	
 	cur_unit_dirname = old_unit_dirname;
 	return unit;
