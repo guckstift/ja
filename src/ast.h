@@ -3,6 +3,19 @@
 
 #include "lex.h"
 
+typedef struct Node {
+	int type; // 0 = nonterm ; 1 = token
+	struct Node *next;
+	char *name;
+	union {
+		struct {
+			struct Node *first_child;
+			struct Node *last_child;
+		};
+		Token *token;
+	};
+} Node;
+
 typedef struct Unit Unit;
 
 typedef enum {
@@ -179,6 +192,11 @@ typedef struct Scope {
 	Import *first_import;
 	Import *last_import;
 } Scope;
+
+Node *new_node();
+void clear_node(Node *node);
+void add_child(Node *node, Node *child);
+void delete_node(Node *node);
 
 Type *new_type(Kind kind);
 Type *new_ptr_type(Type *subtype);

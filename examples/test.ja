@@ -1,5 +1,1 @@
-import foo from "./other.ja";
-
-var x = foo();
-
-print x.x;
+var x = 9;

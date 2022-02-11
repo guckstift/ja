@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <ctype.h>
 #include "print.h"
+#include "utils.h"
 
 #define COL_RESET   "\x1b[0m"
 #define COL_GREY    "\x1b[38;2;170;170;170m"
@@ -508,4 +509,28 @@ void print_c_code(char *c_filename)
 	}
 	
 	fclose(fs);
+}
+
+static void print_node(Node *node)
+{
+	if(node->type == 0) {
+		print_indent();
+		printf("%s\n", node->name);
+		
+		for_list(Node, child, node->first_child, next) {
+			level ++;
+			print_node(child),
+			level --;
+		}
+	}
+	else {
+		print_indent();
+		printf("%s\n", node->name);
+	}
+}
+
+void print_tree(Node *tree)
+{
+	level = 0;
+	print_node(tree);
 }

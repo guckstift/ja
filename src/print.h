@@ -17,5 +17,6 @@ void print_error(
 void print_tokens(Tokens *tokens);
 void print_ast(Stmt *stmts);
 void print_c_code(char *c_filename);
+void print_tree(Node *tree);
 
 #endif

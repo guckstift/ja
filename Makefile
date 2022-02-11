@@ -1,6 +1,14 @@
-SRCS = $(wildcard src/*.c)
-HDRS = $(wildcard src/*.h)
-CFLAGS = -std=c17 -pedantic-errors -DJA_DEBUG
+CFILES = \
+	ast.c build.c eval.c gen.c grammar.c lex.c main.c parse.c print.c utils.c
+
+HFILES = \
+	ast.h build.h eval.h gen.h lex.h parse.h print.h utils.h
+
+CFLAGS = \
+	-std=c17 -pedantic-errors -DJA_DEBUG
+
+SRCS = $(patsubst %.c,src/%.c,$(CFILES))
+HDRS = $(patsubst %.h,src/%.h,$(HFILES))
 
 ja: $(SRCS) $(HDRS) src/runtime.inc.h
 	gcc -o $@ $(CFLAGS) $(SRCS)
@@ -9,4 +17,10 @@ src/%.inc.h: src/%.h
 	echo "#define $(shell echo $* | tr [:lower:] [:upper:])_H_SRC \\" > $@
 	sed 's|.*|\t"&\\n" \\|' < $^ >> $@
 	echo "" >> $@
+
+src/grammar.c: parsergen src/grammar.txt
+	./parsergen src/grammar.txt $@
+
+parsergen: src/parsergen.c
+	gcc -o $@ $(CFLAGS) $^
 
