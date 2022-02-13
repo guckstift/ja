@@ -7,7 +7,7 @@ stmt =
 	assign_or_call ;
 
 print = "print" expr ";" ;
-var = "var" IDENT colon_type var_init ";" ;
+var = "var" ! IDENT colon_type var_init ";" ;
 colon_type = ":" type | ;
 var_init = "=" expr | ;
 func = "function" IDENT "(" ")" colon_type "{" stmts "}" ;

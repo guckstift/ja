@@ -9,6 +9,7 @@
 	_("=", ASSIGN) \
 	_(";", SEMICOLON) \
 	_("|", PIPE) \
+	_("!", EXCLAM) \
 
 typedef enum {
 	INVALID,
@@ -20,6 +21,7 @@ typedef enum {
 char *pos;
 int64_t line;
 FILE *ofs;
+int exclam;
 
 void p_alts();
 
@@ -139,39 +141,36 @@ int eat_punct(Punct punct)
 	return 0;
 }
 
-int mp_atom()
+int mp_atom(int exclam)
 {
 	char *nonterm = mp_nonterm();
 	if(nonterm) {
-		fprintf(
-			ofs,
-			"\t\tif(!(child = p_%s())) "
-			"{ cur = start; clear_node(node); break; }\n",
-			nonterm
-		);
+		fprintf(ofs, "\t\tif(!(child = p_%s())) ", nonterm);
+		if(exclam) fprintf(ofs,
+			"print_error(cur->line, cur->linep, cur->linep, cur->start,"
+			"\"error\");\n");
+		else fprintf(ofs, "{ cur = start; clear_node(node); break; }\n");
 		fprintf(ofs, "\t\tadd_child(node, child);\n");
 		return 1;
 	}
 	char *token = mp_token();
 	if(token) {
-		fprintf(
-			ofs,
-			"\t\tif(!(child = p_TOKEN(TK_%s))) "
-			"{ cur = start; clear_node(node); break; }\n",
-			token
-		);
+		fprintf(ofs, "\t\tif(!(child = p_TOKEN(TK_%s))) ", token);
+		if(exclam) fprintf(ofs,
+			"print_error(cur->line, cur->linep, cur->linep, cur->start,"
+			"\"error\");\n");
+		else fprintf(ofs, "{ cur = start; clear_node(node); break; }\n");
 		fprintf(ofs, "\t\tchild->name = \"%s\";\n", token);
 		fprintf(ofs, "\t\tadd_child(node, child);\n");
 		return 1;
 	}
 	char *literal = mp_literal();
 	if(literal) {
-		fprintf(
-			ofs,
-			"\t\tif(!(child = p_LITERAL(\"%s\"))) "
-			"{ cur = start; clear_node(node); break; }\n",
-			literal
-		);
+		fprintf(ofs, "\t\tif(!(child = p_LITERAL(\"%s\"))) ", literal);
+		if(exclam) fprintf(ofs,
+			"print_error(cur->line, cur->linep, cur->linep, cur->start,"
+			"\"error\");\n");
+		else fprintf(ofs, "{ cur = start; clear_node(node); break; }\n");
 		fprintf(ofs, "\t\tchild->name = \"\\\"%s\\\"\";\n", literal);
 		fprintf(ofs, "\t\tadd_child(node, child);\n");
 		return 1;
@@ -181,9 +180,11 @@ int mp_atom()
 
 void p_seq()
 {
+	exclam = 0;
 	fprintf(ofs, "\tdo {\n");
 	while(*pos) {
-		if(!mp_atom()) break;
+		if(eat_punct(EXCLAM)) exclam = 1;
+		if(!mp_atom(exclam)) break;
 	}
 	fprintf(ofs, "\t\treturn node;\n");
 	fprintf(ofs, "\t} while(0);\n");
@@ -279,6 +280,7 @@ int main(int argc, char *argv[])
 	fprintf(ofs,
 		"#include <stdio.h>\n\n"
 		"#include \"ast.h\"\n\n"
+		"#include \"print.h\"\n\n"
 		"static Token *cur;\n\n"
 		"static Node *p_TOKEN(TokenType type) {\n"
 		"\tif(cur->type == type) {\n"
