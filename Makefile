@@ -1,5 +1,5 @@
 CFILES = \
-	ast.c build.c eval.c gen.c grammar.c lex.c main.c parse.c print.c \
+	ast.c build.c eval.c gen.c parser.c lex.c main.c parse.c print.c \
 	utils.c
 
 HFILES = \
@@ -19,9 +19,11 @@ src/%.inc.h: src/%.h
 	sed 's|.*|\t"&\\n" \\|' < $^ >> $@
 	echo "" >> $@
 
-src/grammar.c: parsergen src/grammar.txt
-	./parsergen src/grammar.txt $@
+src/parser.c: src/autoparser.c
+	touch src/parser.c
 
-parsergen: src/parsergen.c
+src/autoparser.c: parsergen src/syntax.txt
+	./parsergen < src/syntax.txt > $@
+
+parsergen: src/syntax.c src/parsergen.c
 	gcc -o $@ $(CFLAGS) $^
-

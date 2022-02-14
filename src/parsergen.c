@@ -1,318 +1,146 @@
-#include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdarg.h>
+#include <stdbool.h>
+#include "syntax.h"
 
-#define PUNCTS(_) \
-	_("=", ASSIGN) \
-	_(";", SEMICOLON) \
-	_("|", PIPE) \
-	_("!", EXCLAM) \
-
-typedef enum {
-	INVALID,
-	#define F(x, y) y,
-	PUNCTS(F)
-	#undef F
-} Punct;
-
-char *pos;
-int64_t line;
-FILE *ofs;
-int exclam;
-
-void p_alts();
-
-void error(char *msg, ...)
+void gen_parser(Syntax *syntax)
 {
-	va_list args;
-	va_start(args, msg);
-	fprintf(stderr, "error:%li: ", line);
-	vfprintf(stderr, msg, args);
-	fprintf(stderr, "\n");
-	va_end(args);
-	exit(EXIT_FAILURE);
-}
-
-void skim()
-{
-	while(isspace(*pos)) {
-		if(*pos == '\n') line ++;
-		pos ++;
+	for(Rule *rule = syntax->rules; rule; rule = rule->next) {
+		printf(
+			"static Node *p_%s();\n"
+			,rule->name
+		);
 	}
-}
-
-int is_lower(char c)
-{
-	return islower(c) || c == '_';
-}
-
-int is_upper(char c)
-{
-	return isupper(c) || c == '_';
-}
-
-char *rip_string(char *start, char *end)
-{
-	int64_t len = end - start;
-	char *word = malloc(len + 1);
-	word[len] = 0;
-	memcpy(word, start, len);
-	return word;
-}
-
-char *mp_nonterm()
-{
-	skim();
-	char *start = pos;
-	while(is_lower(*pos)) pos ++;
-	if(pos == start) return 0;
-	char *word = rip_string(start, pos);
-	skim();
-	return word;
-}
-
-char *p_nonterm()
-{
-	char *res = mp_nonterm();
-	if(!res) error("expected nonterm");
-	return res;
-}
-
-char *mp_token()
-{
-	skim();
-	char *start = pos;
-	while(is_upper(*pos)) pos ++;
-	if(pos == start) return 0;
-	char *word = rip_string(start, pos);
-	skim();
-	return word;
-}
-
-char *mp_literal()
-{
-	skim();
-	if(*pos != '"') return 0;
-	pos ++;
-	char *start = pos;
-	while(*pos && *pos != '"') pos ++;
-	if(pos == start) error("expected chars after \"");
-	if(*pos != '"') error("expected \" after literal");
-	char *word = rip_string(start, pos);
-	pos ++;
-	skim();
-	return word;
-}
-
-Punct mp_punct()
-{
-	skim();
-	char *start = pos;
-	while(ispunct(*pos)) pos ++;
-	if(pos == start) return INVALID;
-	char *word = rip_string(start, pos);
-	skim();
 	
-	#define F(x, y) if(strcmp(word, x) == 0) return y;
-	PUNCTS(F)
-	#undef F
-	
-	pos = start;
-	return INVALID;
-}
-
-Punct p_punct()
-{
-	Punct punct = mp_punct();
-	if(punct == INVALID) error("invalid punct");
-}
-
-int eat_punct(Punct punct)
-{
-	int64_t startline = line;
-	char *start = pos;
-	Punct test = mp_punct();
-	if(punct == test) return 1;
-	pos = start;
-	line = startline;
-	return 0;
-}
-
-int mp_atom(int exclam)
-{
-	char *nonterm = mp_nonterm();
-	if(nonterm) {
-		fprintf(ofs, "\t\tif(!(child = p_%s())) ", nonterm);
-		if(exclam) fprintf(ofs,
-			"print_error(cur->line, cur->linep, cur->linep, cur->start,"
-			"\"error\");\n");
-		else fprintf(ofs, "{ cur = start; clear_node(node); break; }\n");
-		fprintf(ofs, "\t\tadd_child(node, child);\n");
-		return 1;
-	}
-	char *token = mp_token();
-	if(token) {
-		fprintf(ofs, "\t\tif(!(child = p_TOKEN(TK_%s))) ", token);
-		if(exclam) fprintf(ofs,
-			"print_error(cur->line, cur->linep, cur->linep, cur->start,"
-			"\"error\");\n");
-		else fprintf(ofs, "{ cur = start; clear_node(node); break; }\n");
-		fprintf(ofs, "\t\tchild->name = \"%s\";\n", token);
-		fprintf(ofs, "\t\tadd_child(node, child);\n");
-		return 1;
-	}
-	char *literal = mp_literal();
-	if(literal) {
-		fprintf(ofs, "\t\tif(!(child = p_LITERAL(\"%s\"))) ", literal);
-		if(exclam) fprintf(ofs,
-			"print_error(cur->line, cur->linep, cur->linep, cur->start,"
-			"\"error\");\n");
-		else fprintf(ofs, "{ cur = start; clear_node(node); break; }\n");
-		fprintf(ofs, "\t\tchild->name = \"\\\"%s\\\"\";\n", literal);
-		fprintf(ofs, "\t\tadd_child(node, child);\n");
-		return 1;
-	}
-	return 0;
-}
-
-void p_seq()
-{
-	exclam = 0;
-	fprintf(ofs, "\tdo {\n");
-	while(*pos) {
-		if(eat_punct(EXCLAM)) exclam = 1;
-		if(!mp_atom(exclam)) break;
-	}
-	fprintf(ofs, "\t\treturn node;\n");
-	fprintf(ofs, "\t} while(0);\n");
-}
-
-void p_alts()
-{
-	while(*pos) {
-		p_seq();
-		if(!eat_punct(PIPE)) break;
-	}
-}
-
-void p_rule()
-{
-	char *nonterm = p_nonterm();
-	if(!eat_punct(ASSIGN)) error("expected =");
-	fprintf(ofs, "\nstatic Node *p_%s() {\n", nonterm);
-	//fprintf(ofs, "\tprintf(\"%s\\n\");\n", nonterm);
-	fprintf(ofs, "\tToken *start = cur;\n");
-	fprintf(ofs, "\tNode *node = new_node();\n");
-	fprintf(ofs, "\tnode->name = \"%s\";\n", nonterm);
-	fprintf(ofs, "\tNode *child = 0;\n");
-	p_alts();
-	if(!eat_punct(SEMICOLON)) error("expected ;");
-	fprintf(ofs, "\tdelete_node(node);\n");
-	fprintf(ofs, "\treturn 0;\n");
-	fprintf(ofs, "}\n");
-}
-
-void gen_parser(char *grammar)
-{
-	pos = grammar;
-	line = 1;
-	
-	while(*pos) {
-		p_rule();
-	}
-}
-
-void gen_protos(char *grammar)
-{
-	pos = grammar;
-	line = 1;
-	fprintf(ofs, "\n");
-	
-	while(*pos) {
-		skim();
-		char *nonterm = p_nonterm();
-		fprintf(ofs, "static Node *p_%s();\n", nonterm);
+	for(Rule *rule = syntax->rules; rule; rule = rule->next) {
+		printf(
+			"\nstatic Node *p_%s() {\n"
+			"	Token *start = cur;\n"
+			"	Node *node = new_node();\n"
+			"	node->name = \"%s\";\n"
+			"	Node *child = 0;\n"
+			,rule->name
+			,rule->name
+		);
 		
-		while(*pos) {
-			if(*pos == '"') {
-				pos ++;
-				while(*pos && *pos != '"') pos ++;
-				if(*pos == '"') pos ++;
+		for(Alt *alt = rule->alts; alt; alt = alt->next) {
+			bool latch = false;
+			
+			printf(
+				"	cur = start;\n"
+				"	clear_node(node);\n"
+				"	do {\n"
+			);
+			
+			for(Symbol *symbol = alt->symbols; symbol; symbol = symbol->next) {
+				if(symbol->type == SY_NONTERM) {
+					printf(
+						"		if(!(child = p_%s())) {\n"
+						,symbol->rule->name
+					);
+					
+					if(latch) {
+						printf(
+							"			fatal_at(cur, \"expected %s\");\n"
+							"		}\n"
+							,symbol->rule->name
+						);
+					}
+				}
+				else if(symbol->type == SY_TOKEN) {
+					printf(
+						"		if(!(child = p_TOKEN(TK_%s, \"%s\"))) {\n"
+						,symbol->name
+						,symbol->name
+					);
+					
+					if(latch) {
+						printf(
+							"			fatal_at(cur, \"expected %s\");\n"
+							"		}\n"
+							,symbol->name
+						);
+					}
+				}
+				else if(symbol->type == SY_LITERAL) {
+					printf(
+						"		if(!(child = p_LITERAL("
+							"\"%s\", \"\\\"%s\\\"\"))) {\n"
+						,symbol->name
+						,symbol->name
+					);
+					
+					if(latch) {
+						printf(
+							"			fatal_at("
+								"cur, \"expected \\\"%s\\\"\");\n"
+							"		}\n"
+							,symbol->name
+						);
+					}
+				}
+				else if(symbol->type == SY_LATCH) {
+					latch = true;
+					continue;
+				}
+				
+				if(!latch) {
+					printf(
+						"			break;\n"
+						"		}\n"
+					);
+				}
+				
+				if(!symbol->swallow) {
+					if(symbol->merge) {
+						printf(
+							"		merge_child(node, child);\n"
+							"		free(child);\n"
+						);
+					}
+					else if(symbol->fold) {
+						printf(
+							"		if(child->first_child && "
+								"child->first_child->next == 0) {\n"
+							"			merge_child(node, child);\n"
+							"			free(child);\n"
+							"		}\n"
+							"		else if(child->first_child) {\n"
+							"			add_child(node, child);\n"
+							"		}\n"
+						);
+					}
+					else {
+						printf(
+							"		add_child(node, child);\n"
+						);
+					}
+				}
 			}
-			else if(*pos == ';') {
-				pos ++;
-				break;
-			}
-			else {
-				if(*pos == '\n') line ++;
-				pos ++;
-			}
+			
+			printf(
+				"		return node;\n"
+				"	} while(0);\n"
+			);
 		}
 		
-		skim();
+		printf(
+			"	delete_node(node);\n"
+			"	return 0;\n"
+			"}\n"
+		);
 	}
 }
 
 int main(int argc, char *argv[])
 {
-	if(argc < 2) error("no grammar input file");
-	if(argc < 3) error("no parser output file");
-	if(argc > 3) error("too many arguments");
-	
-	char *filename = argv[1];
-	char *outfilename = argv[2];
-	FILE *fs = fopen(filename, "rb");
-	if(!fs) error("could not find grammar file");
-	
-	fseek(fs, 0, SEEK_END);
-	int64_t len = ftell(fs);
-	rewind(fs);
-	char *grammar = malloc(len + 1);
-	grammar[len] = 0;
-	fread(grammar, 1, len, fs);
-	fclose(fs);
-	
-	ofs = fopen(outfilename, "wb");
-	
-	fprintf(ofs,
-		"#include <stdio.h>\n\n"
-		"#include \"ast.h\"\n\n"
-		"#include \"print.h\"\n\n"
-		"static Token *cur;\n\n"
-		"static Node *p_TOKEN(TokenType type) {\n"
-		"\tif(cur->type == type) {\n"
-		"\t\tNode *node = new_node();\n"
-		"\t\tnode->token = cur;\n"
-		"\t\tnode->type = 1;\n"
-		"\t\tcur ++;\n"
-		"\t\treturn node;\n"
-		"\t}\n"
-		"\treturn 0;\n"
-		"}\n\n"
-		"static Node *p_LITERAL(char *text) {\n"
-		"\tif(token_text_equals(cur, text)) {\n"
-		"\t\tNode *node = new_node();\n"
-		"\t\tnode->token = cur;\n"
-		"\t\tnode->type = 1;\n"
-		"\t\tcur ++;\n"
-		"\t\treturn node;\n"
-		"\t}\n"
-		"\treturn 0;\n"
-		"}\n"
-	);
-	
-	gen_protos(grammar);
-	gen_parser(grammar);
-	
-	fprintf(ofs,
-		"\nNode *parse_tree(Tokens *tokens) {\n"
-		"\tcur = tokens->first;\n"
-		"\treturn p_unit();\n"
-		"}\n"
-	);
-	
-	fclose(ofs);
+	fseek(stdin, 0, SEEK_END);
+	int64_t len = ftell(stdin);
+	rewind(stdin);
+	char *src = malloc(len + 1);
+	src[len] = 0;
+	fread(src, 1, len, stdin);
+	Syntax *syntax = parse_syntax(src);
+	gen_parser(syntax);
+	return 0;
 }

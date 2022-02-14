@@ -193,11 +193,6 @@ typedef struct Scope {
 	Import *last_import;
 } Scope;
 
-Node *new_node();
-void clear_node(Node *node);
-void add_child(Node *node, Node *child);
-void delete_node(Node *node);
-
 Type *new_type(Kind kind);
 Type *new_ptr_type(Type *subtype);
 Type *new_array_type(int64_t length, Type *subtype);

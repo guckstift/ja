@@ -3,48 +3,6 @@
 #include "ast.h"
 #include "utils.h"
 
-Node *new_node()
-{
-	Node *node = malloc(sizeof(Node));
-	node->type = 0;
-	node->next = 0;
-	node->name = 0;
-	node->first_child = 0;
-	node->last_child = 0;
-	node->token = 0;
-	return node;
-}
-
-void clear_node(Node *node)
-{
-	assert(node);
-	
-	if(node->type == 0) {
-		for(Node *child = node->first_child; child;) {
-			Node *next = child->next;
-			delete_node(child);
-			child = next;
-		}
-		
-		node->first_child = 0;
-		node->last_child = 0;
-	}
-}
-
-void add_child(Node *node, Node *child)
-{
-	assert(node);
-	assert(child);
-	list_push(node, first_child, last_child, next, child);
-}
-
-void delete_node(Node *node)
-{
-	assert(node);
-	clear_node(node);
-	free(node);
-}
-
 Type *new_type(Kind kind)
 {
 	static Type *primtypebuf[_PRIMKIND_COUNT] = {0};

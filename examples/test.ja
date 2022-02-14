@@ -1,1 +1,3 @@
-var
+var a : int;
+var b = 90;
+var c : bool = true;

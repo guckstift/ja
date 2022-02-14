@@ -1,31 +1,31 @@
 unit = stmts ;
 
-stmts = stmt stmts | ;
+stmts = +stmt +stmts | ;
 
 stmt =
 	print | var | func | struct | if | while | return | import | export |
 	assign_or_call ;
 
-print = "print" expr ";" ;
-var = "var" ! IDENT colon_type var_init ";" ;
-colon_type = ":" type | ;
-var_init = "=" expr | ;
-func = "function" IDENT "(" ")" colon_type "{" stmts "}" ;
-struct = "struct" IDENT "{" vars "}" ;
+print = -"print" ! expr ";" ;
+var = -"var" ! IDENT +colon_type +var_init -";" ;
+colon_type = -":" ! type | ;
+var_init = -"=" ! expr | ;
+func = -"function" ! IDENT -"(" -")" colon_type "{" stmts "}" ;
+struct = -"struct" ! IDENT "{" vars "}" ;
 vars = var vars | ;
-if = "if" expr "{" stmts "}" else ;
-else = "else" "{" stmts "}" | ;
-while = "while" expr "{" stmts "}" ;
-return = "return" expr ";" ;
-import = "import" import_from STRING ";" ;
+if = -"if" ! expr "{" stmts "}" else ;
+else = -"else" ! "{" stmts "}" | ;
+while = -"while" ! expr "{" stmts "}" ;
+return = -"return" ! expr ";" ;
+import = -"import" ! import_from STRING ";" ;
 import_from = idents "from" | ;
 idents = IDENT idents_x ;
-idents_x = "," idents | ;
-export = "export" export_decl ;
+idents_x = -"," idents | ;
+export = -"export" ! export_decl ;
 export_decl = var | func | struct ;
 assign_or_call = expr assign_or_call_x ";" ;
 assign_or_call_x = assign_x | call_x ;
-assign_x = "=" expr ;
+assign_x = -"=" expr ;
 
 type = primtype | nametype | ptrtype | arraytype ;
 
@@ -41,17 +41,17 @@ arraytype = "[" INT "]" type ;
 exprs = expr exprs_x | ;
 exprs_x = "," exprs | ;
 
-expr = binop ;
-binop = prefix binop_x ;
+expr = ~binop ;
+binop = ~prefix ~binop_x ;
 binop_x = op binop | ;
 op = "+" | "-" ;
-prefix = ptr | deref | postfix ;
-ptr = ">" prefix ;
-deref = "<" prefix ;
-postfix = atom postfix_x ;
+prefix = ptr | deref | ~postfix ;
+ptr = ">" ! prefix ;
+deref = "<" ! prefix ;
+postfix = atom ~postfix_x ;
 postfix_x = postfix_s postfix_x | ;
 postfix_s = cast_x | call_x | subscript_x | member_x ;
-cast_x = "as" type ;
+cast_x = "as" ! type ;
 call_x = "(" ")" ;
 subscript_x = "[" expr "]" ;
 member_x = "." IDENT ;

@@ -161,6 +161,7 @@ static Unit *build_unit(char *filename, int ismain)
 	Node *tree = parse_tree(unit->tokens);
 	printf("done tree parsing\n");
 	print_tree(tree);
+	exit(EXIT_SUCCESS);
 	
 	unit->stmts = parse(unit->tokens, unit->unit_id);
 	#ifdef JA_DEBUG
