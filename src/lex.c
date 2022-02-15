@@ -6,6 +6,17 @@
 #include "lex.h"
 #include "print.h"
 #include "utils.h"
+
+#define hex2int(x) ( \
+	(x) >= '0' && (x) <= '9' ? x - '0' : \
+	(x) >= 'a' && (x) <= 'f' ? x - 'a' + 10 : \
+	(x) >= 'A' && (x) <= 'F' ? x - 'A' + 10 : \
+0)
+
+#define tokequ(a, b) ( \
+	(a)->length == (b)->length && \
+	memcmp((a)->start, (b)->start, (a)->length) == 0 \
+)
 	
 static Token *first_id = 0;
 static Token *last_id = 0;
@@ -43,6 +54,32 @@ int token_text_equals(Token *token, char *text)
 		memcmp(text, token->start, token->length) == 0 ;
 }
 
+Token *create_id(char *start, int64_t length)
+{
+	if(length == 0) {
+		length = strlen(start);
+	}
+	
+	Token *ident = malloc(sizeof(Token));
+	ident->type = TK_IDENT;
+	ident->line = 0;
+	ident->linep = 0;
+	ident->start = start;
+	ident->length = length;
+	ident->next_id = 0;
+	
+	for(Token *id = first_id; id; id = id->next_id) {
+		if(tokequ(ident, id)) {
+			free(ident);
+			return id;
+		}
+	}
+	
+	ident->id = ident;
+	headless_list_push(first_id, last_id, next_id, ident);
+	return ident;
+}
+
 Tokens *lex(char *src, int64_t src_len)
 {
 	char *src_end = src + src_len;
@@ -68,17 +105,6 @@ Tokens *lex(char *src, int64_t src_len)
 		strlen(s) == 1 ? (s)[0] == pos[0] : \
 		strlen(s) == 2 ? (s)[0] == pos[0] && (s)[1] == pos[1] : \
 	0)
-	
-	#define hex2int(x) ( \
-		(x) >= '0' && (x) <= '9' ? x - '0' : \
-		(x) >= 'a' && (x) <= 'f' ? x - 'a' + 10 : \
-		(x) >= 'A' && (x) <= 'F' ? x - 'A' + 10 : \
-	0)
-	
-	#define tokequ(a, b) ( \
-		(a)->length == (b)->length && \
-		memcmp((a)->start, (b)->start, (a)->length) == 0 \
-	)
 	
 	while(pos < src_end) {
 		char *start = pos;
@@ -244,6 +270,9 @@ Tokens *lex(char *src, int64_t src_len)
 	
 	char *start = pos;
 	emit(TK_EOF);
+	
+	// add builtin ids
+	create_id("argv", 0);
 	
 	for(Token *token = token_array; token->type != TK_EOF; token ++) {
 		if(token->type == TK_IDENT) {

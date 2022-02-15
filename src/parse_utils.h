@@ -44,7 +44,6 @@ typedef struct {
 Expr *cast_expr(Expr *expr, Type *dtype, int explicit);
 Expr *p_expr_pub(ParseState *state);
 
-Stmt *p_stmt_pub(ParseState *state);
 Stmt *p_stmts_pub(ParseState *state, Decl *func);
 
 void make_type_exportable(Type *dtype);
@@ -57,35 +56,13 @@ static char *src_end;
 static Scope *scope;
 static char *unit_id;
 
-static Decl *lookup_builtin(Token *id)
-{
-	if(scope->parent) return 0;
-	
-	if(token_text_equals(id, "argv")) {
-		static Decl *argv = 0;
-		if(argv == 0) {
-			argv = new_vardecl(
-				id, new_ptr_type(new_array_type(-1, new_type(STRING))),
-				0, 0, scope
-			);
-		}
-		return argv;
-	}
-	
-	return 0;
-}
-
 static Decl *lookup_flat(Token *id)
 {
-	Decl *decl = lookup_builtin(id);
-	if(decl) return decl;
 	return lookup_flat_in(id, scope);
 }
 
 static Decl *lookup(Token *id)
 {
-	Decl *decl = lookup_builtin(id);
-	if(decl) return decl;
 	return lookup_in(id, scope);
 }
 

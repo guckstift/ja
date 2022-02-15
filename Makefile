@@ -3,7 +3,8 @@ CFILES = \
 	parse_type.c print.c utils.c
 
 HFILES = \
-	ast.h build.h eval.h gen.h lex.h parse.h print.h runtime.inc.h utils.h
+	ast.h build.h eval.h gen.h lex.h parse.h parse_utils.h print.h \
+	runtime.inc.h utils.h
 
 CFLAGS = \
 	-std=c17 -pedantic-errors -DJA_DEBUG

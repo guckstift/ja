@@ -251,6 +251,7 @@ Decl *new_vardecl(
 	decl->dtype = dtype;
 	decl->init = init;
 	decl->next_decl = 0;
+	decl->builtin = 0;
 	return decl;
 }
 

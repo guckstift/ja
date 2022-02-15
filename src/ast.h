@@ -121,6 +121,7 @@ typedef struct Decl {
 	int imported; // this decl is declared as a clone via import
 	char *public_id; // for exported decls
 	int exported; // this decl is exported
+	int builtin; // this decl is a builtin
 } Decl;
 
 typedef struct If {

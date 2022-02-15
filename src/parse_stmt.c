@@ -49,6 +49,24 @@ static int declare(Decl *new_decl)
 	return 1;
 }
 
+static void declare_builtins()
+{
+	Type *dynarray_string_type = new_ptr_type(
+		new_array_type(-1, new_type(STRING))
+	);
+	
+	Token *argv_id = create_id("argv", 0);
+	
+	Decl *argv = new_vardecl(
+		argv_id, dynarray_string_type,
+		0, 0, scope
+	);
+	
+	argv->builtin = 1;
+	
+	declare(argv);
+}
+
 static void enter()
 {
 	Scope *new_scope = malloc(sizeof(Scope));
@@ -499,6 +517,10 @@ static Stmt *p_stmts(Decl *func)
 	enter();
 	if(func) scope->func = func;
 	
+	if(!scope->parent) {
+		declare_builtins();
+	}
+	
 	Stmt *first_stmt = 0;
 	Stmt *last_stmt = 0;
 	while(1) {
@@ -510,14 +532,6 @@ static Stmt *p_stmts(Decl *func)
 	
 	leave();
 	return first_stmt;
-}
-
-Stmt *p_stmt_pub(ParseState *state)
-{
-	unpack_state(state);
-	Stmt *stmt = p_stmt();
-	pack_state(state);
-	return stmt;
 }
 
 Stmt *p_stmts_pub(ParseState *state, Decl *func)
