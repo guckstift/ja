@@ -1,155 +1,19 @@
 #include <stdlib.h>
-#include <stdio.h>
-#include <inttypes.h>
-#include <string.h>
-#include "parse.h"
-#include "print.h"
 #include "eval.h"
-#include "build.h"
 #include "utils.h"
-
-static Stmt *p_stmts(Decl *func);
-static Expr *p_expr();
-static Type *p_type();
-static Expr *p_prefix();
 
 #include "parse_utils.h"
 
-static int declare(Decl *new_decl)
-{
-	if(new_decl->scope != scope) {
-		// from foreign scope => import
-		new_decl = (Decl*)clone_stmt((Stmt*)new_decl);
-		new_decl->next_decl = 0;
-		new_decl->imported = 1;
-	}
-	else {
-		new_decl->public_id = 0;
-		str_append(new_decl->public_id, "_");
-		str_append(new_decl->public_id, unit_id);
-		str_append(new_decl->public_id, "_");
-		str_append_token(new_decl->public_id, new_decl->id);
-	}
-	
-	if(lookup_flat(new_decl->id)) {
-		return 0;
-	}
-	
-	list_push(scope, first_decl, last_decl, next_decl, new_decl);
-	
-	return 1;
-}
-
-static void enter()
-{
-	Scope *new_scope = malloc(sizeof(Scope));
-	new_scope->parent = scope;
-	scope = new_scope;
-	scope->first_decl = 0;
-	scope->last_decl = 0;
-	scope->func = scope->parent ? scope->parent->func : 0;
-	scope->struc = 0;
-	scope->first_import = 0;
-	scope->last_import = 0;
-}
-
-static void leave()
-{
-	scope = scope->parent;
-}
-
-static Type *p_primtype()
-{
-	if(eat(TK_int)) return new_type(INT);
-	if(eat(TK_int8)) return new_type(INT8);
-	if(eat(TK_int16)) return new_type(INT16);
-	if(eat(TK_int32)) return new_type(INT32);
-	if(eat(TK_int64)) return new_type(INT64);
-	if(eat(TK_uint)) return new_type(UINT);
-	if(eat(TK_uint8)) return new_type(UINT8);
-	if(eat(TK_uint16)) return new_type(UINT16);
-	if(eat(TK_uint32)) return new_type(UINT32);
-	if(eat(TK_uint64)) return new_type(UINT64);
-	if(eat(TK_bool)) return new_type(BOOL);
-	if(eat(TK_string)) return new_type(STRING);
-	return 0;
-}
-
-static Type *p_nametype()
-{
-	Token *ident = eat(TK_IDENT);
-	if(!ident) return 0;
-	
-	Decl *decl = lookup(ident->id);
-	
-	if(!decl)
-		fatal_at(ident, "name %t not declared", ident);
-	
-	if(decl->kind != STRUCT)
-		fatal_at(ident, "%t is not a structure", ident);
-	
-	Type *dtype = new_type(STRUCT);
-	dtype->id = ident->id;
-	dtype->typedecl = decl;
-	return dtype;
-}
-
-static Type *p_ptrtype()
-{
-	if(!eat(TK_GREATER)) return 0;
-	
-	Type *subtype = p_type();
-	if(!subtype)
-		fatal_at(last, "expected target type");
-	
-	return new_ptr_type(subtype);
-}
-
-static Type *p_arraytype()
-{
-	if(!eat(TK_LBRACK)) return 0;
-	
-	Token *length = eat(TK_INT);
-	
-	if(length && length->ival <= 0)
-		fatal_at(length, "array length must be greater than 0");
-	
-	if(!eat(TK_RBRACK)) {
-		if(length)
-			fatal_after(last, "expected ]");
-		else
-			fatal_after(last, "expected integer literal for array length");
-	}
-	
-	Type *itemtype = p_type();
-	if(!itemtype)
-		fatal_at(last, "expected item type");
-	
-	return new_array_type(length ? length->ival : -1, itemtype);
-}
+static Expr *p_expr();
+static Expr *p_prefix();
 
 static Type *p_type()
 {
-	Type *dtype = 0;
-	(dtype = p_primtype()) ||
-	(dtype = p_nametype()) ||
-	(dtype = p_ptrtype()) ||
-	(dtype = p_arraytype()) ;
-	return dtype;
-}
-
-static Type *complete_type(Type *dtype, Expr *expr)
-{
-	// automatic array length completion from expr
-	for(
-		Type *dt = dtype, *st = expr->dtype;
-		dt->kind == ARRAY && st->kind == ARRAY;
-		dt = dt->itemtype, st = st->itemtype
-	) {
-		if(dt->length == -1) {
-			dt->length = st->length;
-		}
-	}
+	ParseState state;
+	pack_state(&state);
+	Type *type = p_type_pub(&state);
+	unpack_state(&state);
+	return type;
 }
 
 /*
@@ -394,7 +258,6 @@ static Expr *p_member_x(Expr *expr)
 		return new_member_expr(expr, ident->id, new_type(INT64));
 	
 	if(dtype->kind != STRUCT) {
-		printf("kind %i\n", dtype->kind);
 		fatal_at(expr->start, "no instance to get member");
 	}
 	
@@ -563,8 +426,3 @@ Expr *p_expr_pub(ParseState *state)
 	pack_state(state);
 	return expr;
 }
-
-
-
-
-

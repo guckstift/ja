@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include "print.h"
 
 #define match(t) (cur->type == (t))
 #define match2(t1, t2) (cur[0].type == (t1) && cur[1].type == (t2))
@@ -41,6 +43,13 @@ typedef struct {
 
 Expr *cast_expr(Expr *expr, Type *dtype, int explicit);
 Expr *p_expr_pub(ParseState *state);
+
+Stmt *p_stmt_pub(ParseState *state);
+Stmt *p_stmts_pub(ParseState *state, Decl *func);
+
+void make_type_exportable(Type *dtype);
+Type *complete_type(Type *dtype, Expr *expr);
+Type *p_type_pub(ParseState *state);
 
 static Token *cur;
 static Token *last;
@@ -97,4 +106,3 @@ static void pack_state(ParseState *state)
 	state->scope = scope;
 	state->unit_id = unit_id;
 }
-
