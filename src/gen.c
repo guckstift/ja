@@ -418,7 +418,7 @@ static void gen_print(Expr *expr)
 	write(");\n");
 }
 
-static void gen_stmt(Stmt *stmt)
+static void gen_stmt(Stmt *stmt, int noindent)
 {
 	switch(stmt->kind) {
 		case PRINT:
@@ -443,13 +443,21 @@ static void gen_stmt(Stmt *stmt)
 			}
 			break;
 		case IF:
-			write("%>if(%e) {\n", stmt->as_if.expr);
+			if(noindent == 0) write("%>");
+			write("if(%e) {\n", stmt->as_if.expr);
 			gen_stmts(stmt->as_if.if_body);
 			write("%>}\n");
 			if(stmt->as_if.else_body) {
-				write("%>else {\n");
-				gen_stmts(stmt->as_if.else_body);
-				write("%>}\n");
+				Stmt *else_body = stmt->as_if.else_body;
+				if(else_body->kind == IF && else_body->next == 0) {
+					write("%>else ");
+					gen_stmt(stmt->as_if.else_body, 1);
+				}
+				else {
+					write("%>else {\n");
+					gen_stmts(stmt->as_if.else_body);
+					write("%>}\n");
+				}
 			}
 			break;
 		case WHILE:
@@ -497,7 +505,7 @@ static void gen_stmts(Stmt *stmts)
 	level ++;
 	
 	for_list(Stmt, stmt, stmts, next) {
-		gen_stmt(stmt);
+		gen_stmt(stmt, 0);
 	}
 	
 	level --;

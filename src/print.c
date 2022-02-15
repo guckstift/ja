@@ -436,15 +436,24 @@ static void print_stmt(Stmt *stmt)
 			print_indent();
 			printf("}");
 			if(stmt->as_if.else_body) {
-				printf("\n");
-				print_indent();
-				print_keyword_cstr("else");
-				printf(" {\n");
-				level ++;
-				print_stmts(stmt->as_if.else_body);
-				level --;
-				print_indent();
-				printf("}");
+				Stmt *else_body = stmt->as_if.else_body;
+				if(else_body->kind == IF && else_body->next == 0) {
+					printf("\n");
+					print_indent();
+					print_keyword_cstr("else ");
+					print_stmt(else_body);
+				}
+				else {
+					printf("\n");
+					print_indent();
+					print_keyword_cstr("else");
+					printf(" {\n");
+					level ++;
+					print_stmts(stmt->as_if.else_body);
+					level --;
+					print_indent();
+					printf("}");
+				}
 			}
 			break;
 		case WHILE:

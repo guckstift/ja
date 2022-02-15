@@ -808,11 +808,16 @@ static Stmt *p_ifstmt()
 		fatal_after(last, "expected } after if-body");
 		
 	if(eat(TK_else)) {
-		if(!eat(TK_LCURLY))
-			fatal_after(last, "expected { after else");
-		stmt->else_body = p_stmts(0);
-		if(!eat(TK_RCURLY))
-			fatal_after(last, "expected } after else-body");
+		if(match(TK_if)){
+			stmt->else_body = p_ifstmt();
+		}
+		else {
+			if(!eat(TK_LCURLY))
+				fatal_after(last, "expected { after else");
+			stmt->else_body = p_stmts(0);
+			if(!eat(TK_RCURLY))
+				fatal_after(last, "expected } after else-body");
+		}
 	}
 	else {
 		stmt->else_body = 0;

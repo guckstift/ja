@@ -7,6 +7,7 @@
 * string type (length and char-ptr)
 * print strings
 * argv
+* export (vars, functions, types)
 
 # wip
 
@@ -17,19 +18,28 @@
 	import "./file.ja" as unit; # import in namespace
 	)
 
+# for self hosting
+
+* function parameters
+* else-if
+* binops == != <= >= < >
+* binops logical and, or
+* binops + - * / // %
+* function prototypes
+* unions
+* tagged unions
+* enums
+* switch-case
+* break, continue (+ labeled)
+* file functions
+* new/delete/resize
+* variable arguments
+
 # todo
 
 * codegen: externalize runtime.h
 * use default struct member inits
-* function parameters
-* else-if
-* binops + - * / // %
-* binops == != <= >= < >
-* binops logical and, or
-* function prototypes
 * refer to struct before definition (if ptr to)
-* export (vars, functions, types)
-* new/delete/resize
 * auto pointer unpacking/packing
 * pseudo ptr arithmetic via @ index
 * print arrays
@@ -43,27 +53,20 @@
 * explicit uninitialized var (var x : int = ?)
 * for range (for x = 0..1 {} for x = 5 .. <1 {})
 * for-each on arrays (for x in arr {...})
-* unions
-* tagged unions
-* enums
 * any type
 * type-ids
 * type-alias definition
-* switch-case
 * ffi
 * build: cache C files, compiled objects
-* self-hosted compiler
+* self hosting
 * float types
 * correct float to string conversion
-* break, continue (+ labeled)
 * anonymous structs, unions
 * use/mixin/with
 * namespaces
 * external methods
 * forced inline
-* file functions
 * optional arguments
-* variable arguments
 * error type
 * constants
 * codegen: no ja_ prefix for members
