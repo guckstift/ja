@@ -539,25 +539,45 @@ static Expr *p_prefix()
 	return expr;
 }
 
-static Token *p_operator()
+static Token *p_operator(int level)
 {
 	Token *op = 0;
-	(op = eat(TK_PLUS)) ||
-	(op = eat(TK_MINUS)) ;
+	switch(level) {
+		case OL_CMP:
+			(op = eat(TK_LOWER)) ||
+			(op = eat(TK_GREATER)) ||
+			(op = eat(TK_EQUALS)) ||
+			(op = eat(TK_NEQUALS)) ||
+			(op = eat(TK_LEQUALS)) ||
+			(op = eat(TK_GEQUALS)) ;
+			break;
+		case OL_ADD:
+			(op = eat(TK_PLUS)) ||
+			(op = eat(TK_MINUS)) ;
+			break;
+		case OL_MUL:
+			(op = eat(TK_MUL)) ||
+			(op = eat(TK_DSLASH)) ||
+			(op = eat(TK_MOD)) ;
+			break;
+	}
 	return op;
 }
 
-static Expr *p_binop()
+static Expr *p_binop(int level)
 {
-	Expr *left = p_prefix();
+	if(level == OPLEVEL_COUNT) return p_prefix();
+	
+	Expr *left = p_binop(level + 1);
 	if(!left) return 0;
 	
 	while(1) {
-		Token *operator = p_operator();
+		Token *operator = p_operator(level);
 		if(!operator) break;
-		Expr *right = p_prefix();
-		if(!right)
-			fatal_after(last, "expected right side after %t", operator);
+		
+		Expr *right = p_binop(level + 1);
+		if(!right) fatal_after(last, "expected right side after %t", operator);
+		
 		Expr *expr = new_expr(BINOP, left->start);
 		expr->left = left;
 		expr->right = right;
@@ -568,9 +588,15 @@ static Expr *p_binop()
 		Type *rtype = right->dtype;
 		
 		if(is_integral_type(ltype) && is_integral_type(rtype)) {
-			expr->dtype = new_type(INT64);
-			expr->left = cast_expr(expr->left, expr->dtype, 0);
-			expr->right = cast_expr(expr->right, expr->dtype, 0);
+			if(level == OL_CMP) {
+				expr->dtype = new_type(BOOL);
+				expr->right = cast_expr(expr->right, ltype, 0);
+			}
+			else {
+				expr->dtype = new_type(INT64);
+				expr->left = cast_expr(expr->left, expr->dtype, 0);
+				expr->right = cast_expr(expr->right, expr->dtype, 0);
+			}
 		}
 		else {
 			fatal_at(
@@ -589,7 +615,7 @@ static Expr *p_binop()
 
 static Expr *p_expr()
 {
-	return p_binop();
+	return p_binop(0);
 }
 
 static Stmt *p_print()
@@ -748,16 +774,40 @@ static Stmt *p_funcdecl(int exported)
 	decl->dtype = dtype;
 	decl->next_decl = 0;
 	
-	if(!declare(decl))
-		fatal_at(ident, "name %t already declared", ident);
+	if(!declare(decl)) {
+		Decl *existing_decl = lookup(decl->id);
+		
+		if(existing_decl->kind == FUNC && existing_decl->isproto) {
+			if(!type_equ(existing_decl->dtype, decl->dtype)) {
+				fatal_at(ident,
+					"function prototype had a different return type  %y "
+					", now it is  %y",
+					existing_decl->dtype,
+					decl->dtype
+				);
+			}
+			
+			decl = existing_decl;
+		}
+		else {
+			fatal_at(ident, "name %t already declared", ident);
+		}
+	}
 	
-	if(!eat(TK_LCURLY))
-		fatal_after(last, "expected {");
-	
-	decl->body = p_stmts(decl);
-	
-	if(!eat(TK_RCURLY))
-		fatal_after(last, "expected } after function body");
+	if(eat(TK_SEMICOLON)) {
+		decl->isproto = 1;
+	}
+	else {
+		if(!eat(TK_LCURLY))
+			fatal_after(last, "expected {");
+		
+		decl->body = p_stmts(decl);
+		
+		if(!eat(TK_RCURLY))
+			fatal_after(last, "expected } after function body");
+		
+		decl->isproto = 0;
+	}
 	
 	return (Stmt*)decl;
 }
@@ -1020,6 +1070,7 @@ static Stmt *p_stmts(Decl *func)
 	while(1) {
 		Stmt *stmt = p_stmt();
 		if(!stmt) break;
+		if(stmt->kind == FUNC && stmt->as_decl.isproto == 1) continue;
 		headless_list_push(first_stmt, last_stmt, next, stmt);
 	}
 	

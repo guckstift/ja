@@ -57,6 +57,13 @@ typedef struct Type {
 	};
 } Type;
 
+typedef enum {
+	OL_CMP,
+	OL_ADD,
+	OL_MUL,
+	OPLEVEL_COUNT,
+} OpLevel;
+
 typedef struct Expr {
 	Kind kind;
 	Token *start;
@@ -107,13 +114,13 @@ typedef struct Decl {
 		struct Stmt *body; // func, struct
 	};
 	
-	Token *id; // var, func, struct
+	int isproto; // func
+	Token *id; // identifier of decl
 	Type *dtype; // var, func
-	struct Decl *next_decl; // next decl in scope (var, func, struct)
+	struct Decl *next_decl; // next decl in scope
 	int imported; // this decl is declared as a clone via import
-	              // (var, func, struct)
-	char *public_id; // for exported var, func, struct
-	int exported; // var, func, struct
+	char *public_id; // for exported decls
+	int exported; // this decl is exported
 } Decl;
 
 typedef struct If {

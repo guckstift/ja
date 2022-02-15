@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <ctype.h>
+#include <string.h>
 #include "print.h"
 
 #define COL_RESET   "\x1b[0m"
@@ -105,6 +106,11 @@ void print_error(
 	va_start(args, msg);
 	vprint_error(line, linep, src_end, err_pos, msg, args);
 	va_end(args);
+}
+
+static void fprint_raw(FILE *fs, char *str)
+{
+	fwrite(str, 1, strlen(str), fs);
 }
 
 static void fprint_ident(FILE *fs, Token *token)
@@ -218,7 +224,7 @@ static void print_token(Token *token)
 		
 		#define F(x, y) \
 			case TK_ ## y: \
-				printf("PUNCT   " x); \
+				fprint_raw(stdout, "PUNCT   " x); \
 				break;
 		
 		PUNCTS(F)

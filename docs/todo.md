@@ -8,6 +8,10 @@
 * print strings
 * argv
 * export (vars, functions, types)
+* else-if
+* binops == != <= >= < >
+* binops + - * // %
+* function prototypes
 
 # wip
 
@@ -21,11 +25,8 @@
 # for self hosting
 
 * function parameters
-* else-if
-* binops == != <= >= < >
 * binops logical and, or
-* binops + - * / // %
-* function prototypes
+* binop float division /
 * unions
 * tagged unions
 * enums

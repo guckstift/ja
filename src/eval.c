@@ -5,20 +5,36 @@ Expr *eval_binop(Expr *expr)
 {
 	if(expr->isconst) {
 		switch(expr->operator->type) {
-			case TK_PLUS: {
-				if(is_integral_type(expr->dtype)) {
-					expr->kind = INT;
-					expr->ival = expr->left->ival + expr->right->ival;
+			#define INT_BINOP(name, op) \
+				case TK_ ## name: { \
+					if(is_integral_type(expr->dtype)) { \
+						expr->kind = INT; \
+						expr->ival = expr->left->ival op expr->right->ival; \
+					} \
+					break; \
 				}
-				break;
-			}
-			case TK_MINUS: {
-				if(is_integral_type(expr->dtype)) {
-					expr->kind = INT;
-					expr->ival = expr->left->ival - expr->right->ival;
+			
+			#define CMP_BINOP(name, op) \
+				case TK_ ## name: { \
+					if(is_integral_type(expr->left->dtype)) { \
+						expr->kind = BOOL; \
+						expr->ival = expr->left->ival op expr->right->ival; \
+					} \
+					break; \
 				}
-				break;
-			}
+			
+			INT_BINOP(PLUS, +)
+			INT_BINOP(MINUS, -)
+			INT_BINOP(MUL, *)
+			INT_BINOP(DSLASH, /)
+			INT_BINOP(MOD, %)
+			
+			CMP_BINOP(LOWER, <)
+			CMP_BINOP(GREATER, >)
+			CMP_BINOP(EQUALS, ==)
+			CMP_BINOP(NEQUALS, !=)
+			CMP_BINOP(LEQUALS, <=)
+			CMP_BINOP(GEQUALS, >=)
 		}
 	}
 	

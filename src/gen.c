@@ -618,7 +618,6 @@ static void gen_func_head(Decl *decl)
 	Type *returntype = decl->dtype;
 	
 	if(returntype->kind == ARRAY) {
-		gen_func_returntype_decl(decl);
 		if(decl->exported) {
 			if(in_header) {
 				write("%>rt%X %X()", decl->id, decl->id);
@@ -648,10 +647,6 @@ static void gen_func_head(Decl *decl)
 
 static void gen_funcdecl(Decl *decl)
 {
-	if(decl->exported) {
-		gen_export_alias(decl->id, cur_unit);
-	}
-	
 	gen_func_head(decl);
 	write(" {\n");
 	gen_stmts(decl->body);
@@ -676,6 +671,25 @@ static void gen_vardecls(Stmt *stmts)
 	for_list(Stmt, stmt, stmts, next) {
 		if(stmt->kind == VAR) {
 			gen_vardecl((Decl*)stmt);
+		}
+	}
+}
+
+static void gen_funcprotos(Stmt *stmts)
+{
+	write("// function prototypes\n");
+	
+	for_list(Stmt, stmt, stmts, next) {
+		if(stmt->kind == FUNC) {
+			Decl *decl = (Decl*)stmt;
+			
+			if(decl->exported) {
+				gen_export_alias(decl->id, cur_unit);
+			}
+			
+			gen_func_returntype_decl(decl);
+			gen_func_head(decl);
+			write(";\n");
 		}
 	}
 }
@@ -712,22 +726,29 @@ static void gen_h()
 	in_header = 1;
 	ofs = fopen(cur_unit->h_filename, "wb");
 
+	write("// runtime\n");
 	write(RUNTIME_H_SRC);
+	
+	write("// main function\n");
 	write("int _%s_main(int argc, char **argv);\n", cur_unit->unit_id);
 	
+	write("// exported structures\n");
 	for_list(Stmt, stmt, cur_unit->stmts, next) {
 		if(stmt->kind == STRUCT && stmt->as_decl.exported) {
 			gen_structdecl((Decl*)stmt);
 		}
 	}
 	
+	write("// exported functions\n");
 	for_list(Stmt, stmt, cur_unit->stmts, next) {
 		if(stmt->kind == FUNC && stmt->as_decl.exported) {
+			gen_func_returntype_decl((Decl*)stmt);
 			gen_func_head((Decl*)stmt);
 			write(";\n");
 		}
 	}
 	
+	write("// exported variables\n");
 	for_list(Stmt, stmt, cur_unit->stmts, next) {
 		if(stmt->kind == VAR && stmt->as_decl.exported) {
 			write(
@@ -752,6 +773,7 @@ static void gen_c()
 	gen_imports(cur_unit->stmts);
 	gen_structdecls(cur_unit->stmts);
 	gen_vardecls(cur_unit->stmts);
+	gen_funcprotos(cur_unit->stmts);
 	gen_funcdecls(cur_unit->stmts);
 	
 	write("// control variables\n");

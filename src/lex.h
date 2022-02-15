@@ -32,6 +32,11 @@
 	_(while) \
 
 #define PUNCTS(_) \
+	_("==", EQUALS) \
+	_("!=", NEQUALS) \
+	_("<=", LEQUALS) \
+	_(">=", GEQUALS) \
+	_("//", DSLASH) \
 	_("{", LCURLY) \
 	_("}", RCURLY) \
 	_("<", LOWER) \
@@ -47,6 +52,8 @@
 	_(",", COMMA) \
 	_("+", PLUS) \
 	_("-", MINUS) \
+	_("*", MUL) \
+	_("%", MOD) \
 
 typedef enum {
 	TK_EOF,
