@@ -34,22 +34,42 @@
 static void delete_node(Node *node);
 
 static Token *cur;
+static Token *last;
 static char *src_end;
 
-static Node *new_node()
+static Node new_invalid_node()
 {
-	Node *node = malloc(sizeof(Node));
-	node->type = 0;
-	node->next = 0;
-	node->name = 0;
-	node->first_child = 0;
-	node->last_child = 0;
-	node->token = 0;
-	return node;
+	return (Node){
+		.type = ND_INVALID,
+		.name = 0,
+		.child_count = 0,
+		.children = 0,
+	};
+}
+
+static Node new_nonterm_node(char *name)
+{
+	return (Node){
+		.type = ND_NONTERM,
+		.name = name,
+		.child_count = 0,
+		.children = 0,
+	};
+}
+
+static Node new_token_node(char *name, Token *token)
+{
+	return (Node){
+		.type = ND_TOKEN,
+		.name = name,
+		.child_count = 0,
+		.token = token,
+	};
 }
 
 static void clear_node(Node *node)
 {
+	/*
 	assert(node);
 	
 	if(node->type == 0) {
@@ -62,82 +82,60 @@ static void clear_node(Node *node)
 		node->first_child = 0;
 		node->last_child = 0;
 	}
+	*/
 }
 
-static void add_child(Node *node, Node *child)
+static void add_child(Node *node, Node child)
 {
 	assert(node);
-	assert(child);
 	
-	if(node->last_child) {
-		node->last_child->next = child;
-	}
-	else {
-		node->first_child = child;
-	}
-	
-	node->last_child = child;
+	node->child_count ++;
+	node->children = realloc(node->children, sizeof(Node) * node->child_count);
+	node->children[node->child_count - 1] = child;
 }
 
 static void delete_node(Node *node)
 {
+	/*
 	assert(node);
 	clear_node(node);
 	free(node);
+	*/
 }
 
-static void merge_child(Node *node, Node *child)
+static void merge_child(Node *node, Node child)
 {
 	assert(node);
-	assert(child);
 	
-	if(!child->first_child) {
-		return;
+	for(int64_t i=0; i < child.child_count; i++) {
+		add_child(node, child.children[i]);
 	}
-	
-	if(node->last_child) {
-		node->last_child->next = child->first_child;
-	}
-	else {
-		node->first_child = child->first_child;
-	}
-	
-	node->last_child = child->first_child;
 }
 
-static Node *p_TOKEN(TokenType type, char *name)
+static Node p_TOKEN(TokenType type, char *name)
 {
 	if(cur->type == type) {
-		Node *node = new_node();
-		node->type = 1;
-		node->name = name;
-		node->token = cur;
-		cur ++;
-		return node;
+		return new_token_node(name, last = cur ++);
 	}
 	
-	return 0;
+	return new_invalid_node();
 }
 
-static Node *p_LITERAL(char *text, char *name)
+static Node p_LITERAL(char *text, char *name)
 {
 	if(token_text_equals(cur, text)) {
-		Node *node = new_node();
-		node->type = 1;
-		node->name = name;
-		node->token = cur;
-		cur ++;
-		return node;
+		return new_token_node(name, last = cur ++);
 	}
 	
-	return 0;
+	return new_invalid_node();
 }
 
 #include "autoparser.c"
 
-Node *parse_tree(Tokens *tokens)
+Node parse_tree(Tokens *tokens)
 {
 	cur = tokens->first;
+	last = 0;
 	src_end = tokens->last->start + tokens->last->length;
 	return p_unit(tokens->first);
 }

@@ -32,6 +32,13 @@ static Symbol *new_literal(char *name, int64_t line)
 	return new_symbol(SY_LITERAL, name, line);
 }
 
+static Symbol *new_catch(bool after, char *msg, int64_t line)
+{
+	Symbol *sym = new_symbol(SY_CATCH, msg, line);
+	sym->after = after;
+	return sym;
+}
+
 static Alt *new_alt()
 {
 	Alt *alt = malloc(sizeof(Alt));
@@ -91,7 +98,20 @@ static Syntax *resolve_syntax(Syntax *syntax)
 	return syntax;
 }
 
-static void print_syntax(Syntax *syntax)
+static char *skimx(char *pos, int64_t *line)
+{
+	while(isspace(*pos)) {
+		if(*pos == '\n') {
+			(*line) ++;
+		}
+		
+		pos ++;
+	}
+	
+	return pos;
+}
+
+void print_syntax(Syntax *syntax)
 {
 	for(Rule *rule = syntax->rules; rule; rule = rule->next) {
 		printf("%s\n", rule->name);
@@ -123,19 +143,6 @@ static void print_syntax(Syntax *syntax)
 	}
 }
 
-static char *skimx(char *pos, int64_t *line)
-{
-	while(isspace(*pos)) {
-		if(*pos == '\n') {
-			(*line) ++;
-		}
-		
-		pos ++;
-	}
-	
-	return pos;
-}
-
 Syntax *parse_syntax(char *src)
 {
 	char *pos = src;
@@ -165,6 +172,17 @@ Syntax *parse_syntax(char *src)
 		word = malloc(len + 1); \
 		word[len] = 0; \
 		memcpy(word, start, len); \
+	} while(0)
+	
+	#define scan_str() do { \
+		pos ++; \
+		start = pos; \
+		while(*pos && *pos != '"') pos ++; \
+		len = pos - start; \
+		word = malloc(len + 1); \
+		word[len] = 0; \
+		memcpy(word, start, len); \
+		if(!eat("\"")) error("expected \""); \
 	} while(0)
 	
 	Syntax *syntax = new_syntax();
@@ -201,7 +219,29 @@ Syntax *parse_syntax(char *src)
 					fold = true;
 				}
 				
-				if(match_lower()) {
+				if(eat("#")) {
+					scan_word();
+					
+					if(strcmp(word, "catch_after") == 0) {
+						if(!match("\"")) {
+							error("expected string");
+						}
+						
+						scan_str();
+						symbol = new_catch(true, word, line);
+						swallow = true;
+					}
+					else if(strcmp(word, "catch_before") == 0) {
+						if(!match("\"")) {
+							error("expected string");
+						}
+						
+						scan_str();
+						symbol = new_catch(false, word, line);
+						swallow = false;
+					}
+				}
+				else if(match_lower()) {
 					scan_word();
 					symbol = new_nonterm(word, line);
 				}

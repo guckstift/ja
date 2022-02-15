@@ -1,24 +1,28 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 #include "syntax.h"
 
 void gen_parser(Syntax *syntax)
 {
 	for(Rule *rule = syntax->rules; rule; rule = rule->next) {
 		printf(
-			"static Node *p_%s();\n"
+			"static Node p_%s();\n"
 			,rule->name
 		);
 	}
 	
 	for(Rule *rule = syntax->rules; rule; rule = rule->next) {
+		bool catch = false;
+		char *msg = "";
+		bool after = false;
+		
 		printf(
-			"\nstatic Node *p_%s() {\n"
+			"\nstatic Node p_%s() {\n"
 			"	Token *start = cur;\n"
-			"	Node *node = new_node();\n"
-			"	node->name = \"%s\";\n"
-			"	Node *child = 0;\n"
+			"	Node node = new_nonterm_node(\"%s\");\n"
+			"	Node child = {0};\n"
 			,rule->name
 			,rule->name
 		);
@@ -28,18 +32,26 @@ void gen_parser(Syntax *syntax)
 			
 			printf(
 				"	cur = start;\n"
-				"	clear_node(node);\n"
+				"	clear_node(&node);\n"
 				"	do {\n"
 			);
 			
 			for(Symbol *symbol = alt->symbols; symbol; symbol = symbol->next) {
 				if(symbol->type == SY_NONTERM) {
 					printf(
-						"		if(!(child = p_%s())) {\n"
+						"		if((child = p_%s()).type == ND_INVALID) {\n"
 						,symbol->rule->name
 					);
 					
-					if(latch) {
+					if(catch) {
+						printf(
+							"			fatal_%s, \"%s\");\n"
+							"		}\n"
+							,after ? "after(last" : "at(cur"
+							,msg
+						);
+					}
+					else if(latch) {
 						printf(
 							"			fatal_at(cur, \"expected %s\");\n"
 							"		}\n"
@@ -49,12 +61,21 @@ void gen_parser(Syntax *syntax)
 				}
 				else if(symbol->type == SY_TOKEN) {
 					printf(
-						"		if(!(child = p_TOKEN(TK_%s, \"%s\"))) {\n"
+						"		if((child = p_TOKEN(TK_%s, \"%s\")).type == "
+							"ND_INVALID) {\n"
 						,symbol->name
 						,symbol->name
 					);
 					
-					if(latch) {
+					if(catch) {
+						printf(
+							"			fatal_%s, \"%s\");\n"
+							"		}\n"
+							,after ? "after(last" : "at(cur"
+							,msg
+						);
+					}
+					else if(latch) {
 						printf(
 							"			fatal_at(cur, \"expected %s\");\n"
 							"		}\n"
@@ -64,13 +85,21 @@ void gen_parser(Syntax *syntax)
 				}
 				else if(symbol->type == SY_LITERAL) {
 					printf(
-						"		if(!(child = p_LITERAL("
-							"\"%s\", \"\\\"%s\\\"\"))) {\n"
+						"		if((child = p_LITERAL("
+							"\"%s\", \"\\\"%s\\\"\")).type == ND_INVALID) {\n"
 						,symbol->name
 						,symbol->name
 					);
 					
-					if(latch) {
+					if(catch) {
+						printf(
+							"			fatal_%s, \"%s\");\n"
+							"		}\n"
+							,after ? "after(last" : "at(cur"
+							,msg
+						);
+					}
+					else if(latch) {
 						printf(
 							"			fatal_at("
 								"cur, \"expected \\\"%s\\\"\");\n"
@@ -81,6 +110,12 @@ void gen_parser(Syntax *syntax)
 				}
 				else if(symbol->type == SY_LATCH) {
 					latch = true;
+					continue;
+				}
+				else if(symbol->type == SY_CATCH) {
+					catch = true;
+					msg = symbol->msg;
+					after = symbol->after;
 					continue;
 				}
 				
@@ -94,28 +129,29 @@ void gen_parser(Syntax *syntax)
 				if(!symbol->swallow) {
 					if(symbol->merge) {
 						printf(
-							"		merge_child(node, child);\n"
-							"		free(child);\n"
+							"		merge_child(&node, child);\n"
+							//"		free(child);\n"
 						);
 					}
 					else if(symbol->fold) {
 						printf(
-							"		if(child->first_child && "
-								"child->first_child->next == 0) {\n"
-							"			merge_child(node, child);\n"
-							"			free(child);\n"
+							"		if(child.child_count == 1) {\n"
+							"			merge_child(&node, child);\n"
+							//"			free(child);\n"
 							"		}\n"
-							"		else if(child->first_child) {\n"
-							"			add_child(node, child);\n"
+							"		else if(child.child_count > 1) {\n"
+							"			add_child(&node, child);\n"
 							"		}\n"
 						);
 					}
 					else {
 						printf(
-							"		add_child(node, child);\n"
+							"		add_child(&node, child);\n"
 						);
 					}
 				}
+				
+				catch = false;
 			}
 			
 			printf(
@@ -125,8 +161,8 @@ void gen_parser(Syntax *syntax)
 		}
 		
 		printf(
-			"	delete_node(node);\n"
-			"	return 0;\n"
+			"	delete_node(&node);\n"
+			"	return new_invalid_node();\n"
 			"}\n"
 		);
 	}
@@ -141,6 +177,12 @@ int main(int argc, char *argv[])
 	src[len] = 0;
 	fread(src, 1, len, stdin);
 	Syntax *syntax = parse_syntax(src);
+	
+	if(argc >= 2 && strcmp(argv[1] , "-p") == 0) {
+		print_syntax(syntax);
+		return 0;
+	}
+	
 	gen_parser(syntax);
 	return 0;
 }

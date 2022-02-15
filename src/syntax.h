@@ -10,16 +10,17 @@ typedef enum {
 	SY_TOKEN,
 	SY_LITERAL,
 	SY_LATCH,
+	SY_CATCH,
 } SymbolType;
 
 typedef struct Symbol {
 	struct Symbol *next;
 	int64_t line;
-	bool swallow;
+	union { bool swallow; bool after; };
 	bool merge;
 	bool fold;
 	SymbolType type;
-	union { char *name; struct Rule *rule; };
+	union { char *name; char *msg; struct Rule *rule; };
 } Symbol;
 
 typedef struct Alt {
@@ -37,6 +38,7 @@ typedef struct {
 	Rule *rules;
 } Syntax;
 
+void print_syntax(Syntax *syntax);
 Syntax *parse_syntax(char *src);
 
 #endif

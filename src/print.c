@@ -196,15 +196,15 @@ static void print_token(Token *token)
 {
 	switch(token->type) {
 		case TK_IDENT:
-			printf("IDENT   ");
+			printf("IDENT ");
 			print_ident(token);
 			break;
 		case TK_INT:
-			printf("INT     ");
+			printf("INT ");
 			print_int(token->ival);
 			break;
 		case TK_STRING:
-			printf("STRING  ");
+			printf("STRING ");
 			print_string(token->string, token->string_length);
 			break;
 		
@@ -219,7 +219,7 @@ static void print_token(Token *token)
 		
 		#define F(x, y) \
 			case TK_ ## y: \
-				printf("PUNCT   " x); \
+				printf("PUNCT " x); \
 				break;
 		
 		PUNCTS(F)
@@ -511,26 +511,29 @@ void print_c_code(char *c_filename)
 	fclose(fs);
 }
 
-static void print_node(Node *node)
+static void print_node(Node node)
 {
-	if(node->type == 0) {
+	if(node.type == ND_NONTERM) {
 		print_indent();
-		printf("%s\n", node->name);
+		printf("%s\n", node.name);
 		
-		for_list(Node, child, node->first_child, next) {
+		for(int64_t i=0; i < node.child_count; i++) {
 			level ++;
-			print_node(child),
+			print_node(node.children[i]),
 			level --;
 		}
 	}
-	else {
+	else if(node.type == ND_TOKEN) {
 		print_indent();
-		printf("%s\n", node->name);
+		print_token(node.token);
+		printf("\n");
+		//printf("%s\n", node.name);
 	}
 }
 
-void print_tree(Node *tree)
+void print_tree(Node tree)
 {
 	level = 0;
+	printf(COL_YELLOW "=== tree ===" COL_RESET "\n");
 	print_node(tree);
 }

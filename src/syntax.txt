@@ -1,4 +1,5 @@
-unit = stmts ;
+unit = stmts !
+	#catch_before "not a valid statement" EOF ;
 
 stmts = +stmt +stmts | ;
 
@@ -6,11 +7,20 @@ stmt =
 	print | var | func | struct | if | while | return | import | export |
 	assign_or_call ;
 
-print = -"print" ! expr ";" ;
-var = -"var" ! IDENT +colon_type +var_init -";" ;
-colon_type = -":" ! type | ;
+print = -"print" ! +expr
+	#catch_after "missing semicolon after print statement" -";" ;
+
+var = -"var" ! IDENT
+	#catch_after "variable declared without type or initializer"
+	+var_x
+	#catch_after "missing semicolon after variable declaration" -";" ;
+
+var_x = +colon_type +var_init | +var_init ;
+colon_type = -":" ! type ;
 var_init = -"=" ! expr | ;
+
 func = -"function" ! IDENT -"(" -")" colon_type "{" stmts "}" ;
+
 struct = -"struct" ! IDENT "{" vars "}" ;
 vars = var vars | ;
 if = -"if" ! expr "{" stmts "}" else ;
@@ -35,25 +45,25 @@ primtype =
 	"bool" | "string" ;
 
 nametype = IDENT ;
-ptrtype = ">" type ;
-arraytype = "[" INT "]" type ;
+ptrtype = -">" ! +type ;
+arraytype = -"[" ! INT -"]" type ;
 
 exprs = expr exprs_x | ;
 exprs_x = "," exprs | ;
 
 expr = ~binop ;
-binop = ~prefix ~binop_x ;
-binop_x = op binop | ;
+binop = ~prefix +binop_x ;
+binop_x = op +binop | ;
 op = "+" | "-" ;
 prefix = ptr | deref | ~postfix ;
-ptr = ">" ! prefix ;
-deref = "<" ! prefix ;
+ptr = -">" ! ~prefix ;
+deref = -"<" ! ~prefix ;
 postfix = atom ~postfix_x ;
-postfix_x = postfix_s postfix_x | ;
+postfix_x = ~postfix_s +postfix_x | ;
 postfix_s = cast_x | call_x | subscript_x | member_x ;
-cast_x = "as" ! type ;
+cast_x = -"as" ! +type ;
 call_x = "(" ")" ;
-subscript_x = "[" expr "]" ;
+subscript_x = -"[" +expr -"]" ;
 member_x = "." IDENT ;
 atom = INT | "false" | "true" | STRING | "(" expr ")" | IDENT | array ;
 array = "[" exprs "]" ;

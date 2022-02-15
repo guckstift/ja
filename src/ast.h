@@ -3,19 +3,6 @@
 
 #include "lex.h"
 
-typedef struct Node {
-	int type; // 0 = nonterm ; 1 = token
-	struct Node *next;
-	char *name;
-	union {
-		struct {
-			struct Node *first_child;
-			struct Node *last_child;
-		};
-		Token *token;
-	};
-} Node;
-
 typedef struct Unit Unit;
 
 typedef enum {
