@@ -1,5 +1,6 @@
 CFILES = \
-	ast.c build.c eval.c gen.c lex.c main.c parse.c print.c utils.c
+	ast.c build.c eval.c gen.c lex.c main.c parse.c parse_expr.c print.c \
+	utils.c
 
 HFILES = \
 	ast.h build.h eval.h gen.h lex.h parse.h print.h runtime.inc.h utils.h
