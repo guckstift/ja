@@ -1,20 +1,4 @@
 
-var x = 10;
+var x = "hello";
 
-export function bar() : [1]int;
-
-function foo()
-{
-	if x > 0 {
-		print x;
-		bar();
-	}
-}
-
-function bar() : [1]int
-{
-	x = x - 1;
-	foo();
-}
-
-foo();
+print x == "hello";

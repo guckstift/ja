@@ -265,9 +265,23 @@ static void gen_expr(Expr *expr)
 			}
 			break;
 		case BINOP:
-			write(
-				"(%e %s %e)", expr->left, expr->operator->punct, expr->right
-			);
+			if(
+				expr->left->dtype->kind == STRING &&
+				expr->operator->type == TK_EQUALS
+			) {
+				write(
+					"(%e.length == %e.length && "
+					"memcmp(%e.string, %e.string, %e.length) == 0)",
+					expr->left, expr->right,
+					expr->left, expr->right, expr->left
+				);
+			}
+			else {
+				write(
+					"(%e %s %e)",
+					expr->left, expr->operator->punct, expr->right
+				);
+			}
 			break;
 		case ARRAY:
 			write("((%Y){", expr->dtype);

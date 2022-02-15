@@ -598,6 +598,11 @@ static Expr *p_binop(int level)
 				expr->right = cast_expr(expr->right, expr->dtype, 0);
 			}
 		}
+		else if(ltype->kind == STRING && rtype->kind == STRING) {
+			if(operator->type == TK_EQUALS) {
+				expr->dtype = new_type(BOOL);
+			}
+		}
 		else {
 			fatal_at(
 				expr->operator,

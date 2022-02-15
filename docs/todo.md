@@ -12,6 +12,7 @@
 * binops == != <= >= < >
 * binops + - * // %
 * function prototypes
+* compare strings equal
 
 # wip
 
