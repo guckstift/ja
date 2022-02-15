@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include "lex.h"
 #include "parse.h"
+#include "parser.h"
 
 void vprint_error(
 	int64_t line, char *linep, char *src_end, char *err_pos, char *msg,
@@ -17,5 +18,6 @@ void print_error(
 void print_tokens(Tokens *tokens);
 void print_ast(Stmt *stmts);
 void print_c_code(char *c_filename);
+void print_tree(Node tree);
 
 #endif

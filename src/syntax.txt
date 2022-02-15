@@ -1,0 +1,70 @@
+unit = stmts !
+	#catch_before "not a valid statement" EOF ;
+
+stmts = +stmt +stmts | ;
+
+stmt =
+	print | var | func | struct | if | while | return | import | export |
+	assign_or_call ;
+
+print = -"print" ! +expr
+	#catch_after "missing semicolon after print statement" -";" ;
+
+var = -"var" ! IDENT
+	#catch_after "variable declared without type or initializer"
+	+var_x
+	#catch_after "missing semicolon after variable declaration" -";" ;
+
+var_x = +colon_type +var_init | +var_init ;
+colon_type = -":" ! type ;
+var_init = -"=" ! expr | ;
+
+func = -"function" ! IDENT -"(" -")" colon_type "{" stmts "}" ;
+
+struct = -"struct" ! IDENT "{" vars "}" ;
+vars = var vars | ;
+if = -"if" ! expr "{" stmts "}" else ;
+else = -"else" ! "{" stmts "}" | ;
+while = -"while" ! expr "{" stmts "}" ;
+return = -"return" ! expr ";" ;
+import = -"import" ! import_from STRING ";" ;
+import_from = idents "from" | ;
+idents = IDENT idents_x ;
+idents_x = -"," idents | ;
+export = -"export" ! export_decl ;
+export_decl = var | func | struct ;
+assign_or_call = expr assign_or_call_x ";" ;
+assign_or_call_x = assign_x | call_x ;
+assign_x = -"=" expr ;
+
+type = primtype | nametype | ptrtype | arraytype ;
+
+primtype =
+	"int" | "int8" | "int16" | "int32" | "int64" |
+	"uint" | "uint8" | "uint16" | "uint32" | "uint64" |
+	"bool" | "string" ;
+
+nametype = IDENT ;
+ptrtype = -">" ! +type ;
+arraytype = -"[" ! INT -"]" type ;
+
+exprs = expr exprs_x | ;
+exprs_x = "," exprs | ;
+
+expr = ~binop ;
+binop = ~prefix +binop_x ;
+binop_x = op +binop | ;
+op = "+" | "-" ;
+prefix = ptr | deref | ~postfix ;
+ptr = -">" ! ~prefix ;
+deref = -"<" ! ~prefix ;
+postfix = atom ~postfix_x ;
+postfix_x = ~postfix_s +postfix_x | ;
+postfix_s = cast_x | call_x | subscript_x | member_x ;
+cast_x = -"as" ! +type ;
+call_x = "(" ")" ;
+subscript_x = -"[" +expr -"]" ;
+member_x = "." IDENT ;
+atom = INT | "false" | "true" | STRING | "(" expr ")" | IDENT | array ;
+array = "[" exprs "]" ;
+
