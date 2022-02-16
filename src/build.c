@@ -105,7 +105,8 @@ static int dir_exists(char *dirname)
 
 static Unit *build_unit(char *filename, int ismain)
 {
-	for(Unit *unit = project->first; unit; unit = unit->next) {
+	array_for(project->units, i) {
+		Unit *unit = project->units[i];
 		if(strcmp(unit->src_filename, filename) == 0) {
 			return unit;
 		}
@@ -118,7 +119,6 @@ static Unit *build_unit(char *filename, int ismain)
 	
 	Unit *unit = malloc(sizeof(Unit));
 	unit->ismain = ismain;
-	unit->next = 0;
 	unit->src_filename = filename;
 	unit->unit_id = idfy(unit->src_filename);
 	
@@ -144,14 +144,7 @@ static Unit *build_unit(char *filename, int ismain)
 	fread(unit->src, 1, unit->src_len, fs);
 	fclose(fs);
 	
-	if(project->first) {
-		project->last->next = unit;
-		project->last = unit;
-	}
-	else {
-		project->first = unit;
-		project->last = unit;
-	}
+	array_push(project->units, unit);
 	
 	unit->tokens = lex(unit->src, unit->src_len);
 	#ifdef JA_DEBUG
@@ -217,8 +210,7 @@ Unit *import(char *filename)
 void build(char *main_filename)
 {
 	project = malloc(sizeof(Project));
-	project->first = 0;
-	project->last = 0;
+	project->units = 0;
 	
 	cache_dir = 0;
 	str_append(cache_dir, getenv("HOME"));
@@ -242,7 +234,8 @@ void build(char *main_filename)
 	str_append(cmd, "gcc -o ");
 	str_append(cmd, exe_filename);
 	
-	for(Unit *unit = project->first; unit; unit = unit->next) {
+	array_for(project->units, i) {
+		Unit *unit = project->units[i];
 		str_append(cmd, " ");
 		str_append(cmd, unit->obj_filename);
 		

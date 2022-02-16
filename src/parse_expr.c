@@ -5,7 +5,7 @@
 #include "parse_utils.h"
 
 static Expr *p_expr();
-static Expr *p_exprs();
+static Expr **p_exprs();
 static Expr *p_prefix();
 
 static Type *p_type()
@@ -56,32 +56,25 @@ Expr *cast_expr(Expr *expr, Type *dtype, int explicit)
 	) {
 		// array literal => cast each item to itemtype
 		if(expr->kind == ARRAY) {
-			for(
-				Expr *prev = 0, *item = expr->exprs;
-				item;
-				prev = item, item = item->next
-			) {
-				Expr *new_item = cast_expr(item, dtype->itemtype, explicit);
-				if(prev) prev->next = new_item;
-				else expr->exprs = new_item;
-				new_item->next = item->next;
-				item = new_item;
+			array_for(expr->exprs, i) {
+				expr->exprs[i] = cast_expr(
+					expr->exprs[i], dtype->itemtype, explicit
+				);
 			}
 			stype->itemtype = dtype->itemtype;
 			return expr;
 		}
 		// no array literal => create new array literal with cast items
 		else {
-			Expr *first = 0;
-			Expr *last = 0;
+			Expr **new_items = 0;
 			for(int64_t i=0; i < stype->length; i++) {
 				Expr *index = new_int_expr(i, expr->start);
 				Expr *subscript = new_subscript(expr, index);
 				Expr *item = cast_expr(subscript, dtype->itemtype, explicit);
-				headless_list_push(first, last, next, item);
+				array_push(new_items, item);
 			}
 			return new_array_expr(
-				first, stype->length, expr->isconst,
+				new_items, stype->length, expr->isconst,
 				dtype->itemtype, expr->start
 			);
 		}
@@ -117,8 +110,7 @@ static Expr *p_array()
 	if(!eat(TK_LBRACK)) return 0;
 	
 	Token *start = last;
-	Expr *first = 0;
-	Expr *last_expr = 0;
+	Expr **items = 0;
 	Type *itemtype = 0;
 	uint64_t length = 0;
 	int isconst = 1;
@@ -127,7 +119,7 @@ static Expr *p_array()
 		Expr *item = p_expr();
 		if(!item) break;
 		isconst = isconst && item->isconst;
-		if(first) {
+		if(items) {
 			if(!type_equ(itemtype, item->dtype)) {
 				item = cast_expr(item, itemtype, 0);
 			}
@@ -135,7 +127,7 @@ static Expr *p_array()
 		else {
 			itemtype = item->dtype;
 		}
-		headless_list_push(first, last_expr, next, item);
+		array_push(items, item);
 		length ++;
 		if(!eat(TK_COMMA)) break;
 	}
@@ -146,7 +138,7 @@ static Expr *p_array()
 	if(length == 0)
 		fatal_at(last, "empty array literal is not allowed");
 	
-	return new_array_expr(first, length, isconst, itemtype, start);
+	return new_array_expr(items, length, isconst, itemtype, start);
 }
 
 static Expr *p_atom()
@@ -192,7 +184,7 @@ static Expr *p_call_x(Expr *expr)
 	if(expr->dtype->kind != FUNC)
 		fatal_at(expr->start, "not a function you are calling");
 	
-	Expr *args = p_exprs();
+	Expr **args = p_exprs();
 	
 	if(!eat(TK_RPAREN))
 		fatal_after(last, "expected ) after argument list");
@@ -266,7 +258,7 @@ static Expr *p_member_x(Expr *expr)
 	}
 	
 	Decl *struct_decl = dtype->typedecl;
-	Scope *struct_scope = struct_decl->body->scope;
+	Scope *struct_scope = struct_decl->body[0]->scope;
 	Decl *decl = lookup_flat_in(ident->id, struct_scope);
 	
 	if(!decl)
@@ -423,19 +415,18 @@ static Expr *p_expr()
 	return p_binop(0);
 }
 
-static Expr *p_exprs()
+static Expr **p_exprs()
 {
-	Expr *first_expr = 0;
-	Expr *last_expr = 0;
+	Expr **exprs = 0;
 	
 	while(1) {
 		Expr *expr = p_expr();
 		if(!expr) break;
-		headless_list_push(first_expr, last_expr, next, expr);
+		array_push(exprs, expr);
 		if(!eat(TK_COMMA)) break;
 	}
 	
-	return first_expr;
+	return exprs;
 }
 
 Expr *p_expr_pub(ParseState *state)

@@ -112,7 +112,6 @@ Expr *new_expr(Kind kind, Token *start)
 	Expr *expr = malloc(sizeof(Expr));
 	expr->kind = kind;
 	expr->start = start;
-	expr->next = 0;
 	return expr;
 }
 
@@ -158,7 +157,7 @@ Expr *new_var_expr(Token *id, Type *dtype, Token *start)
 }
 
 Expr *new_array_expr(
-	Expr *exprs, int64_t length, int isconst, Type *itemtype, Token *start
+	Expr **exprs, int64_t length, int isconst, Type *itemtype, Token *start
 ) {
 	Expr *expr = new_expr(ARRAY, start);
 	expr->exprs = exprs;
@@ -233,7 +232,6 @@ Stmt *new_stmt(Kind kind, Token *start, Scope *scope)
 	Stmt *stmt = malloc(sizeof(Stmt));
 	stmt->kind = kind;
 	stmt->start = start;
-	stmt->next = 0;
 	stmt->scope = scope;
 	stmt->as_decl.exported = 0;
 	stmt->as_decl.imported = 0;
@@ -255,20 +253,18 @@ Decl *new_vardecl(
 	decl->id = id;
 	decl->dtype = dtype;
 	decl->init = init;
-	decl->next_decl = 0;
 	decl->builtin = 0;
 	return decl;
 }
 
 Decl *new_funcdecl(
-	Token *id, Type *dtype, int exported, Stmt *body, int isproto,
+	Token *id, Type *dtype, int exported, Stmt **body, int isproto,
 	Token *start, Scope *scope
 ) {
 	Decl *decl = (Decl*)new_stmt(FUNC, start, scope);
 	decl->exported = exported;
 	decl->id = id;
 	decl->dtype = dtype;
-	decl->next_decl = 0;
 	decl->body = body;
 	decl->isproto = isproto;
 	decl->builtin = 0;
@@ -280,14 +276,13 @@ Import *new_import(Token *filename, Unit *unit, Token *start, Scope *scope)
 	Import *import = (Import*)new_stmt(IMPORT, start, scope);
 	import->filename = filename;
 	import->unit = unit;
-	import->next_import = 0;
 	return import;
 }
 
 Decl *lookup_flat_in(Token *id, Scope *scope)
 {
-	for_list(Decl, decl, scope->first_decl, next_decl) {
-		if(decl->id == id) return decl;
+	array_for(scope->decls, i) {
+		if(scope->decls[i]->id == id) return scope->decls[i];
 	}
 	
 	return 0;

@@ -4,7 +4,7 @@
 
 #include "parse_utils.h"
 
-static Stmt *p_stmts(int enter_scope);
+static Stmt **p_stmts(int enter_scope);
 
 static Expr *p_expr()
 {
@@ -29,7 +29,6 @@ static int declare(Decl *new_decl)
 	if(new_decl->scope != scope) {
 		// from foreign scope => import
 		new_decl = (Decl*)clone_stmt((Stmt*)new_decl);
-		new_decl->next_decl = 0;
 		new_decl->imported = 1;
 	}
 	else {
@@ -44,8 +43,7 @@ static int declare(Decl *new_decl)
 		return 0;
 	}
 	
-	list_push(scope, first_decl, last_decl, next_decl, new_decl);
-	
+	array_push(scope->decls, new_decl);
 	return 1;
 }
 
@@ -71,12 +69,10 @@ static void enter()
 	Scope *new_scope = malloc(sizeof(Scope));
 	new_scope->parent = scope;
 	scope = new_scope;
-	scope->first_decl = 0;
-	scope->last_decl = 0;
+	scope->decls = 0;
 	scope->func = scope->parent ? scope->parent->func : 0;
 	scope->struc = 0;
-	scope->first_import = 0;
-	scope->last_import = 0;
+	scope->imports = 0;
 }
 
 static Scope *leave()
@@ -194,36 +190,34 @@ static Stmt *p_vardecl(int exported)
 	return (Stmt*)core;
 }
 
-static Stmt *p_vardecls(Decl *struc)
+static Stmt **p_vardecls(Decl *struc)
 {
 	enter();
 	if(struc) scope->struc = struc;
 	
-	Stmt *first_decl = 0;
-	Stmt *last_decl = 0;
+	Stmt **decls = 0;
 	while(1) {
 		Stmt *decl = p_vardecl(0);
 		if(!decl) break;
-		headless_list_push(first_decl, last_decl, next, decl);
+		array_push(decls, decl);
 	}
 	
 	leave();
-	return first_decl;
+	return decls;
 }
 
-static Stmt *p_params()
+static Stmt **p_params()
 {
-	Stmt *first_param = 0;
-	Stmt *last_param = 0;
+	Stmt **params = 0;
 	
 	while(1) {
 		Stmt *param = p_vardecl_core(0, 0, 1);
 		if(!param) break;
-		headless_list_push(first_param, last_param, next, param);
+		array_push(params, param);
 		if(!eat(TK_COMMA)) break;
 	}
 	
-	return first_param;
+	return params;
 }
 
 static Stmt *p_funcdecl(int exported)
@@ -242,7 +236,7 @@ static Stmt *p_funcdecl(int exported)
 		fatal_after(last, "expected ( after function name");
 	
 	enter();
-	Stmt *params = p_params();
+	Stmt **params = p_params();
 	Scope *func_scope = leave();
 	
 	if(!eat(TK_RPAREN))
@@ -267,8 +261,7 @@ static Stmt *p_funcdecl(int exported)
 	decl->exported = exported;
 	decl->id = ident->id;
 	decl->dtype = dtype;
-	decl->next_decl = 0;
-	decl->params = (Decl*)params;
+	decl->params = (Decl**)params;
 	
 	if(!declare(decl)) {
 		Decl *existing_decl = lookup(decl->id);
@@ -325,7 +318,6 @@ static Stmt *p_structdecl(int exported)
 	Decl *decl = (Decl*)new_stmt(STRUCT, start, scope);
 	decl->exported = exported;
 	decl->id = ident->id;
-	decl->next_decl = 0;
 	
 	if(!declare(decl))
 		fatal_at(ident, "name %t already declared", ident);
@@ -358,7 +350,8 @@ static Stmt *p_ifstmt()
 		
 	if(eat(TK_else)) {
 		if(match(TK_if)){
-			stmt->else_body = p_ifstmt();
+			stmt->else_body = 0;
+			array_push(stmt->else_body, p_ifstmt());
 		}
 		else {
 			if(!eat(TK_LCURLY))
@@ -459,19 +452,19 @@ static Stmt *p_import()
 	
 	Unit *unit = import(filename->string);
 	
-	for_list(Import, import, scope->first_import, next_import) {
-		if(unit == import->unit)
+	array_for(scope->imports, i) {
+		if(unit == scope->imports[i]->unit)
 			fatal_at(start, "unit already imported");
 	}
 	
 	Token *ident = first_ident;
 	
 	for(int64_t i=0; i < ident_count; i++) {
-		Stmt *unit_stmts = unit->stmts;
+		Stmt **unit_stmts = unit->stmts;
 		Decl *found_decl = 0;
 		
 		if(unit_stmts) {
-			Scope *unit_scope = unit_stmts->scope;
+			Scope *unit_scope = unit_stmts[0]->scope;
 			Decl *decl = lookup_in(ident->id, unit_scope);
 			
 			if(decl && decl->exported) {
@@ -491,7 +484,7 @@ static Stmt *p_import()
 	Import *import = new_import(filename, unit, start, scope);
 	import->imported_idents = first_ident;
 	import->imported_ident_count = ident_count;
-	list_push(scope, first_import, last_import, next_import, import);
+	array_push(scope->imports, import);
 	
 	return (Stmt*)import;
 }
@@ -559,7 +552,7 @@ static Stmt *p_stmt()
 	return stmt;
 }
 
-static Stmt *p_stmts(int enter_scope)
+static Stmt **p_stmts(int enter_scope)
 {
 	if(enter_scope) enter();
 	
@@ -567,23 +560,22 @@ static Stmt *p_stmts(int enter_scope)
 		declare_builtins();
 	}
 	
-	Stmt *first_stmt = 0;
-	Stmt *last_stmt = 0;
+	Stmt **stmts = 0;
 	while(1) {
 		Stmt *stmt = p_stmt();
 		if(!stmt) break;
 		if(stmt->kind == FUNC && stmt->as_decl.isproto == 1) continue;
-		headless_list_push(first_stmt, last_stmt, next, stmt);
+		array_push(stmts, stmt);
 	}
 	
 	if(enter_scope) leave();
-	return first_stmt;
+	return stmts;
 }
 
-Stmt *p_stmts_pub(ParseState *state, int enter_scope)
+Stmt **p_stmts_pub(ParseState *state, int enter_scope)
 {
 	unpack_state(state);
-	Stmt *stmt = p_stmts(enter_scope);
+	Stmt **stmt = p_stmts(enter_scope);
 	pack_state(state);
 	return stmt;
 }

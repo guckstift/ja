@@ -31,3 +31,19 @@ char *_str_append_token(char *dest, Token *token)
 	}
 	return dest;
 }
+
+int64_t array_length_get(void *array)
+{
+	if(!array) return 0;
+	return ((int64_t*)array)[-1];
+}
+
+void *array_resize_impl(void *array, int64_t length, int64_t itemsize)
+{
+	void *base = 0;
+	if(array) base = ((int64_t*)array) - 1;
+	base = realloc(base, sizeof(int64_t) + length * itemsize);
+	array = ((int64_t*)base) + 1;
+	*(int64_t*)base = length;
+	return array;
+}

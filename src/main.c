@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include "print.h"
 #include "build.h"
-#include "array.h"
 
 static void error(char *msg, ...)
 {

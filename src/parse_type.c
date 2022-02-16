@@ -99,9 +99,10 @@ void make_type_exportable(Type *dtype)
 	
 	if(dtype->kind == STRUCT && dtype->typedecl->exported != 1) {
 		dtype->typedecl->exported = 1;
+		Stmt **body = dtype->typedecl->body;
 		
-		for_list(Stmt, member, dtype->typedecl->body, next) {
-			make_type_exportable(member->as_decl.dtype);
+		array_for(body, i) {
+			make_type_exportable(body[i]->as_decl.dtype);
 		}
 	}
 }

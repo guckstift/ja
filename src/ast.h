@@ -70,7 +70,6 @@ typedef struct Expr {
 	int isconst;
 	int islvalue;
 	Type *dtype; // (cast)
-	struct Expr *next; // next in a list
 	
 	union {
 		int64_t ival; // int, bool
@@ -78,13 +77,13 @@ typedef struct Expr {
 		Token *id; // var
 		struct Expr *subexpr; // ptr, deref, cast, subscript, member
 		struct Expr *left; // binop
-		struct Expr *exprs; // array
+		struct Expr **exprs; // array
 		struct Expr *callee; // call
 	};
 	union {
 		struct Expr *right; // binop
 		struct Expr *index; // subscript
-		struct Expr *args; // call
+		struct Expr **args; // call
 		int64_t length; // string, array
 		Token *member_id; // member
 	};
@@ -94,7 +93,7 @@ typedef struct Expr {
 #define Stmt_head \
 	Kind kind; \
 	Token *start; \
-	struct Stmt *next; /* next stmt in a list */ \
+	/*struct Stmt *next; /* next stmt in a list */ \
 	struct Scope *scope; \
 
 typedef struct Import {
@@ -103,7 +102,6 @@ typedef struct Import {
 	Token *filename; // import
 	Unit *unit; // import
 	Token *imported_idents; // import
-	struct Import *next_import; // next import in scope (import)
 	int64_t imported_ident_count; // import
 } Import;
 
@@ -119,33 +117,32 @@ typedef struct Decl {
 	
 	union {
 		Expr *init; // var
-		struct Stmt *body; // func, struct
+		struct Stmt **body; // func, struct
 	};
 	
 	int isproto; // func
 	Token *id; // identifier of decl
 	Type *dtype; // var, func
-	struct Decl *next_decl; // next decl in scope
 	int imported; // this decl is declared as a clone via import
 	char *public_id; // for exported decls
 	int exported; // this decl is exported
 	int builtin; // this decl is a builtin
-	struct Decl *params; // function params
+	struct Decl **params; // function params
 } Decl;
 
 typedef struct If {
 	Stmt_head
 	
 	Expr *expr;
-	struct Stmt *if_body;
-	struct Stmt *else_body;
+	struct Stmt **if_body;
+	struct Stmt **else_body;
 } If;
 
 typedef struct While {
 	Stmt_head
 	
 	Expr *expr;
-	struct Stmt *while_body;
+	struct Stmt **while_body;
 } While;
 
 typedef struct Assign {
@@ -188,13 +185,11 @@ typedef struct Stmt {
 } Stmt;
 
 typedef struct Scope {
-	Decl *first_decl;
-	Decl *last_decl;
+	Decl **decls;
 	struct Scope *parent;
 	Decl *func;
 	Decl *struc;
-	Import *first_import;
-	Import *last_import;
+	Import **imports;
 } Scope;
 
 Type *new_type(Kind kind);
@@ -215,7 +210,7 @@ Expr *new_string_expr(char *string, int64_t length, Token *start);
 Expr *new_bool_expr(int64_t val, Token *start);
 Expr *new_var_expr(Token *id, Type *dtype, Token *start);
 Expr *new_array_expr(
-	Expr *exprs, int64_t length, int isconst, Type *subtype, Token *start
+	Expr **exprs, int64_t length, int isconst, Type *subtype, Token *start
 );
 Expr *new_subscript(Expr *subexpr, Expr *index);
 Expr *new_cast_expr(Expr *subexpr, Type *dtype);
@@ -229,7 +224,7 @@ Decl *new_vardecl(
 	Token *id, Type *dtype, Expr *init, Token *start, Scope *scope
 );
 Decl *new_funcdecl(
-	Token *id, Type *dtype, int exported, Stmt *body, int isproto,
+	Token *id, Type *dtype, int exported, Stmt **body, int isproto,
 	Token *start, Scope *scope
 );
 Assign *new_assign(Expr *target, Expr *expr, Scope *scope);

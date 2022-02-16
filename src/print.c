@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <string.h>
 #include "print.h"
+#include "utils.h"
 
 #define COL_RESET   "\x1b[0m"
 #define COL_GREY    "\x1b[38;2;170;170;170m"
@@ -16,7 +17,7 @@
 
 static int64_t level;
 
-static void print_stmts(Stmt *stmts);
+static void print_stmts(Stmt **stmts);
 static void fprint_type(FILE *fs, Type *dtype);
 
 void vprint_error(
@@ -232,21 +233,25 @@ static void print_token(Token *token)
 	}
 }
 
-void print_tokens(Tokens *tokens)
+void print_tokens(Token *tokens)
 {
 	int64_t line_pref_len = 0;
 	int64_t last_line = 0;
 	
 	printf(COL_YELLOW "=== tokens ===" COL_RESET "\n");
 	
-	for(Token *token = tokens->first; token->type != TK_EOF; token ++) {
+	for(Token *token = tokens; token->type != TK_EOF; token ++) {
 		if(last_line != token->line) {
-			line_pref_len = print_line_num(token->line, tokens->last[-1].line);
+			line_pref_len = print_line_num(
+				token->line, array_last(tokens).line
+			);
+			
 			last_line = token->line;
 		}
 		else {
 			printf("%*c", (int)line_pref_len, ' ');
 		}
+		
 		print_token(token);
 		printf("\n");
 	}
@@ -369,10 +374,9 @@ static void print_expr(Expr *expr)
 			break;
 		case ARRAY:
 			printf("[");
-			for(Expr *item = expr->exprs; item; item = item->next) {
-				if(item != expr->exprs)
-					printf(", ");
-				print_expr(item);
+			array_for(expr->exprs, i) {
+				if(i > 0) printf(", ");
+				print_expr(expr->exprs[i]);
 			}
 			printf("]");
 			break;
@@ -381,9 +385,9 @@ static void print_expr(Expr *expr)
 			print_expr(expr->callee);
 			printf("(");
 			
-			for(Expr *arg = expr->args; arg; arg = arg->next) {
-				if(arg != expr->args) printf(", ");
-				print_expr(arg);
+			array_for(expr->args, i) {
+				if(i > 0) printf(", ");
+				print_expr(expr->args[i]);
 			}
 			
 			printf("))");
@@ -407,6 +411,30 @@ static void print_vardecl_core(Decl *decl)
 	}
 }
 
+static void print_func(Decl *func)
+{
+	print_keyword_cstr("function ");
+	print_ident(func->id);
+	printf("(");
+	
+	array_for(func->params, i) {
+		if(i > 0) printf(", ");
+		print_vardecl_core(func->params[i]);
+	}
+	
+	printf(")");
+	if(func->dtype) {
+		printf(" : ");
+		print_type(func->dtype);
+	}
+	printf(" {\n");
+	level ++;
+	print_stmts(func->body);
+	level --;
+	print_indent();
+	printf("}");
+}
+
 static void print_stmt(Stmt *stmt)
 {
 	switch(stmt->kind) {
@@ -419,29 +447,7 @@ static void print_stmt(Stmt *stmt)
 			print_vardecl_core((Decl*)stmt);
 			break;
 		case FUNC:
-			print_keyword_cstr("function ");
-			print_ident(stmt->as_decl.id);
-			printf("(");
-			
-			for(
-				Decl *param = stmt->as_decl.params; param;
-				param = (Decl*)param->next
-			) {
-				if(param != stmt->as_decl.params) printf(", ");
-				print_vardecl_core(param);
-			}
-			
-			printf(")");
-			if(stmt->as_decl.dtype) {
-				printf(" : ");
-				print_type(stmt->as_decl.dtype);
-			}
-			printf(" {\n");
-			level ++;
-			print_stmts(stmt->as_decl.body);
-			level --;
-			print_indent();
-			printf("}");
+			print_func(&stmt->as_decl);
 			break;
 		case STRUCT:
 			print_keyword_cstr("struct ");
@@ -463,12 +469,12 @@ static void print_stmt(Stmt *stmt)
 			print_indent();
 			printf("}");
 			if(stmt->as_if.else_body) {
-				Stmt *else_body = stmt->as_if.else_body;
-				if(else_body->kind == IF && else_body->next == 0) {
+				Stmt **else_body = stmt->as_if.else_body;
+				if(array_length(else_body) == 1 && else_body[0]->kind == IF) {
 					printf("\n");
 					print_indent();
 					print_keyword_cstr("else ");
-					print_stmt(else_body);
+					print_stmt(else_body[0]);
 				}
 				else {
 					printf("\n");
@@ -516,16 +522,16 @@ static void print_stmt(Stmt *stmt)
 	}
 }
 
-static void print_stmts(Stmt *stmts)
+static void print_stmts(Stmt **stmts)
 {
-	for(Stmt *stmt = stmts; stmt; stmt = stmt->next) {
+	array_for(stmts, i) {
 		print_indent();
-		print_stmt(stmt);
+		print_stmt(stmts[i]);
 		printf("\n");
 	}
 }
 
-void print_ast(Stmt *stmts)
+void print_ast(Stmt **stmts)
 {
 	level = 0;
 	printf(COL_YELLOW "=== ast ===" COL_RESET "\n");

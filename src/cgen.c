@@ -14,8 +14,8 @@ static int64_t level;
 static Unit *cur_unit;
 static int in_header;
 
-static void gen_stmts(Stmt *stmts);
-static void gen_vardecls(Stmt *stmts);
+static void gen_stmts(Stmt **stmts);
+static void gen_vardecls(Stmt **stmts);
 static void gen_vardecl(Decl *decl);
 static void gen_assign(Expr *target, Expr *expr);
 static void gen_type(Type *dtype);
@@ -23,7 +23,7 @@ static void gen_type_postfix(Type *dtype);
 static void gen_expr(Expr *expr);
 static void gen_init_expr(Expr *expr);
 static void gen_stmt(Stmt *stmt, int noindent);
-static void gen_exprs(Expr *exprs);
+static void gen_exprs(Expr **exprs);
 
 static void write(char *msg, ...)
 {
@@ -118,7 +118,7 @@ static void gen_struct_type(Type *dtype)
 		write("%X", dtype->id);
 	}
 	else if(
-		dtype->typedecl->scope != cur_unit->stmts->scope &&
+		dtype->typedecl->scope != cur_unit->stmts[0]->scope &&
 		dtype->typedecl->imported == 0
 	) {
 		write("%s", dtype->typedecl->public_id);
@@ -279,13 +279,7 @@ static void gen_binop(Expr *expr)
 static void gen_array(Expr *expr)
 {
 	write("((%Y){", expr->dtype);
-	
-	for_list(Expr, item, expr->exprs, next) {
-		if(item != expr->exprs)
-			write(", ");
-		gen_expr(item);
-	}
-	
+	gen_exprs(expr->exprs);
 	write("})");
 }
 
@@ -366,11 +360,11 @@ static void gen_expr(Expr *expr)
 	}
 }
 
-static void gen_exprs(Expr *exprs)
+static void gen_exprs(Expr **exprs)
 {
-	for(Expr *expr = exprs; expr; expr = expr->next) {
-		if(expr != exprs) write(", ");
-		gen_expr(expr);
+	array_for(exprs, i) {
+		if(i > 0) write(", ");
+		gen_expr(exprs[i]);
 	}
 }
 
@@ -378,10 +372,9 @@ static void gen_init_expr(Expr *expr)
 {
 	if(expr->kind == ARRAY) {
 		write("{");
-		for_list(Expr, item, expr->exprs, next) {
-			if(item != expr->exprs)
-				write(", ");
-			gen_init_expr(item);
+		array_for(expr->exprs, i) {
+			if(i > 0) write(", ");
+			gen_init_expr(expr->exprs[i]);
 		}
 		write("}");
 	}
@@ -397,8 +390,8 @@ static void gen_assign(Expr *target, Expr *expr)
 {
 	if(target->dtype->kind == ARRAY) {
 		if(expr->kind == ARRAY) {
-			Expr *item = expr->exprs;
-			for(uint64_t i=0; i < expr->length; i++, item = item->next) {
+			array_for(expr->exprs, i) {
+				Expr *item = expr->exprs[i];
 				gen_assign(
 					new_subscript(target, new_int_expr(i, target->start)),
 					item
@@ -491,11 +484,11 @@ static void gen_if(If *ifstmt)
 	write("%>}\n");
 	
 	if(ifstmt->else_body) {
-		Stmt *else_body = ifstmt->else_body;
+		Stmt **else_body = ifstmt->else_body;
 		
-		if(else_body->kind == IF && else_body->next == 0) {
+		if(array_length(else_body) == 1 && else_body[0]->kind == IF) {
 			write("%>else ");
-			gen_stmt(ifstmt->else_body, 1);
+			gen_stmt(ifstmt->else_body[0], 1);
 		}
 		else {
 			write("%>else {\n");
@@ -579,14 +572,14 @@ static void gen_stmt(Stmt *stmt, int noindent)
 	}
 }
 
-static void gen_stmts(Stmt *stmts)
+static void gen_stmts(Stmt **stmts)
 {
 	if(!stmts) return;
 	
 	level ++;
 	
-	for_list(Stmt, stmt, stmts, next) {
-		gen_stmt(stmt, 0);
+	array_for(stmts, i) {
+		gen_stmt(stmts[i], 0);
 	}
 	
 	level --;
@@ -696,8 +689,9 @@ static void gen_func_returntype_decl(Decl *decl)
 
 static void gen_params(Decl *func)
 {
-	for(Decl *param = func->params; param; param = (Decl*)param->next) {
-		if(param != func->params) write(", ");
+	array_for(func->params, i) {
+		Decl *param = func->params[i];
+		if(i > 0) write(", ");
 		write("%y %I%z", param->dtype, param->id, param->dtype);
 	}
 }
@@ -751,33 +745,36 @@ static void gen_funcdecl(Decl *decl)
 	write("%>}\n");
 }
 
-static void gen_structdecls(Stmt *stmts)
+static void gen_structdecls(Stmt **stmts)
 {
 	write("// structures\n");
 	
-	for_list(Stmt, stmt, stmts, next) {
+	array_for(cur_unit->stmts, i) {
+		Stmt *stmt = cur_unit->stmts[i];
 		if(stmt->kind == STRUCT) {
 			gen_structdecl((Decl*)stmt);
 		}
 	}
 }
 
-static void gen_vardecls(Stmt *stmts)
+static void gen_vardecls(Stmt **stmts)
 {
-	if(stmts && !stmts->scope->parent) write("// variables\n");
+	if(stmts && !stmts[0]->scope->parent) write("// variables\n");
 	
-	for_list(Stmt, stmt, stmts, next) {
+	array_for(cur_unit->stmts, i) {
+		Stmt *stmt = cur_unit->stmts[i];
 		if(stmt->kind == VAR) {
 			gen_vardecl((Decl*)stmt);
 		}
 	}
 }
 
-static void gen_funcprotos(Stmt *stmts)
+static void gen_funcprotos(Stmt **stmts)
 {
 	write("// function prototypes\n");
 	
-	for_list(Stmt, stmt, stmts, next) {
+	array_for(cur_unit->stmts, i) {
+		Stmt *stmt = cur_unit->stmts[i];
 		if(stmt->kind == FUNC) {
 			Decl *decl = (Decl*)stmt;
 			
@@ -792,22 +789,24 @@ static void gen_funcprotos(Stmt *stmts)
 	}
 }
 
-static void gen_funcdecls(Stmt *stmts)
+static void gen_funcdecls(Stmt **stmts)
 {
 	write("// functions\n");
 	
-	for_list(Stmt, stmt, stmts, next) {
+	array_for(cur_unit->stmts, i) {
+		Stmt *stmt = cur_unit->stmts[i];
 		if(stmt->kind == FUNC) {
 			gen_funcdecl((Decl*)stmt);
 		}
 	}
 }
 
-static void gen_imports(Stmt *stmts)
+static void gen_imports(Stmt **stmts)
 {
 	write("// imports\n");
 	
-	for_list(Stmt, stmt, stmts, next) {
+	array_for(cur_unit->stmts, i) {
+		Stmt *stmt = cur_unit->stmts[i];
 		if(stmt->kind == IMPORT) {
 			write("#include \"%s\"\n", stmt->as_import.unit->h_filename);
 			
@@ -831,14 +830,16 @@ static void gen_h()
 	write("int _%s_main(int argc, char **argv);\n", cur_unit->unit_id);
 	
 	write("// exported structures\n");
-	for_list(Stmt, stmt, cur_unit->stmts, next) {
+	array_for(cur_unit->stmts, i) {
+		Stmt *stmt = cur_unit->stmts[i];
 		if(stmt->kind == STRUCT && stmt->as_decl.exported) {
 			gen_structdecl((Decl*)stmt);
 		}
 	}
 	
 	write("// exported functions\n");
-	for_list(Stmt, stmt, cur_unit->stmts, next) {
+	array_for(cur_unit->stmts, i) {
+		Stmt *stmt = cur_unit->stmts[i];
 		if(stmt->kind == FUNC && stmt->as_decl.exported) {
 			gen_func_returntype_decl((Decl*)stmt);
 			gen_func_head((Decl*)stmt);
@@ -847,7 +848,8 @@ static void gen_h()
 	}
 	
 	write("// exported variables\n");
-	for_list(Stmt, stmt, cur_unit->stmts, next) {
+	array_for(cur_unit->stmts, i) {
+		Stmt *stmt = cur_unit->stmts[i];
 		if(stmt->kind == VAR && stmt->as_decl.exported) {
 			write(
 				"extern %y %X%z;\n",

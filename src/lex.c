@@ -17,9 +17,8 @@
 	(a)->length == (b)->length && \
 	memcmp((a)->start, (b)->start, (a)->length) == 0 \
 )
-	
-static Token *first_id = 0;
-static Token *last_id = 0;
+
+static Token **ids = 0;
 
 char *get_token_type_name(TokenType type)
 {
@@ -66,39 +65,37 @@ Token *create_id(char *start, int64_t length)
 	ident->linep = 0;
 	ident->start = start;
 	ident->length = length;
-	ident->next_id = 0;
 	
-	for(Token *id = first_id; id; id = id->next_id) {
-		if(tokequ(ident, id)) {
+	array_for(ids, i) {
+		if(tokequ(ident, ids[i])) {
 			free(ident);
-			return id;
+			return ids[i];
 		}
 	}
 	
 	ident->id = ident;
-	headless_list_push(first_id, last_id, next_id, ident);
+	array_push(ids, ident);
 	return ident;
 }
 
-Tokens *lex(char *src, int64_t src_len)
+Token *lex(char *src, int64_t src_len)
 {
 	char *src_end = src + src_len;
-	Token *token_array = 0;
-	int64_t token_count = 0;
+	Token *tokens = 0;
 	Token *last_token = 0;
 	char *pos = src;
 	int64_t line = 1;
 	char *linep = pos;
 	
 	#define emit(t) do { \
-		token_count ++; \
-		token_array = realloc(token_array, sizeof(Token) * token_count); \
-		last_token = token_array + token_count - 1; \
-		last_token->type = (t); \
-		last_token->line = line; \
-		last_token->linep = linep; \
-		last_token->start = start; \
-		last_token->length = pos - start; \
+		array_push(tokens, ((Token){ \
+			.type = (t), \
+			.line = line, \
+			.linep = linep, \
+			.start = start, \
+			.length = pos - start, \
+		})); \
+		last_token = tokens + array_length(tokens) - 1; \
 	} while(0)
 	
 	#define match(s) ( \
@@ -275,25 +272,21 @@ Tokens *lex(char *src, int64_t src_len)
 	create_id("argv", 0);
 	create_id("open", 0);
 	
-	for(Token *token = token_array; token->type != TK_EOF; token ++) {
+	for(Token *token = tokens; token->type != TK_EOF; token ++) {
 		if(token->type == TK_IDENT) {
 			token->id = 0;
-			token->next_id = 0;
-			for(Token *id = first_id; id; id = id->next_id) {
-				if(tokequ(token, id)) {
-					token->id = id;
+			array_for(ids, i) {
+				if(tokequ(token, ids[i])) {
+					token->id = ids[i];
 					break;
 				}
 			}
 			if(token->id == 0) {
 				token->id = token;
-				headless_list_push(first_id, last_id, next_id, token);
+				array_push(ids, token);
 			}
 		}
 	}
 	
-	Tokens *tokens = malloc(sizeof(Tokens));
-	tokens->first = token_array;
-	tokens->last = last_token;
 	return tokens;
 }

@@ -86,12 +86,7 @@ Expr *eval_integral_cast(Expr *expr, Type *dtype)
 Expr *eval_subscript(Expr *expr, Expr *index)
 {
 	if(expr->kind == ARRAY && index->isconst) {
-		expr = expr->exprs;
-		while(index->ival) {
-			expr = expr->next;
-			index->ival --;
-		}
-		return expr;
+		return expr->exprs[index->ival];
 	}
 	
 	return new_subscript(expr, index);
