@@ -13,6 +13,7 @@
 * binops + - * // %
 * function prototypes
 * compare strings equal
+* function parameters
 
 # wip
 
@@ -25,7 +26,6 @@
 
 # for self hosting
 
-* function parameters
 * binops logical and, or
 * binop float division /
 * unions
