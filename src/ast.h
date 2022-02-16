@@ -54,6 +54,7 @@ typedef struct Type {
 	union {
 		int64_t length; // array (-1 = incomplete)
 		struct Decl *typedecl; // struct
+		struct Decl *func; // func decl
 	};
 } Type;
 
@@ -86,6 +87,7 @@ typedef struct Expr {
 		struct Expr **args; // call
 		int64_t length; // string, array
 		Token *member_id; // member
+		struct Decl *decl; // var
 	};
 	Token *operator; // binop
 } Expr;
@@ -196,7 +198,7 @@ Type *new_type(Kind kind);
 Type *new_ptr_type(Type *subtype);
 Type *new_array_type(int64_t length, Type *subtype);
 Type *new_dynarray_type(Type *itemtype);
-Type *new_func_type(Type *returntype);
+Type *new_func_type(Type *returntype, Decl *func);
 
 int type_equ(Type *dtype1, Type *dtype2);
 int is_integer_type(Type *dtype);
@@ -208,7 +210,7 @@ Expr *new_expr(Kind kind, Token *start);
 Expr *new_int_expr(int64_t val, Token *start);
 Expr *new_string_expr(char *string, int64_t length, Token *start);
 Expr *new_bool_expr(int64_t val, Token *start);
-Expr *new_var_expr(Token *id, Type *dtype, Token *start);
+Expr *new_var_expr(Token *id, Type *dtype, Decl *decl, Token *start);
 Expr *new_array_expr(
 	Expr **exprs, int64_t length, int isconst, Type *subtype, Token *start
 );

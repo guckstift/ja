@@ -10,4 +10,6 @@ function foo(x : int, y : >bool)
 var x = open();
 */
 
-foo(1, 2);
+var y = true;
+
+foo(1, >y);

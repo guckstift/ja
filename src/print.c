@@ -55,6 +55,10 @@ void vprint_error(
 				msg++;
 				fprintf(stderr, "%" PRIu64, va_arg(args, uint64_t));
 			}
+			else if(*msg == 'i') {
+				msg++;
+				fprintf(stderr, "%" PRIi64, va_arg(args, int64_t));
+			}
 		}
 		else {
 			fprintf(stderr, "%c", *msg);

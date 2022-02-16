@@ -532,7 +532,7 @@ static void gen_vardecl_stmt(Decl *decl)
 		if(decl->init && !decl->init->isconst) {
 			// with non-constant initializer
 			gen_assign(
-				new_var_expr(decl->id, decl->dtype, decl->start),
+				new_var_expr(decl->id, decl->dtype, decl, decl->start),
 				decl->init
 			);
 		}
@@ -641,7 +641,8 @@ static void gen_vardecl(Decl *decl)
 			// array literal initializer for local var
 			write(";\n");
 			gen_assign(
-				new_var_expr(decl->id, decl->dtype, decl->start), decl->init
+				new_var_expr(decl->id, decl->dtype, decl, decl->start),
+				decl->init
 			);
 		}
 		else {

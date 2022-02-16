@@ -42,11 +42,12 @@ Type *new_dynarray_type(Type *itemtype)
 	return new_ptr_type(new_array_type(-1, itemtype));
 }
 
-Type *new_func_type(Type *returntype)
+Type *new_func_type(Type *returntype, Decl *func)
 {
 	Type *dtype = malloc(sizeof(Type));
 	dtype->kind = FUNC;
 	dtype->returntype = returntype;
+	dtype->func = func;
 	return dtype;
 }
 
@@ -146,13 +147,14 @@ Expr *new_bool_expr(int64_t val, Token *start)
 	return expr;
 }
 
-Expr *new_var_expr(Token *id, Type *dtype, Token *start)
+Expr *new_var_expr(Token *id, Type *dtype, Decl *decl, Token *start)
 {
 	Expr *expr = new_expr(VAR, start);
 	expr->id = id;
 	expr->isconst = 0;
 	expr->islvalue = dtype->kind != FUNC;
 	expr->dtype = dtype;
+	expr->decl = decl;
 	return expr;
 }
 

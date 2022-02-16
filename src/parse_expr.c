@@ -100,9 +100,11 @@ static Expr *p_var()
 		fatal_at(last, "%t is the name of a structure", ident);
 	
 	if(decl->kind == FUNC)
-		return new_var_expr(ident->id, new_func_type(decl->dtype), ident);
+		return new_var_expr(
+			ident->id, new_func_type(decl->dtype, decl), decl, ident
+		);
 	
-	return new_var_expr(ident->id, decl->dtype, ident);
+	return new_var_expr(ident->id, decl->dtype, decl, ident);
 }
 
 static Expr *p_array()
@@ -184,7 +186,22 @@ static Expr *p_call_x(Expr *expr)
 	if(expr->dtype->kind != FUNC)
 		fatal_at(expr->start, "not a function you are calling");
 	
+	Decl *func = expr->dtype->func;
+	Decl **params = func->params;
 	Expr **args = p_exprs();
+	
+	if(array_length(args) < array_length(params)) {
+		fatal_at(
+			last, "not enough arguments, %i needed", array_length(params)
+		);
+	}
+	else if(array_length(args) > array_length(params)) {
+		fatal_at(last, "too many arguments, %i needed", array_length(params));
+	}
+	
+	array_for(args, i) {
+		args[i] = cast_expr(args[i], params[i]->dtype, 0);
+	}
 	
 	if(!eat(TK_RPAREN))
 		fatal_after(last, "expected ) after argument list");
