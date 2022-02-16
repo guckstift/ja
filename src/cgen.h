@@ -1,5 +1,5 @@
-#ifndef GEN_H
-#define GEN_H
+#ifndef CGEN_H
+#define CGEN_H
 
 #include "parse.h"
 #include "build.h"

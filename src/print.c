@@ -379,14 +379,31 @@ static void print_expr(Expr *expr)
 		case CALL:
 			printf("(");
 			print_expr(expr->callee);
-			printf("()");
-			printf(")");
+			printf("(");
+			
+			for(Expr *arg = expr->args; arg; arg = arg->next) {
+				if(arg != expr->args) printf(", ");
+				print_expr(arg);
+			}
+			
+			printf("))");
 			break;
 		case MEMBER:
 			print_expr(expr->subexpr);
 			printf(".");
 			print_ident(expr->member_id);
 			break;
+	}
+}
+
+static void print_vardecl_core(Decl *decl)
+{
+	print_ident(decl->id);
+	printf(" : ");
+	print_type(decl->dtype);
+	if(decl->init) {
+		printf(" = ");
+		print_expr(decl->init);
 	}
 }
 
@@ -399,18 +416,22 @@ static void print_stmt(Stmt *stmt)
 			break;
 		case VAR:
 			print_keyword_cstr("var ");
-			print_ident(stmt->as_decl.id);
-			printf(" : ");
-			print_type(stmt->as_decl.dtype);
-			if(stmt->as_decl.init) {
-				printf(" = ");
-				print_expr(stmt->as_decl.init);
-			}
+			print_vardecl_core((Decl*)stmt);
 			break;
 		case FUNC:
 			print_keyword_cstr("function ");
 			print_ident(stmt->as_decl.id);
-			printf("()");
+			printf("(");
+			
+			for(
+				Decl *param = stmt->as_decl.params; param;
+				param = (Decl*)param->next
+			) {
+				if(param != stmt->as_decl.params) printf(", ");
+				print_vardecl_core(param);
+			}
+			
+			printf(")");
 			if(stmt->as_decl.dtype) {
 				printf(" : ");
 				print_type(stmt->as_decl.dtype);

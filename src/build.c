@@ -10,7 +10,7 @@
 #include <libgen.h>
 #include "build.h"
 #include "print.h"
-#include "gen.h"
+#include "cgen.h"
 #include "utils.h"
 
 #define COL_YELLOW  "\x1b[38;2;255;255;0m"

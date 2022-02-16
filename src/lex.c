@@ -273,6 +273,7 @@ Tokens *lex(char *src, int64_t src_len)
 	
 	// add builtin ids
 	create_id("argv", 0);
+	create_id("open", 0);
 	
 	for(Token *token = token_array; token->type != TK_EOF; token ++) {
 		if(token->type == TK_IDENT) {

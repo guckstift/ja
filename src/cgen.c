@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <inttypes.h>
-#include "gen.h"
+#include "cgen.h"
 #include "runtime.inc.h"
 #include "utils.h"
 
@@ -22,6 +22,8 @@ static void gen_type(Type *dtype);
 static void gen_type_postfix(Type *dtype);
 static void gen_expr(Expr *expr);
 static void gen_init_expr(Expr *expr);
+static void gen_stmt(Stmt *stmt, int noindent);
+static void gen_exprs(Expr *exprs);
 
 static void write(char *msg, ...)
 {
@@ -110,6 +112,34 @@ static void write(char *msg, ...)
 	va_end(args);
 }
 
+static void gen_struct_type(Type *dtype)
+{
+	if(dtype->typedecl->exported && in_header) {
+		write("%X", dtype->id);
+	}
+	else if(
+		dtype->typedecl->scope != cur_unit->stmts->scope &&
+		dtype->typedecl->imported == 0
+	) {
+		write("%s", dtype->typedecl->public_id);
+	}
+	else {
+		write("%I", dtype->id);
+	}
+}
+
+static void gen_ptr_type(Type *dtype)
+{
+	if(is_dynarray_ptr_type(dtype)) {
+		write("jadynarray");
+	}
+	else {
+		gen_type(dtype->subtype);
+		if(dtype->subtype->kind == ARRAY) write("(");
+		write("*");
+	}
+}
+
 static void gen_type(Type *dtype)
 {
 	switch(dtype->kind) {
@@ -147,28 +177,10 @@ static void gen_type(Type *dtype)
 			write("jastring");
 			break;
 		case STRUCT:
-			if(dtype->typedecl->exported && in_header) {
-				write("%X", dtype->id);
-			}
-			else if(
-				dtype->typedecl->scope != cur_unit->stmts->scope &&
-				dtype->typedecl->imported == 0
-			) {
-				write("%s", dtype->typedecl->public_id);
-			}
-			else {
-				write("%I", dtype->id);
-			}
+			gen_struct_type(dtype);
 			break;
 		case PTR:
-			if(is_dynarray_ptr_type(dtype)) {
-				write("jadynarray");
-			}
-			else {
-				gen_type(dtype->subtype);
-				if(dtype->subtype->kind == ARRAY) write("(");
-				write("*");
-			}
+			gen_ptr_type(dtype);
 			break;
 		case ARRAY:
 			gen_type(dtype->itemtype);
@@ -219,6 +231,99 @@ static void gen_cast(Expr *expr)
 	}
 }
 
+static void gen_string(Expr *expr)
+{
+	write(
+		"((jastring){%i, \"%S\"})", expr->length, expr->string, expr->length
+	);
+}
+
+static void gen_subscript(Expr *expr)
+{
+	if(
+		expr->subexpr->kind == DEREF &&
+		is_dynarray_ptr_type(expr->subexpr->subexpr->dtype)
+	) {
+		Expr *dynarray = expr->subexpr->subexpr;
+		Expr *index = expr->index;
+		Type *itemtype = expr->dtype;
+		
+		write(
+			"(((%y(*)%z)%e.items)[%e])",
+			itemtype, itemtype, dynarray, index
+		);
+	}
+	else {
+		write("(%e[%e])", expr->subexpr, expr->index);
+	}
+}
+
+static void gen_binop(Expr *expr)
+{
+	if(
+		expr->left->dtype->kind == STRING &&
+		expr->operator->type == TK_EQUALS
+	) {
+		write(
+			"(%e.length == %e.length && "
+			"memcmp(%e.string, %e.string, %e.length) == 0)",
+			expr->left, expr->right,
+			expr->left, expr->right, expr->left
+		);
+	}
+	else {
+		write("(%e %s %e)", expr->left, expr->operator->punct, expr->right);
+	}
+}
+
+static void gen_array(Expr *expr)
+{
+	write("((%Y){", expr->dtype);
+	
+	for_list(Expr, item, expr->exprs, next) {
+		if(item != expr->exprs)
+			write(", ");
+		gen_expr(item);
+	}
+	
+	write("})");
+}
+
+static void gen_call(Expr *expr)
+{
+	write("(%e(", expr->callee);
+	gen_exprs(expr->args);
+	write(")");
+	
+	if(expr->callee->dtype->returntype->kind == ARRAY) {
+		write(".a");
+	}
+	
+	write(")");
+}
+
+static void gen_member(Expr *expr)
+{
+	if(
+		expr->subexpr->dtype->kind == ARRAY &&
+		token_text_equals(expr->member_id, "length")
+	) {
+		if(
+			expr->subexpr->kind == DEREF &&
+			expr->subexpr->dtype->length == -1 &&
+			token_text_equals(expr->member_id, "length")
+		) {
+			write("(%e.length)", expr->subexpr->subexpr);
+		}
+		else {
+			write("%i", expr->subexpr->dtype->length);
+		}
+	}
+	else {
+		write("(%e.%I)", expr->subexpr, expr->member_id);
+	}
+}
+
 static void gen_expr(Expr *expr)
 {
 	switch(expr->kind) {
@@ -229,10 +334,7 @@ static void gen_expr(Expr *expr)
 			write(expr->ival ? "jatrue" : "jafalse");
 			break;
 		case STRING:
-			write(
-				"((jastring){%i, \"%S\"})",
-				expr->length, expr->string, expr->length
-			);
+			gen_string(expr);
 			break;
 		case VAR:
 			write("%I", expr->id);
@@ -247,78 +349,28 @@ static void gen_expr(Expr *expr)
 			gen_cast(expr);
 			break;
 		case SUBSCRIPT:
-			if(
-				expr->subexpr->kind == DEREF &&
-				is_dynarray_ptr_type(expr->subexpr->subexpr->dtype)
-			) {
-				Expr *dynarray = expr->subexpr->subexpr;
-				Expr *index = expr->index;
-				Type *itemtype = expr->dtype;
-				
-				write(
-					"(((%y(*)%z)%e.items)[%e])",
-					itemtype, itemtype, dynarray, index
-				);
-			}
-			else {
-				write("(%e[%e])", expr->subexpr, expr->index);
-			}
+			gen_subscript(expr);
 			break;
 		case BINOP:
-			if(
-				expr->left->dtype->kind == STRING &&
-				expr->operator->type == TK_EQUALS
-			) {
-				write(
-					"(%e.length == %e.length && "
-					"memcmp(%e.string, %e.string, %e.length) == 0)",
-					expr->left, expr->right,
-					expr->left, expr->right, expr->left
-				);
-			}
-			else {
-				write(
-					"(%e %s %e)",
-					expr->left, expr->operator->punct, expr->right
-				);
-			}
+			gen_binop(expr);
 			break;
 		case ARRAY:
-			write("((%Y){", expr->dtype);
-			for_list(Expr, item, expr->exprs, next) {
-				if(item != expr->exprs)
-					write(", ");
-				gen_expr(item);
-			}
-			write("})");
+			gen_array(expr);
 			break;
 		case CALL:
-			write("(%e()", expr->callee);
-			if(expr->callee->dtype->returntype->kind == ARRAY) {
-				write(".a");
-			}
-			write(")");
+			gen_call(expr);
 			break;
 		case MEMBER:
-			if(
-				expr->subexpr->dtype->kind == ARRAY &&
-				token_text_equals(expr->member_id, "length")
-			) {
-				if(
-					expr->subexpr->kind == DEREF &&
-					expr->subexpr->dtype->length == -1 &&
-					token_text_equals(expr->member_id, "length")
-				) {
-					write("(%e.length)", expr->subexpr->subexpr);
-				}
-				else {
-					write("%i", expr->subexpr->dtype->length);
-				}
-			}
-			else {
-				write("(%e.%I)", expr->subexpr, expr->member_id);
-			}
+			gen_member(expr);
 			break;
+	}
+}
+
+static void gen_exprs(Expr *exprs)
+{
+	for(Expr *expr = exprs; expr; expr = expr->next) {
+		if(expr != exprs) write(", ");
+		gen_expr(expr);
 	}
 }
 
@@ -432,6 +484,68 @@ static void gen_print(Expr *expr)
 	write(");\n");
 }
 
+static void gen_if(If *ifstmt)
+{
+	write("if(%e) {\n", ifstmt->expr);
+	gen_stmts(ifstmt->if_body);
+	write("%>}\n");
+	
+	if(ifstmt->else_body) {
+		Stmt *else_body = ifstmt->else_body;
+		
+		if(else_body->kind == IF && else_body->next == 0) {
+			write("%>else ");
+			gen_stmt(ifstmt->else_body, 1);
+		}
+		else {
+			write("%>else {\n");
+			gen_stmts(ifstmt->else_body);
+			write("%>}\n");
+		}
+	}
+}
+
+static void gen_return(Return *returnstmt)
+{
+	if(returnstmt->expr) {
+		Expr *result = returnstmt->expr;
+		Type *dtype = result->dtype;
+		if(dtype->kind == ARRAY) {
+			if(result->kind == ARRAY) {
+				write(
+					"%>return (rt%I){%E};\n",
+					returnstmt->scope->func->id,
+					result
+				);
+			}
+		}
+		else {
+			write("%>return %e;\n", returnstmt->expr);
+		}
+	}
+	else {
+		write("%>return;\n");
+	}
+}
+
+static void gen_vardecl_stmt(Decl *decl)
+{
+	if(decl->scope->parent) {
+		// local var
+		gen_vardecl(decl);
+	}
+	else {
+		// global var
+		if(decl->init && !decl->init->isconst) {
+			// with non-constant initializer
+			gen_assign(
+				new_var_expr(decl->id, decl->dtype, decl->start),
+				decl->init
+			);
+		}
+	}
+}
+
 static void gen_stmt(Stmt *stmt, int noindent)
 {
 	switch(stmt->kind) {
@@ -439,40 +553,11 @@ static void gen_stmt(Stmt *stmt, int noindent)
 			gen_print(stmt->as_print.expr);
 			break;
 		case VAR:
-			if(stmt->scope->parent) {
-				// local var
-				gen_vardecl((Decl*)stmt);
-			}
-			else {
-				// global var
-				if(stmt->as_decl.init && !stmt->as_decl.init->isconst) {
-					// with non-constant initializer
-					gen_assign(
-						new_var_expr(
-							stmt->as_decl.id, stmt->as_decl.dtype, stmt->start
-						),
-						stmt->as_decl.init
-					);
-				}
-			}
+			gen_vardecl_stmt(&stmt->as_decl);
 			break;
 		case IF:
 			if(noindent == 0) write("%>");
-			write("if(%e) {\n", stmt->as_if.expr);
-			gen_stmts(stmt->as_if.if_body);
-			write("%>}\n");
-			if(stmt->as_if.else_body) {
-				Stmt *else_body = stmt->as_if.else_body;
-				if(else_body->kind == IF && else_body->next == 0) {
-					write("%>else ");
-					gen_stmt(stmt->as_if.else_body, 1);
-				}
-				else {
-					write("%>else {\n");
-					gen_stmts(stmt->as_if.else_body);
-					write("%>}\n");
-				}
-			}
+			gen_if(&stmt->as_if);
 			break;
 		case WHILE:
 			write("%>while(%e) {\n", stmt->as_while.expr);
@@ -486,25 +571,7 @@ static void gen_stmt(Stmt *stmt, int noindent)
 			write("%>%e;\n", stmt->as_call.call);
 			break;
 		case RETURN:
-			if(stmt->as_return.expr) {
-				Expr *result = stmt->as_return.expr;
-				Type *dtype = result->dtype;
-				if(dtype->kind == ARRAY) {
-					if(result->kind == ARRAY) {
-						write(
-							"%>return (rt%I){%E};\n",
-							stmt->scope->func->id,
-							result
-						);
-					}
-				}
-				else {
-					write("%>return %e;\n", stmt->as_return.expr);
-				}
-			}
-			else {
-				write("%>return;\n");
-			}
+			gen_return(&stmt->as_return);
 			break;
 		case IMPORT:
 			write("%>_%s_main(argc, argv);\n", stmt->as_import.unit->unit_id);
@@ -627,6 +694,14 @@ static void gen_func_returntype_decl(Decl *decl)
 	}
 }
 
+static void gen_params(Decl *func)
+{
+	for(Decl *param = func->params; param; param = (Decl*)param->next) {
+		if(param != func->params) write(", ");
+		write("%y %I%z", param->dtype, param->id, param->dtype);
+	}
+}
+
 static void gen_func_head(Decl *decl)
 {
 	Type *returntype = decl->dtype;
@@ -634,27 +709,36 @@ static void gen_func_head(Decl *decl)
 	if(returntype->kind == ARRAY) {
 		if(decl->exported) {
 			if(in_header) {
-				write("%>rt%X %X()", decl->id, decl->id);
+				write("%>rt%X %X(", decl->id, decl->id);
 			}
 			else {
-				write("%>rt%I %I()", decl->id, decl->id);
+				write("%>rt%I %I(", decl->id, decl->id);
 			}
 		}
 		else {
-			write("%>static rt%I %I()", decl->id, decl->id);
+			write("%>static rt%I %I(", decl->id, decl->id);
 		}
+		
+		gen_params(decl);
+		write(")");
 	}
 	else {
 		if(decl->exported) {
 			if(in_header) {
-				write("%>%y %X()%z", returntype, decl->id, returntype);
+				write("%>%y %X(", returntype, decl->id);
+				gen_params(decl);
+				write(")%z", returntype);
 			}
 			else {
-				write("%>%y %I()%z", returntype, decl->id, returntype);
+				write("%>%y %I(", returntype, decl->id);
+				gen_params(decl);
+				write(")%z", returntype);
 			}
 		}
 		else {
-			write("%>static %y %I()%z", returntype, decl->id, returntype);
+			write("%>static %y %I(", returntype, decl->id);
+			gen_params(decl);
+			write(")%z", returntype);
 		}
 	}
 }

@@ -1,2 +1,13 @@
 
-print argv.length;
+var x = true;
+
+function foo(x : int, y : >bool)
+{
+	var ll = x;
+}
+
+/*
+var x = open();
+*/
+
+foo(1, 2);

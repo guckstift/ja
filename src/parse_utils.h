@@ -44,7 +44,7 @@ typedef struct {
 Expr *cast_expr(Expr *expr, Type *dtype, int explicit);
 Expr *p_expr_pub(ParseState *state);
 
-Stmt *p_stmts_pub(ParseState *state, Decl *func);
+Stmt *p_stmts_pub(ParseState *state, int enter_scope);
 
 void make_type_exportable(Type *dtype);
 Type *complete_type(Type *dtype, Expr *expr);

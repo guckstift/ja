@@ -4,11 +4,11 @@
 
 #include "parse_utils.h"
 
-static Stmt *p_stmts(Decl *func)
+static Stmt *p_stmts(int enter_scope)
 {
 	ParseState state;
 	pack_state(&state);
-	Stmt *stmts = p_stmts_pub(&state, func);
+	Stmt *stmts = p_stmts_pub(&state, enter_scope);
 	unpack_state(&state);
 	return stmts;
 }
@@ -27,7 +27,7 @@ Stmt *parse(Tokens *tokens, char *_unit_id)
 	src_end = tokens->last->start + tokens->last->length;
 	scope = 0;
 	unit_id = _unit_id;
-	Stmt *stmts = p_stmts(0);
+	Stmt *stmts = p_stmts(1);
 	if(!eat(TK_EOF))
 		fatal_at(cur, "invalid statement");
 	

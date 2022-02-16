@@ -5,6 +5,7 @@
 #include "parse_utils.h"
 
 static Expr *p_expr();
+static Expr *p_exprs();
 static Expr *p_prefix();
 
 static Type *p_type()
@@ -191,14 +192,17 @@ static Expr *p_call_x(Expr *expr)
 	if(expr->dtype->kind != FUNC)
 		fatal_at(expr->start, "not a function you are calling");
 	
+	Expr *args = p_exprs();
+	
 	if(!eat(TK_RPAREN))
-		fatal_after(last, "expected ) after (");
+		fatal_after(last, "expected ) after argument list");
 	
 	Expr *call = new_expr(CALL, expr->start);
 	call->callee = expr;
 	call->isconst = 0;
 	call->islvalue = 0;
 	call->dtype = expr->dtype->returntype;
+	call->args = args;
 	return call;
 }
 
@@ -417,6 +421,21 @@ static Expr *p_binop(int level)
 static Expr *p_expr()
 {
 	return p_binop(0);
+}
+
+static Expr *p_exprs()
+{
+	Expr *first_expr = 0;
+	Expr *last_expr = 0;
+	
+	while(1) {
+		Expr *expr = p_expr();
+		if(!expr) break;
+		headless_list_push(first_expr, last_expr, next, expr);
+		if(!eat(TK_COMMA)) break;
+	}
+	
+	return first_expr;
 }
 
 Expr *p_expr_pub(ParseState *state)

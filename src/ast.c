@@ -37,6 +37,11 @@ Type *new_array_type(int64_t length, Type *itemtype)
 	return dtype;
 }
 
+Type *new_dynarray_type(Type *itemtype)
+{
+	return new_ptr_type(new_array_type(-1, itemtype));
+}
+
 Type *new_func_type(Type *returntype)
 {
 	Type *dtype = malloc(sizeof(Type));
@@ -251,6 +256,21 @@ Decl *new_vardecl(
 	decl->dtype = dtype;
 	decl->init = init;
 	decl->next_decl = 0;
+	decl->builtin = 0;
+	return decl;
+}
+
+Decl *new_funcdecl(
+	Token *id, Type *dtype, int exported, Stmt *body, int isproto,
+	Token *start, Scope *scope
+) {
+	Decl *decl = (Decl*)new_stmt(FUNC, start, scope);
+	decl->exported = exported;
+	decl->id = id;
+	decl->dtype = dtype;
+	decl->next_decl = 0;
+	decl->body = body;
+	decl->isproto = isproto;
 	decl->builtin = 0;
 	return decl;
 }

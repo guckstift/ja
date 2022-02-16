@@ -84,6 +84,7 @@ typedef struct Expr {
 	union {
 		struct Expr *right; // binop
 		struct Expr *index; // subscript
+		struct Expr *args; // call
 		int64_t length; // string, array
 		Token *member_id; // member
 	};
@@ -106,6 +107,13 @@ typedef struct Import {
 	int64_t imported_ident_count; // import
 } Import;
 
+typedef enum {
+	DF_ISPROTO = 1 << 1,
+	DF_IMPORTED = 1 << 2,
+	DF_EXPORTED = 1 << 3,
+	DF_BUILTIN = 1 << 4,
+} DeclFlags;
+
 typedef struct Decl {
 	Stmt_head
 	
@@ -122,6 +130,7 @@ typedef struct Decl {
 	char *public_id; // for exported decls
 	int exported; // this decl is exported
 	int builtin; // this decl is a builtin
+	struct Decl *params; // function params
 } Decl;
 
 typedef struct If {
@@ -191,6 +200,7 @@ typedef struct Scope {
 Type *new_type(Kind kind);
 Type *new_ptr_type(Type *subtype);
 Type *new_array_type(int64_t length, Type *subtype);
+Type *new_dynarray_type(Type *itemtype);
 Type *new_func_type(Type *returntype);
 
 int type_equ(Type *dtype1, Type *dtype2);
@@ -217,6 +227,10 @@ Stmt *clone_stmt(Stmt *stmt);
 Stmt *new_stmt(Kind kind, Token *start, Scope *scope);
 Decl *new_vardecl(
 	Token *id, Type *dtype, Expr *init, Token *start, Scope *scope
+);
+Decl *new_funcdecl(
+	Token *id, Type *dtype, int exported, Stmt *body, int isproto,
+	Token *start, Scope *scope
 );
 Assign *new_assign(Expr *target, Expr *expr, Scope *scope);
 Import *new_import(Token *filename, Unit *unit, Token *start, Scope *scope);

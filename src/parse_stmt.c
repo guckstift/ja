@@ -4,7 +4,7 @@
 
 #include "parse_utils.h"
 
-static Stmt *p_stmts(Decl *func);
+static Stmt *p_stmts(int enter_scope);
 
 static Expr *p_expr()
 {
@@ -51,20 +51,19 @@ static int declare(Decl *new_decl)
 
 static void declare_builtins()
 {
-	Type *dynarray_string_type = new_ptr_type(
-		new_array_type(-1, new_type(STRING))
-	);
-	
 	Token *argv_id = create_id("argv", 0);
+	Token *open_id = create_id("open", 0);
 	
-	Decl *argv = new_vardecl(
-		argv_id, dynarray_string_type,
-		0, 0, scope
-	);
+	Type *string_dynarray_type = new_dynarray_type(new_type(STRING));
+	
+	Decl *argv = new_vardecl(argv_id, string_dynarray_type, 0, 0, scope);
+	Decl *open = new_funcdecl(open_id, new_type(INT), 0, 0, 1, 0, scope);
 	
 	argv->builtin = 1;
+	open->builtin = 1;
 	
 	declare(argv);
+	declare(open);
 }
 
 static void enter()
@@ -80,9 +79,16 @@ static void enter()
 	scope->last_import = 0;
 }
 
-static void leave()
+static Scope *leave()
 {
+	Scope *old_scope = scope;
 	scope = scope->parent;
+	return old_scope;
+}
+
+static Scope *reenter(Scope *new_scope)
+{
+	scope = new_scope;
 }
 
 static Stmt *p_print()
@@ -108,13 +114,12 @@ static Stmt *p_print()
 	return (Stmt*)print;
 }
 
-static Stmt *p_vardecl(int exported)
+static Stmt *p_vardecl_core(Token *start, int exported, int param)
 {
-	Token *start = eat(TK_var);
-	if(!start) return 0;
-	
 	Token *ident = eat(TK_IDENT);
-	if(!ident) fatal_after(last, "expected identifier after keyword var");
+	if(!ident) return 0;
+	
+	if(!start) start = ident;
 	
 	Type *dtype = 0;
 	if(eat(TK_COLON)) {
@@ -149,14 +154,18 @@ static Stmt *p_vardecl(int exported)
 		init = cast_expr(init, dtype, 0);
 	}
 	
-	if(!eat(TK_SEMICOLON))
-		error_after(last, "expected semicolon after variable declaration");
-	
 	if(dtype == 0)
-		fatal_at(ident, "variable without type declared");
+		fatal_at(
+			ident, "%s without type declared", param ? "parameter" : "variable"
+		);
 	
 	if(!is_complete_type(dtype))
-		fatal_at(ident, "variable with incomplete type  %y  declared", dtype);
+		fatal_at(
+			ident,
+			"%s with incomplete type  %y  declared",
+			param ? "parameter" : "variable",
+			dtype
+		);
 	
 	if(exported) {
 		make_type_exportable(dtype);
@@ -169,6 +178,20 @@ static Stmt *p_vardecl(int exported)
 		fatal_at(ident, "name %t already declared", ident);
 	
 	return (Stmt*)decl;
+}
+
+static Stmt *p_vardecl(int exported)
+{
+	Token *start = eat(TK_var);
+	if(!start) return 0;
+	
+	Stmt *core = p_vardecl_core(start, exported, 0);
+	if(!core) fatal_after(last, "expected identifier after keyword var");
+	
+	if(!eat(TK_SEMICOLON))
+		error_after(last, "expected semicolon after variable declaration");
+	
+	return (Stmt*)core;
 }
 
 static Stmt *p_vardecls(Decl *struc)
@@ -188,6 +211,21 @@ static Stmt *p_vardecls(Decl *struc)
 	return first_decl;
 }
 
+static Stmt *p_params()
+{
+	Stmt *first_param = 0;
+	Stmt *last_param = 0;
+	
+	while(1) {
+		Stmt *param = p_vardecl_core(0, 0, 1);
+		if(!param) break;
+		headless_list_push(first_param, last_param, next, param);
+		if(!eat(TK_COMMA)) break;
+	}
+	
+	return first_param;
+}
+
 static Stmt *p_funcdecl(int exported)
 {
 	Token *start = eat(TK_function);
@@ -202,8 +240,13 @@ static Stmt *p_funcdecl(int exported)
 	
 	if(!eat(TK_LPAREN))
 		fatal_after(last, "expected ( after function name");
+	
+	enter();
+	Stmt *params = p_params();
+	Scope *func_scope = leave();
+	
 	if(!eat(TK_RPAREN))
-		fatal_after(last, "expected ) after (");
+		fatal_after(last, "expected ) after parameter list");
 	
 	Type *dtype = new_type(NONE);
 	if(eat(TK_COLON)) {
@@ -225,6 +268,7 @@ static Stmt *p_funcdecl(int exported)
 	decl->id = ident->id;
 	decl->dtype = dtype;
 	decl->next_decl = 0;
+	decl->params = (Decl*)params;
 	
 	if(!declare(decl)) {
 		Decl *existing_decl = lookup(decl->id);
@@ -253,7 +297,10 @@ static Stmt *p_funcdecl(int exported)
 		if(!eat(TK_LCURLY))
 			fatal_after(last, "expected {");
 		
-		decl->body = p_stmts(decl);
+		reenter(func_scope);
+		scope->func = decl;
+		decl->body = p_stmts(0);
+		leave();
 		
 		if(!eat(TK_RCURLY))
 			fatal_after(last, "expected } after function body");
@@ -305,7 +352,7 @@ static Stmt *p_ifstmt()
 		fatal_at(last, "expected condition after if");
 	if(!eat(TK_LCURLY))
 		fatal_after(last, "expected { after condition");
-	stmt->if_body = p_stmts(0);
+	stmt->if_body = p_stmts(1);
 	if(!eat(TK_RCURLY))
 		fatal_after(last, "expected } after if-body");
 		
@@ -316,7 +363,7 @@ static Stmt *p_ifstmt()
 		else {
 			if(!eat(TK_LCURLY))
 				fatal_after(last, "expected { after else");
-			stmt->else_body = p_stmts(0);
+			stmt->else_body = p_stmts(1);
 			if(!eat(TK_RCURLY))
 				fatal_after(last, "expected } after else-body");
 		}
@@ -337,7 +384,7 @@ static Stmt *p_whilestmt()
 		fatal_at(last, "expected condition after while");
 	if(!eat(TK_LCURLY))
 		fatal_after(last, "expected { after condition");
-	stmt->while_body = p_stmts(0);
+	stmt->while_body = p_stmts(1);
 	if(!eat(TK_RCURLY))
 		fatal_after(last, "expected } after while-body");
 	return (Stmt*)stmt;
@@ -512,10 +559,9 @@ static Stmt *p_stmt()
 	return stmt;
 }
 
-static Stmt *p_stmts(Decl *func)
+static Stmt *p_stmts(int enter_scope)
 {
-	enter();
-	if(func) scope->func = func;
+	if(enter_scope) enter();
 	
 	if(!scope->parent) {
 		declare_builtins();
@@ -530,14 +576,14 @@ static Stmt *p_stmts(Decl *func)
 		headless_list_push(first_stmt, last_stmt, next, stmt);
 	}
 	
-	leave();
+	if(enter_scope) leave();
 	return first_stmt;
 }
 
-Stmt *p_stmts_pub(ParseState *state, Decl *func)
+Stmt *p_stmts_pub(ParseState *state, int enter_scope)
 {
 	unpack_state(state);
-	Stmt *stmt = p_stmts(func);
+	Stmt *stmt = p_stmts(enter_scope);
 	pack_state(state);
 	return stmt;
 }
