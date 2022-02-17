@@ -573,7 +573,7 @@ static Stmt **p_stmts(int enter_scope)
 	while(1) {
 		Stmt *stmt = p_stmt();
 		if(!stmt) break;
-		if(stmt->kind == FUNC && stmt->as_decl.isproto == 1) continue;
+		//if(stmt->kind == FUNC && stmt->as_decl.isproto == 1) continue;
 		array_push(stmts, stmt);
 	}
 	

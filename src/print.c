@@ -302,6 +302,9 @@ static void fprint_type(FILE *fs, Type *dtype)
 		case STRING:
 			fprint_keyword_cstr(fs, "string");
 			break;
+		case CSTRING:
+			fprint_keyword_cstr(fs, "cstring");
+			break;
 		case PTR:
 			if(dtype->subtype->kind == NONE) {
 				fprint_keyword_cstr(fs, "ptr");
@@ -456,7 +459,7 @@ static void print_stmt(Stmt *stmt)
 			print_vardecl_core((Decl*)stmt);
 			break;
 		case FUNC:
-			print_func(&stmt->as_decl);
+			print_func((Decl*)stmt);
 			break;
 		case STRUCT:
 			print_keyword_cstr("struct ");

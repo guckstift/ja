@@ -40,13 +40,9 @@ Expr *cast_expr(Expr *expr, Type *dtype, int explicit)
 	if(explicit && stype->kind == PTR && dtype->kind == PTR)
 		return new_cast_expr(expr, dtype);
 	
-	// string to int8 ptr is also okay
-	if(
-		stype->kind == STRING && dtype->kind == PTR &&
-		dtype->subtype->kind == INT8
-	) {
+	// string to cstring is also okay
+	if(stype->kind == STRING && dtype->kind == CSTRING)
 		return new_cast_expr(expr, dtype);
-	}
 	
 	// array ptr to dynamic array ptr when same item type
 	if(

@@ -28,11 +28,13 @@ static void gen_cast(Expr *expr)
 		
 		write(", .items = %e})", srcexpr);
 	}
-	else if(
-		srctype->kind == STRING && dtype->kind == PTR &&
-		dtype->subtype->kind == INT8
-	) {
-		write("((%Y)%e.string)", dtype, srcexpr);
+	else if(srctype->kind == STRING && dtype->kind == CSTRING) {
+		if(srcexpr->kind == STRING) {
+			write("(\"%S\")", srcexpr->string, srcexpr->length);
+		}
+		else {
+			write("(%e.string)", srcexpr);
+		}
 	}
 	else {
 		write("((%Y)%e)", dtype, srcexpr);

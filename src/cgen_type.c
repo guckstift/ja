@@ -79,6 +79,9 @@ void gen_type(Type *dtype)
 		case STRING:
 			write("jastring");
 			break;
+		case CSTRING:
+			write("char*");
+			break;
 		case STRUCT:
 			gen_struct_type(dtype);
 			break;

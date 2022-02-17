@@ -6,6 +6,7 @@
 #define KEYWORDS(_) \
 	_(as) \
 	_(bool) \
+	_(cstring) \
 	_(else) \
 	_(export) \
 	_(false) \

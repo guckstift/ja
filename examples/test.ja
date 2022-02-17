@@ -1,7 +1,4 @@
-var x = 90;
-var y = >x;
-var z : >[]int = y as >[]int;
 
-var s = "Hello";
+var x : cstring = "World";
 
-var c = s as >int8;
+x = "Hello";

@@ -19,6 +19,7 @@ typedef enum {
 	UINT = UINT64,
 	BOOL,
 	STRING,
+	CSTRING,
 	
 	_PRIMKIND_COUNT,
 	
