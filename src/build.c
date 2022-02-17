@@ -12,6 +12,8 @@
 #include "print.h"
 #include "cgen.h"
 #include "utils.h"
+#include "runtime.h.src.h"
+#include "runtime.c.src.h"
 
 #define COL_YELLOW  "\x1b[38;2;255;255;0m"
 #define COL_RESET   "\x1b[0m"
@@ -95,6 +97,17 @@ static int run_cmd(char *cmd)
 	return system(cmd);
 }
 
+static void compile_c(char *cfile, char *ofile)
+{
+	char *cmd = 0;
+	str_append(cmd, "gcc -c -std=c17 -pedantic-errors -o ");
+	str_append(cmd, ofile);
+	str_append(cmd, " ");
+	str_append(cmd, cfile);
+	int res = run_cmd(cmd);
+	if(res) error("could not compile the C code");
+}
+
 static int dir_exists(char *dirname)
 {
 	DIR *dir = opendir(dirname);
@@ -170,13 +183,7 @@ static Unit *build_unit(char *filename, int ismain)
 	str_append(unit->obj_main_filename, ".main.o");
 	str_append(unit->obj_filename, ".o");
 	
-	char *cmd = 0;
-	str_append(cmd, "gcc -c -std=c17 -pedantic-errors -o ");
-	str_append(cmd, unit->obj_filename);
-	str_append(cmd, " ");
-	str_append(cmd, unit->c_filename);
-	int res = run_cmd(cmd);
-	if(res) error("could not compile the C code");
+	compile_c(unit->c_filename, unit->obj_filename);
 	
 	if(unit->ismain) {
 		char *cmd = 0;
@@ -207,6 +214,18 @@ Unit *import(char *filename)
 	return build_unit(real_filename, 0);
 }
 
+void write_cache_file(char *name, char *text)
+{
+	char *path = 0;
+	str_append(path, getenv("HOME"));
+	str_append(path, "/.ja/");
+	str_append(path, name);
+	
+	FILE *fs = fopen(path, "wb");
+	fwrite(text, 1, strlen(text), fs);
+	fclose(fs);
+}
+
 void build(char *main_filename)
 {
 	project = malloc(sizeof(Project));
@@ -219,6 +238,9 @@ void build(char *main_filename)
 	if(!dir_exists(cache_dir)) {
 		mkdir(cache_dir, 0755);
 	}
+	
+	write_cache_file("runtime.h", RUNTIME_H_SRC);
+	write_cache_file("runtime.c", RUNTIME_C_SRC);
 	
 	char *real_main_filename = realpath(main_filename, NULL);
 	Unit *main_unit = build_unit(real_main_filename, 1);
@@ -233,6 +255,10 @@ void build(char *main_filename)
 	char *cmd = 0;
 	str_append(cmd, "gcc -o ");
 	str_append(cmd, exe_filename);
+	
+	str_append(cmd, " ");
+	str_append(cmd, cache_dir);
+	str_append(cmd, "/runtime.c");
 	
 	array_for(project->units, i) {
 		Unit *unit = project->units[i];

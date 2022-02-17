@@ -1,0 +1,6 @@
+function open(filename : string) : ptr;
+function close(file : ptr);
+function read(file : ptr) : string;
+
+var argv : >[]string;
+

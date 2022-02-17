@@ -22,4 +22,6 @@ typedef struct {
 	char *string;
 } jastring;
 
+jastring ja_read(jastring filename);
+
 #endif

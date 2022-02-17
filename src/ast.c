@@ -22,6 +22,7 @@ Type *new_type(Kind kind)
 
 Type *new_ptr_type(Type *subtype)
 {
+	if(!subtype) subtype = new_type(NONE);
 	Type *dtype = malloc(sizeof(Type));
 	dtype->kind = PTR;
 	dtype->subtype = subtype;
@@ -260,13 +261,14 @@ Decl *new_vardecl(
 }
 
 Decl *new_funcdecl(
-	Token *id, Type *dtype, int exported, Stmt **body, int isproto,
-	Token *start, Scope *scope
+	Token *id, Type *dtype, int exported, Decl **params, Stmt **body,
+	int isproto, Token *start, Scope *scope
 ) {
 	Decl *decl = (Decl*)new_stmt(FUNC, start, scope);
 	decl->exported = exported;
 	decl->id = id;
 	decl->dtype = dtype;
+	decl->params = params;
 	decl->body = body;
 	decl->isproto = isproto;
 	decl->builtin = 0;

@@ -51,17 +51,26 @@ static void declare_builtins()
 {
 	Token *argv_id = create_id("argv", 0);
 	Token *open_id = create_id("open", 0);
+	Token *read_id = create_id("read", 0);
+	Token *close_id = create_id("close", 0);
 	
 	Type *string_dynarray_type = new_dynarray_type(new_type(STRING));
 	
 	Decl *argv = new_vardecl(argv_id, string_dynarray_type, 0, 0, scope);
-	Decl *open = new_funcdecl(open_id, new_type(INT), 0, 0, 1, 0, scope);
+	
+	Decl **params = 0;
+	Decl *filename_param = new_vardecl(0, new_type(STRING), 0, 0, scope);
+	array_push(params, filename_param);
+	
+	Decl *read = new_funcdecl(
+		read_id, new_type(STRING), 0, params, 0, 1, 0, scope
+	);
 	
 	argv->builtin = 1;
-	open->builtin = 1;
+	read->builtin = 1;
 	
 	declare(argv);
-	declare(open);
+	declare(read);
 }
 
 static void enter()

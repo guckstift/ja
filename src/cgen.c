@@ -3,7 +3,6 @@
 #include <inttypes.h>
 #include "cgen.h"
 #include "cgen_utils.h"
-#include "runtime.inc.h"
 #include "utils.h"
 
 #define INDENT      "    "
@@ -556,7 +555,7 @@ static void gen_h()
 	ofs = fopen(cur_unit->h_filename, "wb");
 
 	write("// runtime\n");
-	write(RUNTIME_H_SRC);
+	write("#include \"runtime.h\"\n");
 	
 	write("// main function\n");
 	write("int _%s_main(int argc, char **argv);\n", cur_unit->unit_id);
@@ -600,7 +599,7 @@ static void gen_c()
 	level = 0;
 	
 	write("// runtime\n");
-	write(RUNTIME_H_SRC);
+	write("#include \"runtime.h\"\n");
 	
 	gen_imports(cur_unit->stmts);
 	gen_structdecls(cur_unit->stmts);

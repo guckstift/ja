@@ -226,8 +226,8 @@ Decl *new_vardecl(
 	Token *id, Type *dtype, Expr *init, Token *start, Scope *scope
 );
 Decl *new_funcdecl(
-	Token *id, Type *dtype, int exported, Stmt **body, int isproto,
-	Token *start, Scope *scope
+	Token *id, Type *dtype, int exported, Decl **params, Stmt **body,
+	int isproto, Token *start, Scope *scope
 );
 Assign *new_assign(Expr *target, Expr *expr, Scope *scope);
 Import *new_import(Token *filename, Unit *unit, Token *start, Scope *scope);

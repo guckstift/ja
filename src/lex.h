@@ -19,6 +19,7 @@
 	_(int32) \
 	_(int64) \
 	_(print) \
+	_(ptr) \
 	_(string) \
 	_(struct) \
 	_(return) \

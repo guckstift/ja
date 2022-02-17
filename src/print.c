@@ -303,8 +303,13 @@ static void fprint_type(FILE *fs, Type *dtype)
 			fprint_keyword_cstr(fs, "string");
 			break;
 		case PTR:
-			fprintf(fs, ">");
-			fprint_type(fs, dtype->subtype);
+			if(dtype->subtype->kind == NONE) {
+				fprint_keyword_cstr(fs, "ptr");
+			}
+			else {
+				fprintf(fs, ">");
+				fprint_type(fs, dtype->subtype);
+			}
 			break;
 		case ARRAY:
 			fprintf(fs, "[");

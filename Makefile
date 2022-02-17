@@ -4,7 +4,8 @@ CFILES = \
 
 HFILES = \
 	ast.h build.h eval.h cgen.h lex.h parse.h parse_utils.h print.h \
-	runtime.inc.h utils.h
+	utils.h \
+	runtime.h.src.h runtime.c.src.h 
 
 CFLAGS = \
 	-std=c17 -pedantic-errors -DJA_DEBUG
@@ -12,11 +13,10 @@ CFLAGS = \
 SRCS = $(patsubst %.c,src/%.c,$(CFILES))
 HDRS = $(patsubst %.h,src/%.h,$(HFILES))
 
-ja: $(SRCS) $(HDRS) src/runtime.inc.h
+ja: $(SRCS) $(HDRS)
 	gcc -o $@ $(CFLAGS) $(SRCS)
 
-src/%.inc.h: src/%.h
-	echo "#define $(shell echo $* | tr [:lower:] [:upper:])_H_SRC \\" > $@
-	sed 's|.*|\t"&\\n" \\|' < $^ >> $@
+src/%.src.h: src/%
+	echo "#define $(shell echo $* | tr [:lower:] [:upper:] | tr [.] [_])_SRC \\" > $@
+	sed -e 's|"|\\"|g' -e 's|.*|\t"&\\n" \\|' < $^ >> $@
 	echo "" >> $@
-

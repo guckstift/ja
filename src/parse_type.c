@@ -25,6 +25,7 @@ static Type *p_primtype()
 	if(eat(TK_uint64)) return new_type(UINT64);
 	if(eat(TK_bool)) return new_type(BOOL);
 	if(eat(TK_string)) return new_type(STRING);
+	if(eat(TK_ptr)) return new_ptr_type(0);
 	return 0;
 }
 

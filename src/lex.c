@@ -268,10 +268,6 @@ Token *lex(char *src, int64_t src_len)
 	char *start = pos;
 	emit(TK_EOF);
 	
-	// add builtin ids
-	create_id("argv", 0);
-	create_id("open", 0);
-	
 	for(Token *token = tokens; token->type != TK_EOF; token ++) {
 		if(token->type == TK_IDENT) {
 			token->id = 0;

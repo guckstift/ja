@@ -14,6 +14,7 @@
 * function prototypes
 * compare strings equal
 * function parameters
+* codegen: externalize runtime.h
 
 # wip
 
@@ -39,7 +40,6 @@
 
 # todo
 
-* codegen: externalize runtime.h
 * use default struct member inits
 * refer to struct before definition (if ptr to)
 * auto pointer unpacking/packing

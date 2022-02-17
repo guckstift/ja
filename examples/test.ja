@@ -1,15 +1,2 @@
 
-var x = true;
-
-function foo(x : int, y : >bool)
-{
-	var ll = x;
-}
-
-/*
-var x = open();
-*/
-
-var y = true;
-
-foo(1, >y);
+var x = read("j");
