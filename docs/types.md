@@ -13,9 +13,17 @@
 
 Boolean that can only be false or true. Stored in a single byte.
 
+## string
+
+Stores length (int64) and a pointer to an array of bytes.
+
+## cstring
+
+A C style character pointer.
+
 ## integral types
 
-Integral types comprise integer types and bool.
+Integers and booleans together are integral types.
 
 ## pointer
 
@@ -31,6 +39,15 @@ Stores a fixed number of consecutive items of a certain type
 
 ```
 [size] item_type
+```
+
+## pointer to dynamic array
+
+A pointer to an array of unknown length is a dynamic array pointer. It stores
+the number of items (int64) along with the pointer to the array.
+
+```
+>[] item-type
 ```
 
 ## structure types

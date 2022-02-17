@@ -96,7 +96,6 @@ typedef struct Expr {
 #define Stmt_head \
 	Kind kind; \
 	Token *start; \
-	/*struct Stmt *next; /* next stmt in a list */ \
 	struct Scope *scope; \
 
 typedef struct Import {
