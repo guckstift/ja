@@ -1,2 +1,4 @@
+var x = 90;
+var y = >x;
 
-var x = read("j");
+var z : >int = y;

@@ -1,7 +1,7 @@
 #define RUNTIME_C_SRC \
 	"#include \"runtime.h\"\n" \
 	"\n" \
-	"jastring ja_read(jastring filename)\n" \
+	"jastring ja_read_file(jastring filename)\n" \
 	"{\n" \
 	"	FILE *fs = fopen(filename.string, \"rb\");\n" \
 	"	if(!fs) return (jastring){0};\n" \

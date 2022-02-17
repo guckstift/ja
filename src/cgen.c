@@ -614,13 +614,16 @@ static void gen_c()
 	write("int _%s_main(int argc, char **argv) {\n", cur_unit->unit_id);
 	
 	write(
-		INDENT "if(main_was_called) return 0;\n"
+		INDENT "if(main_was_called) {\n"
+		INDENT INDENT "return 0;\n"
+		INDENT "}\n"
 		INDENT "main_was_called = 1;\n"
 		INDENT "ja_argv.length = argc;\n"
 		INDENT "ja_argv.items = malloc(sizeof(jastring) * argc);\n"
-		INDENT "for(int64_t i=0; i < argc; i++) "
-			"((jastring*)ja_argv.items)[i] = "
+		INDENT "for(int64_t i=0; i < argc; i++) {\n"
+		INDENT INDENT "((jastring*)ja_argv.items)[i] = "
 			"(jastring){strlen(argv[i]), argv[i]};\n"
+		INDENT "}\n"
 	);
 	
 	gen_stmts(cur_unit->stmts);

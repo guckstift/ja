@@ -22,7 +22,21 @@ Type *new_type(Kind kind)
 
 Type *new_ptr_type(Type *subtype)
 {
+	static Type *primptrtypebuf[_PRIMKIND_COUNT] = {0};
+	
 	if(!subtype) subtype = new_type(NONE);
+	Kind subkind = subtype->kind;
+	
+	if(subkind < _PRIMKIND_COUNT) {
+		if(primptrtypebuf[subkind] == 0) {
+			primptrtypebuf[subkind] = malloc(sizeof(Type));
+			primptrtypebuf[subkind]->kind = PTR;
+			primptrtypebuf[subkind]->subtype = new_type(subkind);
+		}
+		
+		return primptrtypebuf[subkind];
+	}
+	
 	Type *dtype = malloc(sizeof(Type));
 	dtype->kind = PTR;
 	dtype->subtype = subtype;
