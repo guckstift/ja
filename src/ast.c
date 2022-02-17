@@ -250,8 +250,7 @@ Stmt *new_stmt(Kind kind, Token *start, Scope *scope)
 	stmt->kind = kind;
 	stmt->start = start;
 	stmt->scope = scope;
-	stmt->as_decl.exported = 0;
-	stmt->as_decl.imported = 0;
+	stmt->as_decl.flags = (DeclFlags){0};
 	return stmt;
 }
 
@@ -270,7 +269,6 @@ Decl *new_vardecl(
 	decl->id = id;
 	decl->dtype = dtype;
 	decl->init = init;
-	decl->builtin = 0;
 	return decl;
 }
 
@@ -279,13 +277,12 @@ Decl *new_funcdecl(
 	int isproto, Token *start, Scope *scope
 ) {
 	Decl *decl = (Decl*)new_stmt(FUNC, start, scope);
-	decl->exported = exported;
+	decl->flags.exported = exported;
 	decl->id = id;
 	decl->dtype = dtype;
 	decl->params = params;
 	decl->body = body;
-	decl->isproto = isproto;
-	decl->builtin = 0;
+	decl->flags.isproto = isproto;
 	return decl;
 }
 

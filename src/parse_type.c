@@ -99,8 +99,8 @@ void make_type_exportable(Type *dtype)
 		dtype = dtype->subtype;
 	}
 	
-	if(dtype->kind == STRUCT && dtype->typedecl->exported != 1) {
-		dtype->typedecl->exported = 1;
+	if(dtype->kind == STRUCT && dtype->typedecl->flags.exported != 1) {
+		dtype->typedecl->flags.exported = 1;
 		Stmt **body = dtype->typedecl->body;
 		
 		array_for(body, i) {

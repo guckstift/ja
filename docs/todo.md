@@ -15,6 +15,7 @@
 * compare strings equal
 * function parameters
 * codegen: externalize runtime.h
+* refactor: use DeclFlags
 
 # wip
 
@@ -27,7 +28,6 @@
 
 # for self hosting
 
-* refactor: use DeclFlags
 * binops logical and, or
 * binop float division /
 * unions

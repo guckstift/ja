@@ -3,12 +3,12 @@
 
 static void gen_struct_type(Type *dtype)
 {
-	if(dtype->typedecl->exported && is_in_header()) {
+	if(dtype->typedecl->flags.exported && is_in_header()) {
 		write("%X", dtype->id);
 	}
 	else if(
 		dtype->typedecl->scope != get_cur_unit()->stmts[0]->scope &&
-		dtype->typedecl->imported == 0
+		dtype->typedecl->flags.imported == 0
 	) {
 		write("%s", dtype->typedecl->public_id);
 	}

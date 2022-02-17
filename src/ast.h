@@ -107,11 +107,11 @@ typedef struct Import {
 	int64_t imported_ident_count; // import
 } Import;
 
-typedef enum {
-	DF_ISPROTO = 1 << 1,
-	DF_IMPORTED = 1 << 2,
-	DF_EXPORTED = 1 << 3,
-	DF_BUILTIN = 1 << 4,
+typedef struct {
+	uint8_t isproto : 1;  // function is prototype
+	uint8_t imported : 1; // decl is declared as a clone via import
+	uint8_t exported : 1; // decl is exported
+	uint8_t builtin : 1;  // decl is a builtin
 } DeclFlags;
 
 typedef struct Decl {
@@ -122,14 +122,11 @@ typedef struct Decl {
 		struct Stmt **body; // func, struct
 	};
 	
-	int isproto; // func
 	Token *id; // identifier of decl
 	Type *dtype; // var, func
-	int imported; // this decl is declared as a clone via import
 	char *public_id; // for exported decls
-	int exported; // this decl is exported
-	int builtin; // this decl is a builtin
 	struct Decl **params; // function params
+	DeclFlags flags;
 } Decl;
 
 typedef struct If {

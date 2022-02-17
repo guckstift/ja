@@ -29,7 +29,7 @@ static int declare(Decl *new_decl)
 	if(new_decl->scope != scope) {
 		// from foreign scope => import
 		new_decl = (Decl*)clone_stmt((Stmt*)new_decl);
-		new_decl->imported = 1;
+		new_decl->flags.imported = 1;
 	}
 	else {
 		new_decl->public_id = 0;
@@ -66,8 +66,8 @@ static void declare_builtins()
 		read_id, new_type(STRING), 0, params, 0, 1, 0, scope
 	);
 	
-	argv->builtin = 1;
-	read->builtin = 1;
+	argv->flags.builtin = 1;
+	read->flags.builtin = 1;
 	
 	declare(argv);
 	declare(read);
@@ -177,7 +177,7 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param)
 	}
 	
 	Decl *decl = new_vardecl(ident->id, dtype, init, start, scope);
-	decl->exported = exported;
+	decl->flags.exported = exported;
 	
 	if(!declare(decl))
 		fatal_at(ident, "name %t already declared", ident);
@@ -267,7 +267,7 @@ static Stmt *p_funcdecl(int exported)
 	}
 	
 	Decl *decl = (Decl*)new_stmt(FUNC, start, scope);
-	decl->exported = exported;
+	decl->flags.exported = exported;
 	decl->id = ident->id;
 	decl->dtype = dtype;
 	decl->params = (Decl**)params;
@@ -275,7 +275,7 @@ static Stmt *p_funcdecl(int exported)
 	if(!declare(decl)) {
 		Decl *existing_decl = lookup(decl->id);
 		
-		if(existing_decl->kind == FUNC && existing_decl->isproto) {
+		if(existing_decl->kind == FUNC && existing_decl->flags.isproto) {
 			if(!type_equ(existing_decl->dtype, decl->dtype)) {
 				fatal_at(ident,
 					"function prototype had a different return type  %y "
@@ -293,7 +293,7 @@ static Stmt *p_funcdecl(int exported)
 	}
 	
 	if(eat(TK_SEMICOLON)) {
-		decl->isproto = 1;
+		decl->flags.isproto = 1;
 	}
 	else {
 		if(!eat(TK_LCURLY))
@@ -307,7 +307,7 @@ static Stmt *p_funcdecl(int exported)
 		if(!eat(TK_RCURLY))
 			fatal_after(last, "expected } after function body");
 		
-		decl->isproto = 0;
+		decl->flags.isproto = 0;
 	}
 	
 	return (Stmt*)decl;
@@ -325,7 +325,7 @@ static Stmt *p_structdecl(int exported)
 	if(!ident) fatal_after(last, "expected identifier after keyword struct");
 	
 	Decl *decl = (Decl*)new_stmt(STRUCT, start, scope);
-	decl->exported = exported;
+	decl->flags.exported = exported;
 	decl->id = ident->id;
 	
 	if(!declare(decl))
@@ -476,7 +476,7 @@ static Stmt *p_import()
 			Scope *unit_scope = unit_stmts[0]->scope;
 			Decl *decl = lookup_in(ident->id, unit_scope);
 			
-			if(decl && decl->exported) {
+			if(decl && decl->flags.exported) {
 				found_decl = decl;
 			}
 		}

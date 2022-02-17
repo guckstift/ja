@@ -322,7 +322,7 @@ static void gen_export_alias(Token *ident, Unit *unit)
 
 static void gen_structdecl(Decl *decl)
 {
-	if(decl->exported && !in_header) {
+	if(decl->flags.exported && !in_header) {
 		gen_export_alias(decl->id, cur_unit);
 	}
 	
@@ -331,7 +331,7 @@ static void gen_structdecl(Decl *decl)
 	gen_vardecls(decl->body);
 	level --;
 	
-	if(decl->exported && in_header) {
+	if(decl->flags.exported && in_header) {
 		write("%>} %X;\n", decl->id);
 	}
 	else {
@@ -341,13 +341,13 @@ static void gen_structdecl(Decl *decl)
 
 static void gen_vardecl(Decl *decl)
 {
-	if(decl->exported) {
+	if(decl->flags.exported) {
 		gen_export_alias(decl->id, cur_unit);
 	}
 	
 	write("%>");
 	
-	if(!decl->scope->parent && !decl->scope->struc && !decl->exported)
+	if(!decl->scope->parent && !decl->scope->struc && !decl->flags.exported)
 		write("static ");
 	
 	write("%y %I%z", decl->dtype, decl->id, decl->dtype);
@@ -394,7 +394,7 @@ static void gen_func_returntype_decl(Decl *decl)
 {
 	Type *returntype = decl->dtype;
 	if(returntype->kind == ARRAY) {
-		if(decl->exported) {
+		if(decl->flags.exported) {
 			if(in_header) {
 				write(
 					"%>typedef struct { %y a%z; } rt%X;\n",
@@ -432,7 +432,7 @@ static void gen_func_head(Decl *decl)
 	Type *returntype = decl->dtype;
 	
 	if(returntype->kind == ARRAY) {
-		if(decl->exported) {
+		if(decl->flags.exported) {
 			if(in_header) {
 				write("%>rt%X %X(", decl->id, decl->id);
 			}
@@ -448,7 +448,7 @@ static void gen_func_head(Decl *decl)
 		write(")");
 	}
 	else {
-		if(decl->exported) {
+		if(decl->flags.exported) {
 			if(in_header) {
 				write("%>%y %X(", returntype, decl->id);
 				gen_params(decl);
@@ -509,7 +509,7 @@ static void gen_funcprotos(Stmt **stmts)
 		if(stmt->kind == FUNC) {
 			Decl *decl = (Decl*)stmt;
 			
-			if(decl->exported) {
+			if(decl->flags.exported) {
 				gen_export_alias(decl->id, cur_unit);
 			}
 			
@@ -563,7 +563,7 @@ static void gen_h()
 	write("// exported structures\n");
 	array_for(cur_unit->stmts, i) {
 		Stmt *stmt = cur_unit->stmts[i];
-		if(stmt->kind == STRUCT && stmt->as_decl.exported) {
+		if(stmt->kind == STRUCT && stmt->as_decl.flags.exported) {
 			gen_structdecl((Decl*)stmt);
 		}
 	}
@@ -571,7 +571,7 @@ static void gen_h()
 	write("// exported functions\n");
 	array_for(cur_unit->stmts, i) {
 		Stmt *stmt = cur_unit->stmts[i];
-		if(stmt->kind == FUNC && stmt->as_decl.exported) {
+		if(stmt->kind == FUNC && stmt->as_decl.flags.exported) {
 			gen_func_returntype_decl((Decl*)stmt);
 			gen_func_head((Decl*)stmt);
 			write(";\n");
@@ -581,7 +581,7 @@ static void gen_h()
 	write("// exported variables\n");
 	array_for(cur_unit->stmts, i) {
 		Stmt *stmt = cur_unit->stmts[i];
-		if(stmt->kind == VAR && stmt->as_decl.exported) {
+		if(stmt->kind == VAR && stmt->as_decl.flags.exported) {
 			write(
 				"extern %y %X%z;\n",
 				stmt->as_decl.dtype, stmt->as_decl.id, stmt->as_decl.dtype
