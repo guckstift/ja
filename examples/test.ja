@@ -1,4 +1,7 @@
 var x = 90;
 var y = >x;
+var z : >[]int = y as >[]int;
 
-var z : >int = y;
+var s = "Hello";
+
+var c = s as >int8;
