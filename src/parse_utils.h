@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include "print.h"
 
-#define match(t) (cur->type == (t))
-#define match2(t1, t2) (cur[0].type == (t1) && cur[1].type == (t2))
+#define match(t) (cur->kind == (t))
+#define match2(t1, t2) (cur[0].kind == (t1) && cur[1].kind == (t2))
 #define adv() (last = cur++)
 #define eat(t) (match(t) ? adv() : 0)
 #define eat2(t1, t2) (match2(t1, t2) ? (adv(), adv()) : 0)
@@ -41,13 +41,13 @@ typedef struct {
 	char *unit_id;
 } ParseState;
 
-Expr *cast_expr(Expr *expr, Type *dtype, int explicit);
+Expr *cast_expr(Expr *expr, Type *type, int explicit);
 Expr *p_expr_pub(ParseState *state);
 
-Stmt **p_stmts_pub(ParseState *state, int enter_scope);
+Block *p_block_pub(ParseState *state, Scope *scope);
 
-void make_type_exportable(Type *dtype);
-Type *complete_type(Type *dtype, Expr *expr);
+void make_type_exportable(Type *type);
+Type *complete_type(Type *type, Expr *expr);
 Type *p_type_pub(ParseState *state);
 
 static Token *cur;

@@ -1,20 +1,20 @@
-
+#include <stdio.h>
 #include <stdlib.h>
 #include "print.h"
 #include "utils.h"
 
 #include "parse_utils.h"
 
-static Stmt **p_stmts(int enter_scope)
+static Block *p_block(Scope *scope)
 {
 	ParseState state;
 	pack_state(&state);
-	Stmt **stmts = p_stmts_pub(&state, enter_scope);
+	Block *block = p_block_pub(&state, scope);
 	unpack_state(&state);
-	return stmts;
+	return block;
 }
 
-Stmt **parse(Token *tokens, char *_unit_id)
+Block *parse(Token *tokens, char *_unit_id)
 {
 	// save states
 	Token *old_cur = cur;
@@ -28,7 +28,9 @@ Stmt **parse(Token *tokens, char *_unit_id)
 	src_end = array_last(tokens).start + array_last(tokens).length;
 	scope = 0;
 	unit_id = _unit_id;
-	Stmt **stmts = p_stmts(1);
+	
+	Block *block = p_block(0);
+	
 	if(!eat(TK_EOF))
 		fatal_at(cur, "invalid statement");
 	
@@ -39,5 +41,5 @@ Stmt **parse(Token *tokens, char *_unit_id)
 	scope = old_scope;
 	unit_id = old_unit_id;
 	
-	return stmts;
+	return block;
 }

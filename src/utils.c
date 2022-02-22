@@ -29,6 +29,7 @@ char *_str_append_token(char *dest, Token *token)
 		dest = malloc(newlen + 1);
 		memcpy(dest, token->start, token->length);
 	}
+	dest[newlen] = 0;
 	return dest;
 }
 

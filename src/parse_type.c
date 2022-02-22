@@ -43,10 +43,7 @@ static Type *p_nametype()
 	if(decl->kind != STRUCT)
 		fatal_at(ident, "%t is not a structure", ident);
 	
-	Type *dtype = new_type(STRUCT);
-	dtype->id = ident->id;
-	dtype->typedecl = decl;
-	return dtype;
+	return decl->type;
 }
 
 static Type *p_ptrtype()
@@ -85,35 +82,46 @@ static Type *p_arraytype()
 
 static Type *p_type()
 {
-	Type *dtype = 0;
-	(dtype = p_primtype()) ||
-	(dtype = p_nametype()) ||
-	(dtype = p_ptrtype()) ||
-	(dtype = p_arraytype()) ;
-	return dtype;
+	Type *type = 0;
+	(type = p_primtype()) ||
+	(type = p_nametype()) ||
+	(type = p_ptrtype()) ||
+	(type = p_arraytype()) ;
+	return type;
 }
 
-void make_type_exportable(Type *dtype)
+void make_type_exportable(Type *type)
 {
-	while(dtype->kind == PTR || dtype->kind == ARRAY) {
-		dtype = dtype->subtype;
+	while(type->kind == PTR || type->kind == ARRAY) {
+		type = type->subtype;
 	}
 	
-	if(dtype->kind == STRUCT && dtype->typedecl->flags.exported != 1) {
-		dtype->typedecl->flags.exported = 1;
-		Stmt **body = dtype->typedecl->body;
+	if(type->kind == STRUCT) {
+		Decl *decl = type->structdecl;
 		
-		array_for(body, i) {
-			make_type_exportable(body[i]->as_decl.dtype);
+		if(decl->exported == 0) {
+			decl->exported = 1;
+			Decl **members = decl->members;
+			
+			array_for(members, i) {
+				make_type_exportable(members[i]->type);
+			}
+		}
+	}
+	else if(type->kind == FUNC) {
+		make_type_exportable(type->returntype);
+			
+		array_for(type->paramtypes, i) {
+			make_type_exportable(type->paramtypes[i]);
 		}
 	}
 }
 
-Type *complete_type(Type *dtype, Expr *expr)
+Type *complete_type(Type *type, Expr *expr)
 {
 	// automatic array length completion from expr
 	for(
-		Type *dt = dtype, *st = expr->dtype;
+		Type *dt = type, *st = expr->type;
 		dt->kind == ARRAY && st->kind == ARRAY;
 		dt = dt->itemtype, st = st->itemtype
 	) {

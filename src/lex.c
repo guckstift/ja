@@ -20,9 +20,9 @@
 
 static Token **ids = 0;
 
-char *get_token_type_name(TokenType type)
+char *get_token_kind_name(TokenKind kind)
 {
-	switch(type) {
+	switch(kind) {
 		case TK_EOF:
 			return "end of file";
 		case TK_IDENT:
@@ -60,7 +60,7 @@ Token *create_id(char *start, int64_t length)
 	}
 	
 	Token *ident = malloc(sizeof(Token));
-	ident->type = TK_IDENT;
+	ident->kind = TK_IDENT;
 	ident->line = 0;
 	ident->linep = 0;
 	ident->start = start;
@@ -89,7 +89,7 @@ Token *lex(char *src, int64_t src_len)
 	
 	#define emit(t) do { \
 		array_push(tokens, ((Token){ \
-			.type = (t), \
+			.kind = (t), \
 			.line = line, \
 			.linep = linep, \
 			.start = start, \
@@ -162,7 +162,7 @@ Token *lex(char *src, int64_t src_len)
 					last_token->length == strlen(#x) && \
 					memcmp(last_token->start, #x, strlen(#x)) == 0 \
 				) { \
-					last_token->type = TK_ ## x; \
+					last_token->kind = TK_ ## x; \
 				} else
 			
 			KEYWORDS(F);
@@ -268,8 +268,8 @@ Token *lex(char *src, int64_t src_len)
 	char *start = pos;
 	emit(TK_EOF);
 	
-	for(Token *token = tokens; token->type != TK_EOF; token ++) {
-		if(token->type == TK_IDENT) {
+	for(Token *token = tokens; token->kind != TK_EOF; token ++) {
+		if(token->kind == TK_IDENT) {
 			token->id = 0;
 			array_for(ids, i) {
 				if(tokequ(token, ids[i])) {

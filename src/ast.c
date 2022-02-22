@@ -8,16 +8,17 @@ Type *new_type(Kind kind)
 	
 	if(kind < _PRIMKIND_COUNT) {
 		if(primtypebuf[kind] == 0) {
-			primtypebuf[kind] = malloc(sizeof(Type));
-			primtypebuf[kind]->kind = kind;
+			Type *type = malloc(sizeof(Type));
+			type->kind = kind;
+			primtypebuf[kind] = type;
 		}
 		
 		return primtypebuf[kind];
 	}
 	
-	Type *dtype = malloc(sizeof(Type));
-	dtype->kind = kind;
-	return dtype;
+	Type *type = malloc(sizeof(Type));
+	type->kind = kind;
+	return type;
 }
 
 Type *new_ptr_type(Type *subtype)
@@ -29,27 +30,38 @@ Type *new_ptr_type(Type *subtype)
 	
 	if(subkind < _PRIMKIND_COUNT) {
 		if(primptrtypebuf[subkind] == 0) {
-			primptrtypebuf[subkind] = malloc(sizeof(Type));
-			primptrtypebuf[subkind]->kind = PTR;
-			primptrtypebuf[subkind]->subtype = new_type(subkind);
+			Type *type = new_type(PTR);
+			type->subtype = new_type(subkind);
+			primptrtypebuf[subkind] = type;
 		}
 		
 		return primptrtypebuf[subkind];
 	}
 	
-	Type *dtype = malloc(sizeof(Type));
-	dtype->kind = PTR;
-	dtype->subtype = subtype;
-	return dtype;
+	Type *type = new_type(PTR);
+	type->subtype = subtype;
+	return type;
 }
 
 Type *new_array_type(int64_t length, Type *itemtype)
 {
-	Type *dtype = malloc(sizeof(Type));
-	dtype->kind = ARRAY;
-	dtype->itemtype = itemtype;
-	dtype->length = length;
-	return dtype;
+	static Type *primarraytypebuf[_PRIMKIND_COUNT] = {0};
+	Kind itemkind = itemtype->kind;
+	
+	if(length == -1 && itemkind < _PRIMKIND_COUNT) {
+		if(primarraytypebuf[itemkind] == 0) {
+			primarraytypebuf[itemkind] = new_type(ARRAY);
+			primarraytypebuf[itemkind]->itemtype = new_type(itemkind);
+			primarraytypebuf[itemkind]->length = -1;
+		}
+		
+		return primarraytypebuf[itemkind];
+	}
+	
+	Type *type = new_type(ARRAY);
+	type->itemtype = itemtype;
+	type->length = length;
+	return type;
 }
 
 Type *new_dynarray_type(Type *itemtype)
@@ -57,191 +69,284 @@ Type *new_dynarray_type(Type *itemtype)
 	return new_ptr_type(new_array_type(-1, itemtype));
 }
 
-Type *new_func_type(Type *returntype, Decl *func)
+Type *new_func_type(Type *returntype, Type **paramtypes)
 {
-	Type *dtype = malloc(sizeof(Type));
-	dtype->kind = FUNC;
-	dtype->returntype = returntype;
-	dtype->func = func;
-	return dtype;
+	Type *type = new_type(FUNC);
+	type->returntype = returntype;
+	type->paramtypes = paramtypes;
+	return type;
 }
 
-int type_equ(Type *dtype1, Type *dtype2)
+Type *new_struct_type(Decl *decl)
 {
-	if(dtype1->kind == PTR && dtype2->kind == PTR) {
-		return type_equ(dtype1->subtype, dtype2->subtype);
+	Type *type = new_type(STRUCT);
+	type->structdecl = decl;
+	return type;
+}
+
+int type_equ(Type *left, Type *right)
+{
+	if(left->kind == PTR && right->kind == PTR) {
+		return type_equ(left->subtype, right->subtype);
 	}
 	
-	if(dtype1->kind == ARRAY && dtype2->kind == ARRAY) {
+	if(left->kind == ARRAY && right->kind == ARRAY) {
 		return
-			dtype1->length == dtype2->length &&
-			type_equ(dtype1->itemtype, dtype2->itemtype);
+			left->length == right->length &&
+			type_equ(left->itemtype, right->itemtype);
 	}
 	
-	if(dtype1->kind == STRUCT && dtype2->kind == STRUCT) {
-		return dtype1->id == dtype2->id;
+	if(left->kind == FUNC && right->kind == FUNC) {
+		Type **lparamtypes = left->paramtypes;
+		Type **rparamtypes = right->paramtypes;
+		
+		if(
+			type_equ(left->returntype, right->returntype) &&
+			array_length(lparamtypes) == array_length(rparamtypes)
+		) {
+			array_for(lparamtypes, i) {
+				if(!type_equ(lparamtypes[i], rparamtypes[i])) {
+					return 0;
+				}
+			}
+			
+			return 1;
+		}
+		
+		return 0;
 	}
 	
-	return dtype1->kind == dtype2->kind;
+	if(left->kind == STRUCT && right->kind == STRUCT) {
+		return left->structdecl == right->structdecl;
+	}
+	
+	return left->kind == right->kind;
 }
 
-int is_integer_type(Type *dtype)
+int is_integer_type(Type *type)
 {
-	Kind kind = dtype->kind;
+	Kind kind = type->kind;
+	
 	return
 		kind == INT8 || kind == INT16 || kind == INT32 || kind == INT64 ||
 		kind == UINT8 || kind == UINT16 || kind == UINT32 || kind == UINT64 ;
 }
 
-int is_integral_type(Type *dtype)
+int is_integral_type(Type *type)
 {
-	return is_integer_type(dtype) || dtype->kind == BOOL;
+	return is_integer_type(type) || type->kind == BOOL;
 }
 
-int is_complete_type(Type *dt)
+int is_complete_type(Type *type)
 {
-	if(dt->kind == PTR) {
-		if(dt->subtype->kind == ARRAY) {
-			return is_complete_type(dt->subtype->itemtype);
-		}
-		
-		return is_complete_type(dt->subtype);
+	if(type->kind == ARRAY) {
+		return type->length >= 0 && is_complete_type(type->itemtype);
 	}
 	
-	if(dt->kind == ARRAY) {
-		return dt->length >= 0 && is_complete_type(dt->itemtype);
+	if(type->kind == PTR) {
+		if(type->subtype->kind == ARRAY) {
+			return is_complete_type(type->subtype->itemtype);
+		}
+		
+		return is_complete_type(type->subtype);
 	}
 	
 	return 1;
 }
 
-int is_dynarray_ptr_type(Type *dtype)
+int is_dynarray_ptr_type(Type *type)
 {
 	return
-		dtype->kind == PTR &&
-		dtype->subtype->kind == ARRAY &&
-		dtype->subtype->length == -1 ;
+		type->kind == PTR &&
+		type->subtype->kind == ARRAY &&
+		type->subtype->length == -1 ;
 }
 
-Expr *new_expr(Kind kind, Token *start)
+Expr *new_expr(Kind kind, Token *start, Type *type, int isconst, int islvalue)
 {
 	Expr *expr = malloc(sizeof(Expr));
 	expr->kind = kind;
 	expr->start = start;
+	expr->type = type;
+	expr->isconst = isconst;
+	expr->islvalue = islvalue;
 	return expr;
 }
 
-Expr *new_int_expr(int64_t val, Token *start)
+Expr *new_int_expr(Token *start, int64_t value)
 {
-	Expr *expr = new_expr(INT, start);
-	expr->ival = val;
-	expr->isconst = 1;
-	expr->islvalue = 0;
-	expr->dtype = new_type(INT64);
+	Expr *expr = new_expr(INT, start, new_type(INT), 1, 0);
+	expr->value = value;
 	return expr;
 }
 
-Expr *new_string_expr(char *string, int64_t length, Token *start)
+Expr *new_bool_expr(Token *start, int64_t value)
 {
-	Expr *expr = new_expr(STRING, start);
+	Expr *expr = new_expr(BOOL, start, new_type(BOOL), 1, 0);
+	expr->value = value;
+	return expr;
+}
+
+Expr *new_string_expr(Token *start, char *string, int64_t length)
+{
+	Expr *expr = new_expr(STRING, start, new_type(STRING), 1, 0);
 	expr->string = string;
 	expr->length = length;
-	expr->isconst = 1;
-	expr->islvalue = 0;
-	expr->dtype = new_type(STRING);
 	return expr;
 }
 
-Expr *new_bool_expr(int64_t val, Token *start)
+Expr *new_cstring_expr(Token *start, char *string)
 {
-	Expr *expr = new_expr(BOOL, start);
-	expr->ival = val;
-	expr->isconst = 1;
-	expr->islvalue = 0;
-	expr->dtype = new_type(BOOL);
+	Expr *expr = new_expr(CSTRING, start, new_type(CSTRING), 1, 0);
+	expr->string = string;
 	return expr;
 }
 
-Expr *new_var_expr(Token *id, Type *dtype, Decl *decl, Token *start)
+Expr *new_var_expr(Token *start, Decl *decl)
 {
-	Expr *expr = new_expr(VAR, start);
-	expr->id = id;
-	expr->isconst = 0;
-	expr->islvalue = dtype->kind != FUNC;
-	expr->dtype = dtype;
+	Type *type = decl->type;
+	Expr *expr = new_expr(VAR, start, type, 0, decl->kind != FUNC);
 	expr->decl = decl;
 	return expr;
 }
 
-Expr *new_array_expr(
-	Expr **exprs, int64_t length, int isconst, Type *itemtype, Token *start
-) {
-	Expr *expr = new_expr(ARRAY, start);
-	expr->exprs = exprs;
-	expr->length = length;
-	expr->isconst = isconst;
-	expr->islvalue = 0;
-	expr->dtype = new_array_type(length, itemtype);
+Expr *new_array_expr(Token *start, Expr **items, int isconst)
+{
+	Expr *expr = new_expr(
+		ARRAY, start, new_array_type(array_length(items), items[0]->type),
+		isconst, 0
+	);
+	
+	expr->items = items;
 	return expr;
 }
 
-Expr *new_subscript(Expr *subexpr, Expr *index)
+Expr *new_subscript_expr(Expr *array, Expr *index)
 {
-	Expr *expr = new_expr(SUBSCRIPT, subexpr->start);
-	expr->subexpr = subexpr;
+	Expr *expr = new_expr(
+		SUBSCRIPT, array->start, array->type->itemtype, 0, 1
+	);
+	
+	expr->array = array;
 	expr->index = index;
-	expr->isconst = 0;
-	expr->islvalue = 1;
-	expr->dtype = subexpr->dtype->itemtype;
 	return expr;
 }
 
-Expr *new_cast_expr(Expr *subexpr, Type *dtype)
+Expr *new_length_expr(Expr *array)
 {
-	Expr *expr = new_expr(CAST, subexpr->start);
-	expr->isconst = subexpr->isconst;
-	expr->islvalue = 0;
+	return new_expr(LENGTH, array->start, new_type(INT), array->isconst, 0);
+}
+
+Expr *new_cast_expr(Expr *subexpr, Type *type)
+{
+	return new_expr(CAST, subexpr->start, type, subexpr->isconst, 0);
+}
+
+Expr *new_member_expr(Expr *object, Decl *member)
+{
+	Expr *expr = new_expr(MEMBER, object->start, member->type, 0, 1);
+	expr->object = object;
+	return expr;
+}
+
+Expr *new_deref_expr(Token *start, Expr *ptr)
+{
+	Expr *expr = new_expr(DEREF, start, ptr->type->subtype, 0, 1);
+	expr->ptr = ptr;
+	return expr;
+}
+
+Expr *new_ptr_expr(Token *start, Expr *subexpr)
+{
+	Expr *expr = new_expr(PTR, start, new_ptr_type(subexpr->type), 0, 0);
 	expr->subexpr = subexpr;
-	expr->dtype = dtype;
 	return expr;
 }
 
-Expr *new_member_expr(Expr *subexpr, Token *member_id, Type *dtype)
+Expr *new_call_expr(Expr *callee, Expr **args)
 {
-	Expr *expr = new_expr(MEMBER, subexpr->start);
-	expr->member_id =member_id;
-	expr->isconst = 0;
-	expr->islvalue = 1;
-	expr->dtype = dtype;
-	expr->subexpr = subexpr;
+	Expr *call = new_expr(CALL, callee->start, callee->type->returntype, 0, 0);
+	call->callee = callee;
+	call->args = args;
+	return call;
+}
+
+Expr *new_binop_expr(Expr *left, Expr *right, Token *operator, Type *type)
+{
+	Expr *expr = new_expr(
+		BINOP, left->start, type, left->isconst && right->isconst, 0
+	);
+	
+	expr->left = left;
+	expr->right = right;
+	expr->operator = operator;
 	return expr;
 }
 
-Expr *new_deref_expr(Expr *subexpr)
-{
-	Expr *expr = new_expr(DEREF, subexpr->start);
-	expr->subexpr = subexpr;
-	expr->isconst = 0;
-	expr->islvalue = 1;
-	expr->dtype = subexpr->dtype->subtype;
-	return expr;
+#include <stdio.h>
+
+Decl *new_decl(
+	Kind kind, Token *start, Scope *scope, Token *id, int exported,
+	Type *type
+) {
+	char *private_id = 0;
+	str_append(private_id, "ja_");
+	str_append_token(private_id, id);
+	
+	char *public_id = 0;
+	str_append(public_id, "_");
+	str_append(public_id, scope->unit_id);
+	str_append(public_id, "_");
+	str_append_token(public_id, id);
+		
+	Decl *decl = &new_stmt(kind, start, scope)->as_decl;
+	decl->id = id;
+	decl->private_id = private_id;
+	decl->public_id = public_id;
+	decl->exported = exported;
+	decl->type = type;
+	return decl;
 }
 
-Expr *new_ptr_expr(Expr *subexpr)
-{
-	Expr *expr = new_expr(PTR, subexpr->start);
-	expr->subexpr = subexpr;
-	expr->isconst = 0;
-	expr->islvalue = 0;
-	expr->dtype = new_ptr_type(subexpr->dtype);
-	return expr;
+Decl *new_var(
+	Token *start, Scope *scope, Token *id, int exported, Type *type,
+	Expr *init
+) {
+	Decl *decl = new_decl(VAR, start, scope, id, exported, type);
+	decl->init = init;
+	return decl;
 }
 
-Stmt *clone_stmt(Stmt *stmt)
+Decl *new_func(
+	Token *start, Scope *scope, Token *id, int exported, Type *returntype,
+	Decl **params
+) {
+	Type **paramtypes = 0;
+	
+	array_for(params, i) {
+		array_push(paramtypes, params[i]->type);
+	}
+	
+	Decl *decl = new_decl(FUNC, start, scope, id, exported, 0);
+	decl->type = new_func_type(returntype, paramtypes);
+	decl->params = params;
+	return decl;
+}
+
+Decl *new_struct(
+	Token *start, Scope *scope, Token *id, int exported, Decl **members
+) {
+	Decl *decl = new_decl(STRUCT, start, scope, id, exported, 0);
+	decl->type = new_struct_type(decl);
+	decl->members = members;
+	return decl;
+}
+
+Decl *clone_decl(Decl *decl)
 {
-	Stmt *new_stmt = malloc(sizeof(Stmt));
-	*new_stmt = *stmt;
-	return new_stmt;
+	Decl *new_decl = malloc(sizeof(Decl));
+	*new_decl = *decl;
+	return new_decl;
 }
 
 Stmt *new_stmt(Kind kind, Token *start, Scope *scope)
@@ -250,54 +355,80 @@ Stmt *new_stmt(Kind kind, Token *start, Scope *scope)
 	stmt->kind = kind;
 	stmt->start = start;
 	stmt->scope = scope;
-	stmt->as_decl.flags = (DeclFlags){0};
 	return stmt;
 }
 
-Assign *new_assign(Expr *target, Expr *expr, Scope *scope)
+Import *new_import(Token *start, Scope *scope, Unit *unit, Decl **decls)
 {
-	Assign *assign = (Assign*)new_stmt(ASSIGN, target->start, scope);
+	Import *import = &new_stmt(IMPORT, start, scope)->as_import;
+	import->unit = unit;
+	import->decls = decls;
+	return import;
+}
+
+If *new_if(Token *start, Expr *cond, Block *if_body, Block *else_body)
+{
+	If *ifstmt = &new_stmt(IF, start, if_body->scope->parent)->as_if;
+	ifstmt->cond = cond;
+	ifstmt->if_body = if_body;
+	ifstmt->else_body = else_body;
+	return ifstmt;
+}
+
+While *new_while(Token *start, Expr *cond, Block *body)
+{
+	While *whilestmt = &new_stmt(WHILE, start, body->scope->parent)->as_while;
+	whilestmt->cond = cond;
+	whilestmt->body = body;
+	return whilestmt;
+}
+
+Assign *new_assign(Scope *scope, Expr *target, Expr *expr)
+{
+	Assign *assign = &new_stmt(ASSIGN, target->start, scope)->as_assign;
 	assign->target = target;
 	assign->expr = expr;
 	return assign;
 }
 
-Decl *new_vardecl(
-	Token *id, Type *dtype, Expr *init, Token *start, Scope *scope
-) {
-	Decl *decl = (Decl*)new_stmt(VAR, start, scope);
-	decl->id = id;
-	decl->dtype = dtype;
-	decl->init = init;
-	return decl;
-}
-
-Decl *new_funcdecl(
-	Token *id, Type *dtype, int exported, Decl **params, Stmt **body,
-	int isproto, Token *start, Scope *scope
-) {
-	Decl *decl = (Decl*)new_stmt(FUNC, start, scope);
-	decl->flags.exported = exported;
-	decl->id = id;
-	decl->dtype = dtype;
-	decl->params = params;
-	decl->body = body;
-	decl->flags.isproto = isproto;
-	return decl;
-}
-
-Import *new_import(Token *filename, Unit *unit, Token *start, Scope *scope)
+Call *new_call(Scope *scope, Expr *call)
 {
-	Import *import = (Import*)new_stmt(IMPORT, start, scope);
-	import->filename = filename;
-	import->unit = unit;
-	return import;
+	Call *stmt = &new_stmt(CALL, call->start, scope)->as_call;
+	stmt->call = call;
+	return stmt;
+}
+
+Print *new_print(Token *start, Scope *scope, Expr *expr)
+{
+	Print *print = &new_stmt(PRINT, expr->start, scope)->as_print;
+	print->expr = expr;
+	return print;
+}
+
+Return *new_return(Token *start, Scope *scope, Expr *expr)
+{
+	Return *returnstmt = &new_stmt(RETURN, start, scope)->as_return;
+	returnstmt->expr = expr;
+	return returnstmt;
+}
+
+Scope *new_scope(char *unit_id, Scope *parent) {
+	Scope *scope = malloc(sizeof(Scope));
+	scope->unit_id = unit_id ? unit_id : parent ? parent->unit_id : 0;
+	scope->parent = parent;
+	scope->funchost = parent ? parent->funchost : 0;
+	scope->structhost = 0;
+	scope->imports = 0;
+	scope->decls = 0;
+	return scope;
 }
 
 Decl *lookup_flat_in(Token *id, Scope *scope)
 {
 	array_for(scope->decls, i) {
-		if(scope->decls[i]->id == id) return scope->decls[i];
+		if(scope->decls[i]->id == id) {
+			return scope->decls[i];
+		}
 	}
 	
 	return 0;
@@ -316,4 +447,40 @@ Decl *lookup_in(Token *id, Scope *scope)
 	}
 	
 	return 0;
+}
+
+int declare_in(Decl *decl, Scope *scope)
+{
+	if(decl->scope != scope) {
+		decl = clone_decl(decl);
+		decl->imported = 1;
+		decl->exported = 0;
+	}
+	
+	if(lookup_flat_in(decl->id, scope)) {
+		return 0;
+	}
+	
+	array_push(scope->decls, decl);
+	return 1;
+}
+
+int redeclare_in(Decl *decl, Scope *scope)
+{
+	array_for(scope->decls, i) {
+		if(scope->decls[i]->id == decl->id) {
+			scope->decls[i] = decl;
+			return 1;
+		}
+	}
+	
+	return 0;
+}
+
+Block *new_block(Stmt **stmts, Scope *scope)
+{
+	Block *block = malloc(sizeof(Block));
+	block->stmts = stmts;
+	block->scope = scope;
+	return block;
 }

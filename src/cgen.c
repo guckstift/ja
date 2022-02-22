@@ -9,13 +9,14 @@
 #define COL_YELLOW  "\x1b[38;2;255;255;0m"
 #define COL_RESET   "\x1b[0m"
 
+static Unit *cur_unit;
 static FILE *ofs;
 static int64_t level;
-static Unit *cur_unit;
 static int in_header;
 
+static void gen_block(Block *block);
 static void gen_stmts(Stmt **stmts);
-static void gen_vardecls(Stmt **stmts);
+static void gen_vardecls(Decl **decls);
 static void gen_vardecl(Decl *decl);
 static void gen_stmt(Stmt *stmt, int noindent);
 
@@ -27,6 +28,18 @@ int is_in_header()
 Unit *get_cur_unit()
 {
 	return cur_unit;
+}
+
+static void gen_mainfuncname(Unit *unit)
+{
+	write("_%s_main", unit->unit_id);
+}
+
+static void gen_mainfunchead(Unit *unit)
+{
+	write("int ");
+	gen_mainfuncname(unit);
+	write("(int argc, char **argv)");
 }
 
 void write(char *msg, ...)
@@ -60,19 +73,19 @@ void write(char *msg, ...)
 			}
 			else if(*msg == 'y') {
 				msg++;
-				Type *dtype = va_arg(args, Type*);
-				gen_type(dtype);
+				Type *type = va_arg(args, Type*);
+				gen_type(type);
 			}
 			else if(*msg == 'z') {
 				msg++;
-				Type *dtype = va_arg(args, Type*);
-				gen_type_postfix(dtype);
+				Type *type = va_arg(args, Type*);
+				gen_type_postfix(type);
 			}
 			else if(*msg == 'Y') {
 				msg++;
-				Type *dtype = va_arg(args, Type*);
-				gen_type(dtype);
-				gen_type_postfix(dtype);
+				Type *type = va_arg(args, Type*);
+				gen_type(type);
+				gen_type_postfix(type);
 			}
 			else if(*msg == 'e') {
 				msg++;
@@ -118,12 +131,12 @@ void write(char *msg, ...)
 
 static void gen_assign(Expr *target, Expr *expr)
 {
-	if(target->dtype->kind == ARRAY) {
+	if(target->type->kind == ARRAY) {
 		if(expr->kind == ARRAY) {
-			array_for(expr->exprs, i) {
-				Expr *item = expr->exprs[i];
+			array_for(expr->items, i) {
+				Expr *item = expr->items[i];
 				gen_assign(
-					new_subscript(target, new_int_expr(i, target->start)),
+					new_subscript_expr(target, new_int_expr(target->start, i)),
 					item
 				);
 			}
@@ -131,7 +144,7 @@ static void gen_assign(Expr *target, Expr *expr)
 		else {
 			write(
 				"%>memcpy(%e, %e, sizeof(%Y));\n",
-				target, expr, target->dtype
+				target, expr, target->type
 			);
 		}
 	}
@@ -142,7 +155,7 @@ static void gen_assign(Expr *target, Expr *expr)
 
 static void gen_print(Expr *expr)
 {
-	if(expr->dtype->kind == STRING) {
+	if(expr->type->kind == STRING) {
 		if(expr->kind == STRING) {
 			write(
 				"%>fwrite(\"%S\", 1, %i, stdout);\n",
@@ -161,7 +174,7 @@ static void gen_print(Expr *expr)
 	
 	write("%>printf(");
 	
-	switch(expr->dtype->kind) {
+	switch(expr->type->kind) {
 		case INT8:
 			write("\"%%\" PRId8");
 			break;
@@ -196,12 +209,12 @@ static void gen_print(Expr *expr)
 	
 	write(" \"\\n\", ");
 	
-	if(expr->dtype->kind == PTR)
+	if(expr->type->kind == PTR)
 		write("(void*)");
 	
 	gen_expr(expr);
 	
-	if(expr->dtype->kind == BOOL)
+	if(expr->type->kind == BOOL)
 		write(" ? \"true\" : \"false\"");
 	
 	write(");\n");
@@ -209,20 +222,20 @@ static void gen_print(Expr *expr)
 
 static void gen_if(If *ifstmt)
 {
-	write("if(%e) {\n", ifstmt->expr);
-	gen_stmts(ifstmt->if_body);
+	write("if(%e) {\n", ifstmt->cond);
+	gen_block(ifstmt->if_body);
 	write("%>}\n");
 	
-	if(ifstmt->else_body) {
-		Stmt **else_body = ifstmt->else_body;
+	if(ifstmt->else_body && ifstmt->else_body->stmts) {
+		Stmt **else_body = ifstmt->else_body->stmts;
 		
 		if(array_length(else_body) == 1 && else_body[0]->kind == IF) {
 			write("%>else ");
-			gen_stmt(ifstmt->else_body[0], 1);
+			gen_stmt(else_body[0], 1);
 		}
 		else {
 			write("%>else {\n");
-			gen_stmts(ifstmt->else_body);
+			gen_stmts(else_body);
 			write("%>}\n");
 		}
 	}
@@ -232,12 +245,12 @@ static void gen_return(Return *returnstmt)
 {
 	if(returnstmt->expr) {
 		Expr *result = returnstmt->expr;
-		Type *dtype = result->dtype;
-		if(dtype->kind == ARRAY) {
+		Type *type = result->type;
+		if(type->kind == ARRAY) {
 			if(result->kind == ARRAY) {
 				write(
 					"%>return (rt%I){%E};\n",
-					returnstmt->scope->func->id,
+					returnstmt->scope->funchost->id,
 					result
 				);
 			}
@@ -262,7 +275,7 @@ static void gen_vardecl_stmt(Decl *decl)
 		if(decl->init && !decl->init->isconst) {
 			// with non-constant initializer
 			gen_assign(
-				new_var_expr(decl->id, decl->dtype, decl, decl->start),
+				new_var_expr(decl->start, decl),
 				decl->init
 			);
 		}
@@ -283,8 +296,8 @@ static void gen_stmt(Stmt *stmt, int noindent)
 			gen_if(&stmt->as_if);
 			break;
 		case WHILE:
-			write("%>while(%e) {\n", stmt->as_while.expr);
-			gen_stmts(stmt->as_while.while_body);
+			write("%>while(%e) {\n", stmt->as_while.cond);
+			gen_block(stmt->as_while.body);
 			write("%>}\n");
 			break;
 		case ASSIGN:
@@ -297,7 +310,9 @@ static void gen_stmt(Stmt *stmt, int noindent)
 			gen_return(&stmt->as_return);
 			break;
 		case IMPORT:
-			write("%>_%s_main(argc, argv);\n", stmt->as_import.unit->unit_id);
+			write("%>");
+			gen_mainfuncname(stmt->as_import.unit);
+			write("(argc, argv);\n");
 			break;
 	}
 }
@@ -315,305 +330,305 @@ static void gen_stmts(Stmt **stmts)
 	level --;
 }
 
-static void gen_export_alias(Token *ident, Unit *unit)
+static void gen_block(Block *block)
 {
-	write("#define %I _%s_%t\n", ident, unit->unit_id, ident);
+	if(block) gen_stmts(block->stmts);
 }
 
-static void gen_structdecl(Decl *decl)
+static void gen_export_alias(Decl *decl)
 {
-	if(decl->flags.exported && !in_header) {
-		gen_export_alias(decl->id, cur_unit);
-	}
-	
-	write("%>typedef struct {\n");
-	level ++;
-	gen_vardecls(decl->body);
-	level --;
-	
-	if(decl->flags.exported && in_header) {
-		write("%>} %X;\n", decl->id);
-	}
-	else {
-		write("%>} %I;\n", decl->id);
-	}
+	write("#define %s %s\n", decl->private_id, decl->public_id);
 }
 
-static void gen_vardecl(Decl *decl)
+static void gen_params(Decl **params)
 {
-	if(decl->flags.exported) {
-		gen_export_alias(decl->id, cur_unit);
-	}
-	
-	write("%>");
-	
-	if(!decl->scope->parent && !decl->scope->struc && !decl->flags.exported)
-		write("static ");
-	
-	write("%y %I%z", decl->dtype, decl->id, decl->dtype);
-	
-	if(decl->scope->struc) {
-		write(";\n");
-	}
-	else if(decl->init) {
-		// has initializer
-		if(
-			decl->init->isconst ||
-			decl->scope->parent && decl->init->kind != ARRAY
-		) {
-			// is constant or for local var (no array literal)
-			// => in-place init possible
-			write(" = ");
-			gen_init_expr(decl->init);
-			write(";\n");
-		}
-		else if(decl->scope->parent && decl->init->kind == ARRAY) {
-			// array literal initializer for local var
-			write(";\n");
-			gen_assign(
-				new_var_expr(decl->id, decl->dtype, decl, decl->start),
-				decl->init
-			);
-		}
-		else {
-			write(";\n");
-		}
-	}
-	else if(
-		decl->dtype->kind == ARRAY || decl->dtype->kind == STRUCT ||
-		decl->dtype->kind == STRING || is_dynarray_ptr_type(decl->dtype)
-	) {
-		write(" = {0};\n");
-	}
-	else {
-		write(" = 0;\n");
-	}
-}
-
-static void gen_func_returntype_decl(Decl *decl)
-{
-	Type *returntype = decl->dtype;
-	if(returntype->kind == ARRAY) {
-		if(decl->flags.exported) {
-			if(in_header) {
-				write(
-					"%>typedef struct { %y a%z; } rt%X;\n",
-					returntype, returntype, decl->id
-				);
-			}
-			else {
-				write("#define rt%I rt%X\n", decl->id, decl->id);
-				write(
-					"%>typedef struct { %y a%z; } rt%I;\n",
-					returntype, returntype, decl->id
-				);
-			}
-		}
-		else {
-			write(
-				"%>typedef struct { %y a%z; } rt%I;\n",
-				returntype, returntype, decl->id
-			);
-		}
-	}
-}
-
-static void gen_params(Decl *func)
-{
-	array_for(func->params, i) {
-		Decl *param = func->params[i];
+	array_for(params, i) {
+		Decl *param = params[i];
 		if(i > 0) write(", ");
-		write("%y %I%z", param->dtype, param->id, param->dtype);
+		write("%y %s%z", param->type, param->private_id, param->type);
 	}
 }
 
-static void gen_func_head(Decl *decl)
+// --- //
+
+static void gen_returntypedecl(Decl *decl)
 {
-	Type *returntype = decl->dtype;
+	Type *returntype = decl->type->returntype;
 	
 	if(returntype->kind == ARRAY) {
-		if(decl->flags.exported) {
-			if(in_header) {
-				write("%>rt%X %X(", decl->id, decl->id);
-			}
-			else {
-				write("%>rt%I %I(", decl->id, decl->id);
-			}
-		}
-		else {
-			write("%>static rt%I %I(", decl->id, decl->id);
-		}
+		write("%>typedef struct { %y a%z; } ", returntype, returntype);
 		
-		gen_params(decl);
+		if(in_header)
+			write("rt_%s;\n", decl->public_id);
+		else
+			write("rt_%s;\n", decl->private_id);
+	}
+}
+
+static void gen_funchead(Decl *decl)
+{
+	Type *returntype = decl->type->returntype;
+	
+	if(!decl->exported)
+		write("%>static ");
+	else
+		write("%>");
+	
+	if(returntype->kind == ARRAY) {
+		if(in_header)
+			write("rt_%s %s(", decl->public_id, decl->public_id);
+		else
+			write("rt_%s %s(", decl->private_id, decl->private_id);
+		
+		gen_params(decl->params);
 		write(")");
 	}
 	else {
-		if(decl->flags.exported) {
-			if(in_header) {
-				write("%>%y %X(", returntype, decl->id);
-				gen_params(decl);
-				write(")%z", returntype);
-			}
-			else {
-				write("%>%y %I(", returntype, decl->id);
-				gen_params(decl);
-				write(")%z", returntype);
-			}
-		}
-		else {
-			write("%>static %y %I(", returntype, decl->id);
-			gen_params(decl);
-			write(")%z", returntype);
+		if(in_header)
+			write("%y %s(", returntype, decl->public_id);
+		else
+			write("%y %s(", returntype, decl->private_id);
+		
+		gen_params(decl->params);
+		write(")%z", returntype);
+	}
+}
+	
+void gen_vardecl_init(Decl *decl)
+{
+	if(in_header || decl->scope->structhost)
+		return;
+	
+	if(decl->init) {
+		if(decl->init->isconst || decl->scope->parent) {
+			write(" = ");
+			gen_init_expr(decl->init);
 		}
 	}
+	else if(
+		decl->type->kind == ARRAY || decl->type->kind == STRUCT ||
+		decl->type->kind == STRING || is_dynarray_ptr_type(decl->type)
+	) {
+		write(" = {0}");
+	}
+	else {
+		write(" = 0");
+	}
+}
+
+// --- //
+
+static void gen_structdecl(Decl *decl)
+{
+	if(decl->imported)
+		return;
+	
+	if(!in_header && decl->exported) {
+		gen_export_alias(decl);
+		return;
+	}
+	
+	if(in_header && !decl->exported)
+		return;
+	
+	write("%>typedef struct {\n");
+	level ++;
+	gen_vardecls(decl->members);
+	level --;
+	
+	if(in_header)
+		write("%>} %s;\n", decl->public_id);
+	else
+		write("%>} %s;\n", decl->private_id);
+}
+
+static void gen_funcproto(Decl *decl)
+{
+	if(decl->imported)
+		return;
+	
+	if(!in_header && decl->exported) {
+		gen_export_alias(decl);
+		Type *returntype = decl->type->returntype;
+		
+		if(returntype->kind == ARRAY)
+			write("#define rt_%s rt_%s\n", decl->private_id, decl->public_id);
+		
+		return;
+	}
+	
+	if(in_header && !decl->exported)
+		return;
+	
+	gen_returntypedecl(decl);
+	gen_funchead(decl);
+	write(";\n");
 }
 
 static void gen_funcdecl(Decl *decl)
 {
-	gen_func_head(decl);
+	if(decl->imported)
+		return;
+	
+	gen_funchead(decl);
 	write(" {\n");
-	gen_stmts(decl->body);
+	gen_block(decl->body);
 	write("%>}\n");
 }
 
-static void gen_structdecls(Stmt **stmts)
+static void gen_vardecl(Decl *decl)
 {
-	write("// structures\n");
+	if(decl->imported)
+		return;
 	
-	array_for(cur_unit->stmts, i) {
-		Stmt *stmt = cur_unit->stmts[i];
-		if(stmt->kind == STRUCT) {
-			gen_structdecl((Decl*)stmt);
+	if(in_header && !decl->exported && !decl->scope->structhost)
+		return;
+	
+	if(!in_header && decl->exported)
+		gen_export_alias(decl);
+	
+	write("%>");
+	
+	if(in_header && decl->exported)
+		write("extern ");
+	
+	if(!decl->exported && !decl->scope->parent)
+		write("static ");
+	
+	if(decl->exported && in_header)
+		write("%y %s%z", decl->type, decl->public_id, decl->type);
+	else
+		write("%y %s%z", decl->type, decl->private_id, decl->type);
+	
+	gen_vardecl_init(decl);
+	
+	write(";\n");
+}
+
+// --- //
+
+static void gen_structdecls(Decl **decls)
+{
+	array_for(decls, i) {
+		if(decls[i]->kind == STRUCT) {
+			gen_structdecl(decls[i]);
 		}
 	}
 }
 
-static void gen_vardecls(Stmt **stmts)
+static void gen_funcprotos(Decl **decls)
 {
-	if(stmts && !stmts[0]->scope->parent) write("// variables\n");
-	
-	array_for(cur_unit->stmts, i) {
-		Stmt *stmt = cur_unit->stmts[i];
-		if(stmt->kind == VAR) {
-			gen_vardecl((Decl*)stmt);
+	array_for(decls, i) {
+		if(decls[i]->kind == FUNC) {
+			gen_funcproto(decls[i]);
 		}
 	}
 }
 
-static void gen_funcprotos(Stmt **stmts)
+static void gen_funcdecls(Decl **decls)
 {
-	write("// function prototypes\n");
-	
-	array_for(cur_unit->stmts, i) {
-		Stmt *stmt = cur_unit->stmts[i];
-		if(stmt->kind == FUNC) {
-			Decl *decl = (Decl*)stmt;
-			
-			if(decl->flags.exported) {
-				gen_export_alias(decl->id, cur_unit);
-			}
-			
-			gen_func_returntype_decl(decl);
-			gen_func_head(decl);
-			write(";\n");
+	array_for(decls, i) {
+		if(decls[i]->kind == FUNC) {
+			gen_funcdecl(decls[i]);
 		}
 	}
 }
 
-static void gen_funcdecls(Stmt **stmts)
+static void gen_vardecls(Decl **decls)
 {
-	write("// functions\n");
-	
-	array_for(cur_unit->stmts, i) {
-		Stmt *stmt = cur_unit->stmts[i];
-		if(stmt->kind == FUNC) {
-			gen_funcdecl((Decl*)stmt);
+	array_for(decls, i) {
+		if(decls[i]->kind == VAR) {
+			gen_vardecl(decls[i]);
 		}
 	}
 }
 
-static void gen_imports(Stmt **stmts)
+static void gen_imports(Import **imports)
 {
-	write("// imports\n");
-	
-	array_for(cur_unit->stmts, i) {
-		Stmt *stmt = cur_unit->stmts[i];
-		if(stmt->kind == IMPORT) {
-			write("#include \"%s\"\n", stmt->as_import.unit->h_filename);
-			
-			for(int64_t i=0; i < stmt->as_import.imported_ident_count; i++) {
-				Token *ident = stmt->as_import.imported_idents + i * 2;
-				gen_export_alias(ident, stmt->as_import.unit);
-			}
+	array_for(imports, i) {
+		Import *import = imports[i];
+		write("#include \"%s\"\n", import->unit->h_filename);
+		Decl **decls = import->decls;
+		
+		array_for(decls, i) {
+			gen_export_alias(decls[i]);
 		}
 	}
 }
+
+// --- //
 
 static void gen_h()
 {
-	in_header = 1;
 	ofs = fopen(cur_unit->h_filename, "wb");
-
-	write("// runtime\n");
-	write("#include \"runtime.h\"\n");
+	level = 0;
+	in_header = 1;
 	
-	write("// main function\n");
-	write("int _%s_main(int argc, char **argv);\n", cur_unit->unit_id);
+	write(
+		"#ifndef _%s_H\n"
+		"#define _%s_H\n\n"
+		"// runtime\n"
+		"#include \"runtime.h\"\n",
+		cur_unit->unit_id, cur_unit->unit_id
+	);
 	
-	write("// exported structures\n");
-	array_for(cur_unit->stmts, i) {
-		Stmt *stmt = cur_unit->stmts[i];
-		if(stmt->kind == STRUCT && stmt->as_decl.flags.exported) {
-			gen_structdecl((Decl*)stmt);
-		}
-	}
+	write("\n// main function\n");
+	gen_mainfunchead(cur_unit);
+	write(";\n");
 	
-	write("// exported functions\n");
-	array_for(cur_unit->stmts, i) {
-		Stmt *stmt = cur_unit->stmts[i];
-		if(stmt->kind == FUNC && stmt->as_decl.flags.exported) {
-			gen_func_returntype_decl((Decl*)stmt);
-			gen_func_head((Decl*)stmt);
-			write(";\n");
-		}
-	}
+	Decl **decls = cur_unit->block->scope->decls;
 	
-	write("// exported variables\n");
-	array_for(cur_unit->stmts, i) {
-		Stmt *stmt = cur_unit->stmts[i];
-		if(stmt->kind == VAR && stmt->as_decl.flags.exported) {
-			write(
-				"extern %y %X%z;\n",
-				stmt->as_decl.dtype, stmt->as_decl.id, stmt->as_decl.dtype
-			);
-		}
-	}
+	write("\n// exported structures\n");
+	gen_structdecls(decls);
+	
+	write("\n// exported functions\n");
+	gen_funcprotos(decls);
+	
+	write("\n// exported variables\n");
+	gen_vardecls(decls);
+	
+	write("\n#endif\n");
 	
 	fclose(ofs);
-	in_header = 0;
 }
 
 static void gen_c()
 {
 	ofs = fopen(cur_unit->c_filename, "wb");
 	level = 0;
+	in_header = 0;
 	
-	write("// runtime\n");
-	write("#include \"runtime.h\"\n");
+	write("#include \"%s\"\n", cur_unit->h_filename);
 	
-	gen_imports(cur_unit->stmts);
-	gen_structdecls(cur_unit->stmts);
-	gen_vardecls(cur_unit->stmts);
-	gen_funcprotos(cur_unit->stmts);
-	gen_funcdecls(cur_unit->stmts);
+	Scope *unit_scope = cur_unit->block->scope;
+	Decl **decls = unit_scope->decls;
 	
-	write("// control variables\n");
-	write("static jadynarray ja_argv;\n");
-	write("static int main_was_called;\n");
-	write("// main function\n");
-	write("int _%s_main(int argc, char **argv) {\n", cur_unit->unit_id);
+	write("\n// imports\n");
+	gen_imports(unit_scope->imports);
+	
+	write("\n// structures\n");
+	gen_structdecls(decls);
+	
+	write("\n// variables\n");
+	gen_vardecls(decls);
+	
+	write("\n// function prototypes\n");
+	gen_funcprotos(decls);
+	
+	write("\n// function implementations\n");
+	gen_funcdecls(decls);
 	
 	write(
+		"\n// control variables\n"
+		"static jadynarray ja_argv;\n"
+		"static int main_was_called;\n\n"
+		"// main function\n"
+	);
+	
+	gen_mainfunchead(cur_unit);
+	
+	write(
+		" {\n"
 		INDENT "if(main_was_called) {\n"
 		INDENT INDENT "return 0;\n"
 		INDENT "}\n"
@@ -626,34 +641,42 @@ static void gen_c()
 		INDENT "}\n"
 	);
 	
-	gen_stmts(cur_unit->stmts);
+	gen_block(cur_unit->block);
+	
 	write("}\n");
 	
 	fclose(ofs);
 }
 
-static void gen_main_c()
+static void gen_c_main()
 {
-	if(!cur_unit->ismain) return;
-	
 	ofs = fopen(cur_unit->c_main_filename, "wb");
+	level = 0;
+	in_header = 0;
 	
 	write(
 		"#include \"%s\"\n"
 		"int main(int argc, char **argv) {\n"
-		INDENT "_%s_main(argc, argv);\n"
-		"}\n",
-		cur_unit->h_filename,
-		cur_unit->unit_id
+		INDENT "return ",
+		cur_unit->h_filename
+	);
+	
+	gen_mainfuncname(cur_unit);
+	
+	write(
+		"(argc, argv);\n"
+		"}\n"
 	);
 	
 	fclose(ofs);
 }
+
+// --- //
 
 void gen(Unit *unit)
 {
 	cur_unit = unit;
 	gen_h();
 	gen_c();
-	gen_main_c();
+	if(cur_unit->ismain) gen_c_main();
 }

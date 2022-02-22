@@ -118,6 +118,10 @@ static int dir_exists(char *dirname)
 
 static Unit *build_unit(char *filename, int ismain)
 {
+	#ifdef JA_DEBUG
+	printf(COL_YELLOW "=== building unit %s ===" COL_RESET "\n",filename);
+	#endif
+	
 	array_for(project->units, i) {
 		Unit *unit = project->units[i];
 		if(strcmp(unit->src_filename, filename) == 0) {
@@ -159,16 +163,25 @@ static Unit *build_unit(char *filename, int ismain)
 	
 	array_push(project->units, unit);
 	
+	#ifdef JA_DEBUG
+	printf(COL_YELLOW "=== lexing ===" COL_RESET "\n");
+	#endif
 	unit->tokens = lex(unit->src, unit->src_len);
 	#ifdef JA_DEBUG
 	print_tokens(unit->tokens);
 	#endif
 	
-	unit->stmts = parse(unit->tokens, unit->unit_id);
 	#ifdef JA_DEBUG
-	print_ast(unit->stmts);
+	printf(COL_YELLOW "=== parsing ===" COL_RESET "\n");
+	#endif
+	unit->block = parse(unit->tokens, unit->unit_id);
+	#ifdef JA_DEBUG
+	print_ast(unit->block);
 	#endif
 	
+	#ifdef JA_DEBUG
+	printf(COL_YELLOW "=== generating code ===" COL_RESET "\n");
+	#endif
 	gen(unit);
 	#ifdef JA_DEBUG
 	print_c_code(unit->c_filename);
@@ -194,6 +207,10 @@ static Unit *build_unit(char *filename, int ismain)
 		int res = run_cmd(cmd);
 		if(res) error("could not compile the C main code");
 	}
+	
+	#ifdef JA_DEBUG
+	printf(COL_YELLOW "=== compiled unit %s ===" COL_RESET "\n", filename);
+	#endif
 	
 	cur_unit_dirname = old_unit_dirname;
 	return unit;
@@ -245,7 +262,9 @@ void build(char *main_filename)
 	char *real_main_filename = realpath(main_filename, NULL);
 	Unit *main_unit = build_unit(real_main_filename, 1);
 	
+	#ifdef JA_DEBUG
 	printf(COL_YELLOW "=== linking ===" COL_RESET "\n");
+	#endif
 	
 	char *exe_filename = 0;
 	str_append(exe_filename, cache_dir);

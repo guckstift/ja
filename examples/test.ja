@@ -1,4 +1,23 @@
+import OtherBar, other_bar, other_y from "./other.ja";
 
-var x : cstring = "World";
+struct Foo {
+	var x : int;
+}
 
-x = "Hello";
+export struct Bar {
+	var y = true;
+}
+
+function foo() : [3]int
+{
+	print "hello foo";
+}
+
+export function bar() : [2]bool
+{
+	print "world bar";
+}
+
+var x : OtherBar;
+
+export var y = false;

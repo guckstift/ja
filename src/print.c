@@ -4,6 +4,7 @@
 #include <string.h>
 #include "print.h"
 #include "utils.h"
+#include "build.h"
 
 #define COL_RESET   "\x1b[0m"
 #define COL_GREY    "\x1b[38;2;170;170;170m"
@@ -18,7 +19,8 @@
 static int64_t level;
 
 static void print_stmts(Stmt **stmts);
-static void fprint_type(FILE *fs, Type *dtype);
+static void fprint_type(FILE *fs, Type *type);
+static void print_block(Block *block);
 
 void vprint_error(
 	int64_t line, char *linep, char *src_end, char *err_pos, char *msg,
@@ -48,8 +50,8 @@ void vprint_error(
 			}
 			else if(*msg == 'y') {
 				msg++;
-				Type *dtype = va_arg(args, Type*);
-				fprint_type(stderr, dtype);
+				Type *type = va_arg(args, Type*);
+				fprint_type(stderr, type);
 			}
 			else if(*msg == 'u') {
 				msg++;
@@ -204,7 +206,7 @@ static void print_string(char *string, int64_t length)
 
 static void print_token(Token *token)
 {
-	switch(token->type) {
+	switch(token->kind) {
 		case TK_IDENT:
 			printf("IDENT   ");
 			print_ident(token);
@@ -244,7 +246,7 @@ void print_tokens(Token *tokens)
 	
 	printf(COL_YELLOW "=== tokens ===" COL_RESET "\n");
 	
-	for(Token *token = tokens; token->type != TK_EOF; token ++) {
+	for(Token *token = tokens; token->kind != TK_EOF; token ++) {
 		if(last_line != token->line) {
 			line_pref_len = print_line_num(
 				token->line, array_last(tokens).line
@@ -266,9 +268,9 @@ static void print_indent()
 	for(int64_t i=0; i<level; i++) printf("  ");
 }
 
-static void fprint_type(FILE *fs, Type *dtype)
+static void fprint_type(FILE *fs, Type *type)
 {
-	switch(dtype->kind) {
+	switch(type->kind) {
 		case NONE:
 			fprint_keyword_cstr(fs, "none");
 			break;
@@ -306,42 +308,48 @@ static void fprint_type(FILE *fs, Type *dtype)
 			fprint_keyword_cstr(fs, "cstring");
 			break;
 		case PTR:
-			if(dtype->subtype->kind == NONE) {
+			if(type->subtype->kind == NONE) {
 				fprint_keyword_cstr(fs, "ptr");
 			}
 			else {
 				fprintf(fs, ">");
-				fprint_type(fs, dtype->subtype);
+				fprint_type(fs, type->subtype);
 			}
 			break;
 		case ARRAY:
 			fprintf(fs, "[");
-			if(dtype->length >= 0) fprint_int(fs, dtype->length);
+			if(type->length >= 0) fprint_int(fs, type->length);
 			fprintf(fs, "]");
-			fprint_type(fs, dtype->itemtype);
+			fprint_type(fs, type->itemtype);
 			break;
 		case FUNC:
-			fprint_keyword_cstr(fs, "function");
+			fprintf(fs, "(");
+			array_for(type->paramtypes, i) {
+				if(i > 0) fprintf(fs, ",");
+				fprint_type(fs, type->paramtypes[i]);
+			}
+			fprintf(fs, ")");
+			fprint_type(fs, type->returntype);
 			break;
 		case STRUCT:
-			fprint_ident(fs, dtype->id);
+			fprint_ident(fs, type->structdecl->id);
 			break;
 	}
 }
 
-static void print_type(Type *dtype)
+static void print_type(Type *type)
 {
-	fprint_type(stdout, dtype);
+	fprint_type(stdout, type);
 }
 
 static void print_expr(Expr *expr)
 {
 	switch(expr->kind) {
 		case INT:
-			print_int(expr->ival);
+			print_int(expr->value);
 			break;
 		case BOOL:
-			if(expr->ival)
+			if(expr->value)
 				print_keyword_cstr("true");
 			else
 				print_keyword_cstr("false");
@@ -350,7 +358,7 @@ static void print_expr(Expr *expr)
 			print_string(expr->string, expr->length);
 			break;
 		case VAR:
-			print_ident(expr->id);
+			print_ident(expr->decl->id);
 			break;
 		case PTR:
 			printf("(>");
@@ -366,7 +374,7 @@ static void print_expr(Expr *expr)
 			printf("(");
 			print_expr(expr->subexpr);
 			print_keyword_cstr(" as ");
-			print_type(expr->dtype);
+			print_type(expr->type);
 			printf(")");
 			break;
 		case SUBSCRIPT:
@@ -386,9 +394,9 @@ static void print_expr(Expr *expr)
 			break;
 		case ARRAY:
 			printf("[");
-			array_for(expr->exprs, i) {
+			array_for(expr->items, i) {
 				if(i > 0) printf(", ");
-				print_expr(expr->exprs[i]);
+				print_expr(expr->items	[i]);
 			}
 			printf("]");
 			break;
@@ -407,7 +415,7 @@ static void print_expr(Expr *expr)
 		case MEMBER:
 			print_expr(expr->subexpr);
 			printf(".");
-			print_ident(expr->member_id);
+			print_ident(expr->member->id);
 			break;
 	}
 }
@@ -416,7 +424,7 @@ static void print_vardecl_core(Decl *decl)
 {
 	print_ident(decl->id);
 	printf(" : ");
-	print_type(decl->dtype);
+	print_type(decl->type);
 	if(decl->init) {
 		printf(" = ");
 		print_expr(decl->init);
@@ -435,16 +443,18 @@ static void print_func(Decl *func)
 	}
 	
 	printf(")");
-	if(func->dtype) {
+	if(func->type) {
 		printf(" : ");
-		print_type(func->dtype);
+		print_type(func->type->returntype);
 	}
-	printf(" {\n");
-	level ++;
-	print_stmts(func->body);
-	level --;
-	print_indent();
-	printf("}");
+	if(!func->isproto) {
+		printf(" {\n");
+		level ++;
+		print_block(func->body);
+		level --;
+		print_indent();
+		printf("}");
+	}
 }
 
 static void print_stmt(Stmt *stmt)
@@ -455,38 +465,44 @@ static void print_stmt(Stmt *stmt)
 			print_expr(stmt->as_print.expr);
 			break;
 		case VAR:
+			if(stmt->as_decl.exported) print_keyword_cstr("export ");
 			print_keyword_cstr("var ");
 			print_vardecl_core((Decl*)stmt);
 			break;
 		case FUNC:
+			if(stmt->as_decl.exported) print_keyword_cstr("export ");
 			print_func((Decl*)stmt);
 			break;
 		case STRUCT:
+			if(stmt->as_decl.exported) print_keyword_cstr("export ");
 			print_keyword_cstr("struct ");
 			print_ident(stmt->as_decl.id);
 			printf(" {\n");
 			level ++;
-			print_stmts(stmt->as_decl.body);
+			print_stmts((Stmt**)stmt->as_decl.members);
 			level --;
 			print_indent();
 			printf("}");
 			break;
 		case IF:
 			print_keyword_cstr("if ");
-			print_expr(stmt->as_if.expr);
+			print_expr(stmt->as_if.cond);
 			printf(" {\n");
 			level ++;
-			print_stmts(stmt->as_if.if_body);
+			print_stmts(stmt->as_if.if_body->stmts);
 			level --;
 			print_indent();
 			printf("}");
 			if(stmt->as_if.else_body) {
-				Stmt **else_body = stmt->as_if.else_body;
-				if(array_length(else_body) == 1 && else_body[0]->kind == IF) {
+				Block *else_body = stmt->as_if.else_body;
+				if(
+					array_length(else_body->stmts) == 1 &&
+					else_body->stmts[0]->kind == IF
+				) {
 					printf("\n");
 					print_indent();
 					print_keyword_cstr("else ");
-					print_stmt(else_body[0]);
+					print_stmt(else_body->stmts[0]);
 				}
 				else {
 					printf("\n");
@@ -494,7 +510,7 @@ static void print_stmt(Stmt *stmt)
 					print_keyword_cstr("else");
 					printf(" {\n");
 					level ++;
-					print_stmts(stmt->as_if.else_body);
+					print_stmts(stmt->as_if.else_body->stmts);
 					level --;
 					print_indent();
 					printf("}");
@@ -503,10 +519,10 @@ static void print_stmt(Stmt *stmt)
 			break;
 		case WHILE:
 			print_keyword_cstr("while ");
-			print_expr(stmt->as_while.expr);
+			print_expr(stmt->as_while.cond);
 			printf(" {\n");
 			level ++;
-			print_stmts(stmt->as_while.while_body);
+			print_stmts(stmt->as_while.body->stmts);
 			level --;
 			print_indent();
 			printf("}");
@@ -526,10 +542,7 @@ static void print_stmt(Stmt *stmt)
 			break;
 		case IMPORT:
 			print_keyword_cstr("import ");
-			print_string(
-				stmt->as_import.filename->string,
-				stmt->as_import.filename->string_length
-			);
+			printf(COL_MAGENTA "\"%s\"", stmt->as_import.unit->src_filename);
 			break;
 	}
 }
@@ -543,11 +556,16 @@ static void print_stmts(Stmt **stmts)
 	}
 }
 
-void print_ast(Stmt **stmts)
+static void print_block(Block *block)
+{
+	if(block) print_stmts(block->stmts);
+}
+
+void print_ast(Block *block)
 {
 	level = 0;
 	printf(COL_YELLOW "=== ast ===" COL_RESET "\n");
-	print_stmts(stmts);
+	print_block(block);
 }
 
 void print_c_code(char *c_filename)

@@ -71,28 +71,28 @@ typedef enum {
 	PUNCTS(F)
 	#undef F
 
-} TokenType;
+} TokenKind;
 
 typedef struct Token {
-	TokenType type;
+	TokenKind kind;
 	int64_t line;
 	char *linep;
 	char *start;
 	int64_t length;
+	
 	union {
 		int64_t ival;
-		uint64_t uval;
+		int64_t string_length;
+	};
+	
+	union {
 		struct Token *id;
 		char *punct;
 		char *string;
 	};
-	union {
-		struct Token *next_id;
-		int64_t string_length;
-	};
 } Token;
 
-char *get_token_type_name(TokenType type);
+char *get_token_kind_name(TokenKind kind);
 int token_text_equals(Token *token, char *text);
 Token *create_id(char *start, int64_t length);
 Token *lex(char *src, int64_t src_len);

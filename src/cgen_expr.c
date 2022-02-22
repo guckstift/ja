@@ -6,16 +6,16 @@ static void gen_exprs(Expr **exprs);
 
 static void gen_cast(Expr *expr)
 {
-	Type *dtype = expr->dtype;
-	Type *subtype = dtype->subtype;
+	Type *type = expr->type;
+	Type *subtype = type->subtype;
 	Expr *srcexpr = expr->subexpr;
-	Type *srctype = srcexpr->dtype;
+	Type *srctype = srcexpr->type;
 	
-	if(dtype->kind == BOOL) {
+	if(type->kind == BOOL) {
 		write("(%e ? jatrue : jafalse)", srcexpr);
 	}
-	else if(is_dynarray_ptr_type(dtype)) {
-		write("((%Y){.length = ", dtype);
+	else if(is_dynarray_ptr_type(type)) {
+		write("((%Y){.length = ", type);
 		
 		if(srctype->subtype->kind == ARRAY) {
 			// from static array
@@ -28,7 +28,7 @@ static void gen_cast(Expr *expr)
 		
 		write(", .items = %e})", srcexpr);
 	}
-	else if(srctype->kind == STRING && dtype->kind == CSTRING) {
+	else if(srctype->kind == STRING && type->kind == CSTRING) {
 		if(srcexpr->kind == STRING) {
 			write("(\"%S\")", srcexpr->string, srcexpr->length);
 		}
@@ -37,7 +37,7 @@ static void gen_cast(Expr *expr)
 		}
 	}
 	else {
-		write("((%Y)%e)", dtype, srcexpr);
+		write("((%Y)%e)", type, srcexpr);
 	}
 }
 
@@ -52,11 +52,11 @@ static void gen_subscript(Expr *expr)
 {
 	if(
 		expr->subexpr->kind == DEREF &&
-		is_dynarray_ptr_type(expr->subexpr->subexpr->dtype)
+		is_dynarray_ptr_type(expr->subexpr->subexpr->type)
 	) {
 		Expr *dynarray = expr->subexpr->subexpr;
 		Expr *index = expr->index;
-		Type *itemtype = expr->dtype;
+		Type *itemtype = expr->type;
 		
 		write(
 			"(((%y(*)%z)%e.items)[%e])",
@@ -71,8 +71,8 @@ static void gen_subscript(Expr *expr)
 static void gen_binop(Expr *expr)
 {
 	if(
-		expr->left->dtype->kind == STRING &&
-		expr->operator->type == TK_EQUALS
+		expr->left->type->kind == STRING &&
+		expr->operator->kind == TK_EQUALS
 	) {
 		write(
 			"(%e.length == %e.length && "
@@ -88,8 +88,8 @@ static void gen_binop(Expr *expr)
 
 static void gen_array(Expr *expr)
 {
-	write("((%Y){", expr->dtype);
-	gen_exprs(expr->exprs);
+	write("((%Y){", expr->type);
+	gen_exprs(expr->items);
 	write("})");
 }
 
@@ -99,7 +99,7 @@ static void gen_call(Expr *expr)
 	gen_exprs(expr->args);
 	write(")");
 	
-	if(expr->callee->dtype->returntype->kind == ARRAY) {
+	if(expr->callee->type->returntype->kind == ARRAY) {
 		write(".a");
 	}
 	
@@ -108,24 +108,7 @@ static void gen_call(Expr *expr)
 
 static void gen_member(Expr *expr)
 {
-	if(
-		expr->subexpr->dtype->kind == ARRAY &&
-		token_text_equals(expr->member_id, "length")
-	) {
-		if(
-			expr->subexpr->kind == DEREF &&
-			expr->subexpr->dtype->length == -1 &&
-			token_text_equals(expr->member_id, "length")
-		) {
-			write("(%e.length)", expr->subexpr->subexpr);
-		}
-		else {
-			write("%i", expr->subexpr->dtype->length);
-		}
-	}
-	else {
-		write("(%e.%I)", expr->subexpr, expr->member_id);
-	}
+	write("(%e.%I)", expr->subexpr, expr->member->id);
 }
 
 static void gen_exprs(Expr **exprs)
@@ -140,10 +123,12 @@ void gen_init_expr(Expr *expr)
 {
 	if(expr->kind == ARRAY) {
 		write("{");
-		array_for(expr->exprs, i) {
+		
+		array_for(expr->items, i) {
 			if(i > 0) write(", ");
-			gen_init_expr(expr->exprs[i]);
+			gen_init_expr(expr->items[i]);
 		}
+		
 		write("}");
 	}
 	else if(expr->kind == STRING) {
@@ -158,22 +143,22 @@ void gen_expr(Expr *expr)
 {
 	switch(expr->kind) {
 		case INT:
-			write("%i", expr->ival);
+			write("%i", expr->value);
 			break;
 		case BOOL:
-			write(expr->ival ? "jatrue" : "jafalse");
+			write(expr->value ? "jatrue" : "jafalse");
 			break;
 		case STRING:
 			gen_string(expr);
 			break;
 		case VAR:
-			write("%I", expr->id);
+			write("%I", expr->decl->id);
 			break;
 		case PTR:
 			write("(&%e)", expr->subexpr);
 			break;
 		case DEREF:
-			write("(*%e)", expr->subexpr);
+			write("(*%e)", expr->ptr);
 			break;
 		case CAST:
 			gen_cast(expr);

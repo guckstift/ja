@@ -1,51 +1,51 @@
 #include "cgen.h"
 #include "cgen_utils.h"
 
-static void gen_struct_type(Type *dtype)
+static void gen_struct_type(Type *type)
 {
-	if(dtype->typedecl->flags.exported && is_in_header()) {
-		write("%X", dtype->id);
+	if(type->structdecl->exported && is_in_header()) {
+		write("%X", type->structdecl->id);
 	}
 	else if(
-		dtype->typedecl->scope != get_cur_unit()->stmts[0]->scope &&
-		dtype->typedecl->flags.imported == 0
+		type->structdecl->scope != get_cur_unit()->block->stmts[0]->scope &&
+		type->structdecl->imported == 0
 	) {
-		write("%s", dtype->typedecl->public_id);
+		write("%s", type->structdecl->public_id);
 	}
 	else {
-		write("%I", dtype->id);
+		write("%I", type->structdecl->id);
 	}
 }
 
-static void gen_ptr_type(Type *dtype)
+static void gen_ptr_type(Type *type)
 {
-	if(is_dynarray_ptr_type(dtype)) {
+	if(is_dynarray_ptr_type(type)) {
 		write("jadynarray");
 	}
 	else {
-		gen_type(dtype->subtype);
-		if(dtype->subtype->kind == ARRAY) write("(");
+		gen_type(type->subtype);
+		if(type->subtype->kind == ARRAY) write("(");
 		write("*");
 	}
 }
 
-void gen_type_postfix(Type *dtype)
+void gen_type_postfix(Type *type)
 {
-	switch(dtype->kind) {
+	switch(type->kind) {
 		case PTR:
-			if(is_dynarray_ptr_type(dtype)) break;
-			if(dtype->subtype->kind == ARRAY) write(")");
-			gen_type_postfix(dtype->subtype);
+			if(is_dynarray_ptr_type(type)) break;
+			if(type->subtype->kind == ARRAY) write(")");
+			gen_type_postfix(type->subtype);
 			break;
 		case ARRAY:
-			write("[%u]%z", dtype->length, dtype->itemtype);
+			write("[%u]%z", type->length, type->itemtype);
 			break;
 	}
 }
 
-void gen_type(Type *dtype)
+void gen_type(Type *type)
 {
-	switch(dtype->kind) {
+	switch(type->kind) {
 		case NONE:
 			write("void");
 			break;
@@ -83,13 +83,13 @@ void gen_type(Type *dtype)
 			write("char*");
 			break;
 		case STRUCT:
-			gen_struct_type(dtype);
+			gen_struct_type(type);
 			break;
 		case PTR:
-			gen_ptr_type(dtype);
+			gen_ptr_type(type);
 			break;
 		case ARRAY:
-			gen_type(dtype->itemtype);
+			gen_type(type->itemtype);
 			break;
 	}
 }

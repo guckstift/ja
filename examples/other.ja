@@ -1,11 +1,10 @@
-struct Foo {
-	var x = "Hello";
+export struct OtherBar {
+	var y = true;
 }
 
-export function foo() : Foo
+export function other_bar() : [2]bool
 {
-	var res : Foo;
-	res.x = "World";
-	return res;
+	print "world bar";
 }
 
+export var other_y = false;

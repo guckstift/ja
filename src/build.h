@@ -14,7 +14,7 @@ typedef struct Unit {
 	char *src;
 	int64_t src_len;
 	Token *tokens;
-	struct Stmt **stmts;
+	Block *block;
 	char *obj_filename;
 	char *obj_main_filename;
 } Unit;

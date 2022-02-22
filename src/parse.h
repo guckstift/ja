@@ -3,6 +3,6 @@
 
 #include "ast.h"
 
-Stmt **parse(Token *tokens, char *unit_id);
+Block *parse(Token *tokens, char *_unit_id);
 
 #endif

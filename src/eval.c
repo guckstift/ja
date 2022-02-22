@@ -4,21 +4,23 @@
 Expr *eval_binop(Expr *expr)
 {
 	if(expr->isconst) {
-		switch(expr->operator->type) {
+		switch(expr->operator->kind) {
 			#define INT_BINOP(name, op) \
 				case TK_ ## name: { \
-					if(is_integral_type(expr->dtype)) { \
+					if(is_integral_type(expr->type)) { \
 						expr->kind = INT; \
-						expr->ival = expr->left->ival op expr->right->ival; \
+						expr->value = expr->left->value op \
+							expr->right->value; \
 					} \
 					break; \
 				}
 			
 			#define CMP_BINOP(name, op) \
 				case TK_ ## name: { \
-					if(is_integral_type(expr->left->dtype)) { \
+					if(is_integral_type(expr->left->type)) { \
 						expr->kind = BOOL; \
-						expr->ival = expr->left->ival op expr->right->ival; \
+						expr->value = expr->left->value op \
+							expr->right->value; \
 					} \
 					break; \
 				}
@@ -41,53 +43,53 @@ Expr *eval_binop(Expr *expr)
 	return expr;
 }
 
-Expr *eval_integral_cast(Expr *expr, Type *dtype)
+Expr *eval_integral_cast(Expr *expr, Type *type)
 {
-	Type *src_type = expr->dtype;
+	Type *src_type = expr->type;
 	
 	if(expr->isconst) {
-		expr->dtype = dtype;
+		expr->type = type;
 		expr->kind = INT;
 		
-		switch(dtype->kind) {
+		switch(type->kind) {
 			case INT8:
-				expr->ival = (int8_t)expr->ival;
+				expr->value = (int8_t)expr->value;
 				break;
 			case UINT8:
-				expr->ival = (uint8_t)expr->ival;
+				expr->value = (uint8_t)expr->value;
 				break;
 			case INT16:
-				expr->ival = (int16_t)expr->ival;
+				expr->value = (int16_t)expr->value;
 				break;
 			case UINT16:
-				expr->ival = (uint16_t)expr->ival;
+				expr->value = (uint16_t)expr->value;
 				break;
 			case INT32:
-				expr->ival = (int32_t)expr->ival;
+				expr->value = (int32_t)expr->value;
 				break;
 			case UINT32:
-				expr->ival = (uint32_t)expr->ival;
+				expr->value = (uint32_t)expr->value;
 				break;
 			case INT64:
 			case UINT64:
 				break;
 			case BOOL:
 				expr->kind = BOOL;
-				expr->ival = expr->ival != 0;
+				expr->value = expr->value != 0;
 				break;
 		}
 		
 		return expr;
 	}
 	
-	return new_cast_expr(expr, dtype);
+	return new_cast_expr(expr, type);
 }
 
 Expr *eval_subscript(Expr *expr, Expr *index)
 {
 	if(expr->kind == ARRAY && index->isconst) {
-		return expr->exprs[index->ival];
+		return expr->items[index->value];
 	}
 	
-	return new_subscript(expr, index);
+	return new_subscript_expr(expr, index);
 }

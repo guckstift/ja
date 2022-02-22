@@ -15,7 +15,7 @@ void print_error(
 );
 
 void print_tokens(Token *tokens);
-void print_ast(Stmt **stmts);
+void print_ast(Block *block);
 void print_c_code(char *c_filename);
 
 #endif
