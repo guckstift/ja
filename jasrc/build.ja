@@ -1,0 +1,12 @@
+
+struct Unit {
+	var src_filename :string;
+}
+
+struct Project {
+	var units : >[]Unit;
+}
+
+export function build(main_filename :string)
+{
+}

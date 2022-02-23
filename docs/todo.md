@@ -32,6 +32,7 @@
 	check that funcs are protos
 	check that vars are pointer types
 	runtime check loaded dll and symbols
+* self hosting
 
 # for self hosting
 
@@ -66,7 +67,6 @@
 * type-ids
 * type-alias definition
 * build: cache C files, compiled objects
-* self hosting
 * float types
 * correct float to string conversion
 * anonymous structs, unions

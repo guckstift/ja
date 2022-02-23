@@ -34,9 +34,21 @@ static int redeclare(Decl *decl)
 	return redeclare_in(decl, scope);
 }
 
+static void declare_builtins()
+{
+	Token *argv_id = create_id("argv", 0);
+	Type *string_dynarray_type = new_dynarray_type(new_type(STRING));
+	Decl *argv = new_var(argv_id, scope, argv_id, 0, string_dynarray_type, 0);
+	
+	argv->builtin = 1;
+	
+	declare(argv);
+}
+
 static void enter()
 {
 	scope = new_scope(unit_id, scope);
+	if(!scope->parent) declare_builtins();
 }
 
 static Scope *leave()

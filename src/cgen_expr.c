@@ -139,6 +139,26 @@ void gen_init_expr(Expr *expr)
 	}
 }
 
+void gen_length(Expr *expr)
+{
+	Expr *array = expr->array;
+	Type *type = array->type;
+	
+	if(type->kind == ARRAY) {
+		if(type->length == -1) {
+			if(array->kind == DEREF) {
+				write("(%e.length)", array->ptr);
+			}
+		}
+		else {
+			write("%i", type->length);
+		}
+	}
+	else if(type->kind == STRING) {
+		write("(%e.length)", array);
+	}
+}
+
 void gen_expr(Expr *expr)
 {
 	switch(expr->kind) {
@@ -177,6 +197,9 @@ void gen_expr(Expr *expr)
 			break;
 		case MEMBER:
 			gen_member(expr);
+			break;
+		case LENGTH:
+			gen_length(expr);
 			break;
 	}
 }

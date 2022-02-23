@@ -420,6 +420,10 @@ static void print_expr(Expr *expr)
 			printf(".");
 			print_ident(expr->member->id);
 			break;
+		case LENGTH:
+			print_expr(expr->array);
+			printf(".length");
+			break;
 	}
 }
 

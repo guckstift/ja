@@ -272,7 +272,10 @@ static Expr *p_member_x(Expr *expr)
 		
 	Type *type = expr->type;
 	
-	if(type->kind == ARRAY && token_text_equals(ident, "length"))
+	if(
+		(type->kind == ARRAY || type->kind == STRING) &&
+		token_text_equals(ident, "length")
+	)
 		return new_length_expr(expr);
 	
 	if(type->kind != STRUCT)

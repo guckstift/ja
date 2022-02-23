@@ -235,7 +235,12 @@ Expr *new_subscript_expr(Expr *array, Expr *index)
 
 Expr *new_length_expr(Expr *array)
 {
-	return new_expr(LENGTH, array->start, new_type(INT), array->isconst, 0);
+	Expr *expr = new_expr(
+		LENGTH, array->start, new_type(INT), array->isconst, 0
+	);
+	
+	expr->array = array;
+	return expr;
 }
 
 Expr *new_cast_expr(Expr *subexpr, Type *type)

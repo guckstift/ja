@@ -1,0 +1,27 @@
+import build from "./build.ja";
+
+dllimport "libc.so.6" {
+	function exit(code :int32);
+	function fwrite(p :cstring, size :uint, count :uint, fs :ptr);
+	var stdout : >ptr;
+	var stderr : >ptr;
+}
+
+function error(msg : string)
+{
+	fwrite(msg, 1, msg.length, <stderr);
+	fwrite("\n", 1, 1, <stderr);
+	exit(1);
+}
+
+var argc = argv.length;
+
+if argc < 2 {
+	error("no input file");
+}
+
+if argc > 2 {
+	error("too many input files");
+}
+
+var filename = argv[1];
