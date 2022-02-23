@@ -25,6 +25,13 @@
 	import * from "./myfile.ja"; # all exported symbols
 	import "./file.ja" as unit; # import in namespace
 	)
+* ffi
+	X load dlls
+	X load functions
+	X load variables
+	check that funcs are protos
+	check that vars are pointer types
+	runtime check loaded dll and symbols
 
 # for self hosting
 
@@ -58,7 +65,6 @@
 * for-each on arrays (for x in arr {...})
 * type-ids
 * type-alias definition
-* ffi
 * build: cache C files, compiled objects
 * self hosting
 * float types

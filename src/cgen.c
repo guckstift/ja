@@ -556,6 +556,53 @@ static void gen_imports(Import **imports)
 	}
 }
 
+static void gen_dll_import_decls(DllImport **imports)
+{
+	array_for(imports, i) {
+		DllImport *import = imports[i];
+		Decl **decls = import->decls;
+		
+		array_for(decls, i) {
+			Decl *decl = decls[i];
+			
+			if(decl->kind == FUNC) {
+				Type *returntype = decl->type->returntype;
+				write("static %y (*%s)(", returntype, decl->private_id);
+				gen_params(decl->params);
+				write(")%z;\n", returntype);
+			}
+		}
+	}
+}
+
+static void gen_dll_imports(DllImport **imports)
+{
+	write(INDENT "void *dll = 0;\n");
+	
+	array_for(imports, i) {
+		DllImport *import = imports[i];
+		Decl **decls = import->decls;
+		write(INDENT "dll = dlopen(\"%s\", RTLD_LAZY);\n", import->dll_name);
+		
+		array_for(decls, i) {
+			Decl *decl = decls[i];
+			
+			if(decl->kind == FUNC) {
+				write(
+					INDENT "*(void**)&(%s) = dlsym(dll, \"%t\");\n",
+					decl->private_id, decl->id
+				);
+			}
+			else if(decl->kind == VAR) {
+				write(
+					INDENT "(%s) = dlsym(dll, \"%t\");\n",
+					decl->private_id, decl->id
+				);
+			}
+		}
+	}
+}
+
 // --- //
 
 static void gen_h()
@@ -603,6 +650,9 @@ static void gen_c()
 	Scope *unit_scope = cur_unit->block->scope;
 	Decl **decls = unit_scope->decls;
 	
+	write("\n// dll imports\n");
+	gen_dll_import_decls(unit_scope->dll_imports);
+	
 	write("\n// imports\n");
 	gen_imports(unit_scope->imports);
 	
@@ -640,6 +690,9 @@ static void gen_c()
 			"(jastring){strlen(argv[i]), argv[i]};\n"
 		INDENT "}\n"
 	);
+	
+	write(INDENT "// dll imports\n");
+	gen_dll_imports(unit_scope->dll_imports);
 	
 	gen_block(cur_unit->block);
 	

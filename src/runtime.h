@@ -6,6 +6,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
+#include <dlfcn.h>
 
 #define jafalse ((jabool)0)
 #define jatrue ((jabool)1)

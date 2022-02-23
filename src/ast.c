@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <assert.h>
 #include "ast.h"
 #include "utils.h"
 
@@ -239,7 +240,9 @@ Expr *new_length_expr(Expr *array)
 
 Expr *new_cast_expr(Expr *subexpr, Type *type)
 {
-	return new_expr(CAST, subexpr->start, type, subexpr->isconst, 0);
+	Expr *expr = new_expr(CAST, subexpr->start, type, subexpr->isconst, 0);
+	expr->subexpr = subexpr;
+	return expr;
 }
 
 Expr *new_member_expr(Expr *object, Decl *member)
@@ -366,6 +369,14 @@ Import *new_import(Token *start, Scope *scope, Unit *unit, Decl **decls)
 	return import;
 }
 
+DllImport *new_dll_import(Token *start, Scope *scope, char *name, Decl **decls)
+{
+	DllImport *import = &new_stmt(DLLIMPORT, start, scope)->as_dll_import;
+	import->dll_name = name;
+	import->decls = decls;
+	return import;
+}
+
 If *new_if(Token *start, Expr *cond, Block *if_body, Block *else_body)
 {
 	If *ifstmt = &new_stmt(IF, start, if_body->scope->parent)->as_if;
@@ -419,6 +430,7 @@ Scope *new_scope(char *unit_id, Scope *parent) {
 	scope->funchost = parent ? parent->funchost : 0;
 	scope->structhost = 0;
 	scope->imports = 0;
+	scope->dll_imports = 0;
 	scope->decls = 0;
 	return scope;
 }

@@ -7,6 +7,7 @@
 	"#include <inttypes.h>\n" \
 	"#include <string.h>\n" \
 	"#include <stdlib.h>\n" \
+	"#include <dlfcn.h>\n" \
 	"\n" \
 	"#define jafalse ((jabool)0)\n" \
 	"#define jatrue ((jabool)1)\n" \

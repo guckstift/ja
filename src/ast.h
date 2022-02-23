@@ -8,6 +8,7 @@ typedef struct Type Type;
 typedef struct Expr Expr;
 typedef struct StmtHead StmtHead;
 typedef struct Import Import;
+typedef struct DllImport DllImport;
 typedef struct DeclFlags DeclFlags;
 typedef struct Decl Decl;
 typedef struct If If;
@@ -68,6 +69,7 @@ typedef enum {
 	ASSIGN,
 	RETURN,
 	IMPORT,
+	DLLIMPORT,
 } Kind;
 
 /*
@@ -230,6 +232,12 @@ struct Import {
 	Decl **decls;
 };
 
+struct DllImport {
+	STMT_HEAD
+	char *dll_name;
+	Decl **decls;
+};
+
 struct If {
 	STMT_HEAD
 	Expr *cond;
@@ -269,6 +277,7 @@ struct Stmt {
 		struct { STMT_HEAD };
 		Decl as_decl;
 		Import as_import;
+		DllImport as_dll_import;
 		If as_if;
 		While as_while;
 		Assign as_assign;
@@ -280,6 +289,7 @@ struct Stmt {
 
 Stmt *new_stmt(Kind kind, Token *start, Scope *scope);
 Import *new_import(Token *start, Scope *scope, Unit *unit, Decl **decls);
+DllImport *new_dll_import(Token *start, Scope *scope, char *name, Decl **decls);
 If *new_if(Token *start, Expr *cond, Block *if_body, Block *else_body);
 While *new_while(Token *start, Expr *cond, Block *body);
 Assign *new_assign(Scope *scope, Expr *target, Expr *expr);
@@ -293,6 +303,7 @@ struct Scope {
 	Decl *funchost;
 	Decl *structhost;
 	Import **imports;
+	DllImport **dll_imports;
 	Decl **decls;
 };
 

@@ -290,6 +290,8 @@ void build(char *main_filename)
 		}
 	}
 	
+	str_append(cmd, " -ldl");
+	
 	int res = run_cmd(cmd);
 	if(res) error("could not link the object files");
 	

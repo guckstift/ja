@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <ctype.h>
 #include <string.h>
+#include <assert.h>
 #include "print.h"
 #include "utils.h"
 #include "build.h"
@@ -344,6 +345,8 @@ static void print_type(Type *type)
 
 static void print_expr(Expr *expr)
 {
+	assert(expr);
+	
 	switch(expr->kind) {
 		case INT:
 			print_int(expr->value);
@@ -543,6 +546,18 @@ static void print_stmt(Stmt *stmt)
 		case IMPORT:
 			print_keyword_cstr("import ");
 			printf(COL_MAGENTA "\"%s\"", stmt->as_import.unit->src_filename);
+			break;
+		case DLLIMPORT:
+			print_keyword_cstr("dllimport ");
+			printf(
+				COL_MAGENTA "\"%s\"" COL_RESET " {\n",
+				stmt->as_dll_import.dll_name
+			);
+			level ++;
+			print_stmts((Stmt**)stmt->as_dll_import.decls);
+			level --;
+			print_indent();
+			printf("}");
 			break;
 	}
 }

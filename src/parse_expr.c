@@ -196,20 +196,23 @@ static Expr *p_call_x(Expr *expr)
 	if(expr->type->kind != FUNC)
 		fatal_at(expr->start, "not a function you are calling");
 	
-	Decl **params = expr->type->structdecl->params;
+	Type *type = expr->type;
+	Type **paramtypes = type->paramtypes;
 	Expr **args = p_exprs();
 	
-	if(array_length(args) < array_length(params)) {
+	if(array_length(args) < array_length(paramtypes)) {
 		fatal_at(
-			last, "not enough arguments, %i needed", array_length(params)
+			last, "not enough arguments, %i needed", array_length(paramtypes)
 		);
 	}
-	else if(array_length(args) > array_length(params)) {
-		fatal_at(last, "too many arguments, %i needed", array_length(params));
+	else if(array_length(args) > array_length(paramtypes)) {
+		fatal_at(
+			last, "too many arguments, %i needed", array_length(paramtypes)
+		);
 	}
 	
 	array_for(args, i) {
-		args[i] = cast_expr(args[i], params[i]->type, 0);
+		args[i] = cast_expr(args[i], paramtypes[i], 0);
 	}
 	
 	if(!eat(TK_RPAREN))

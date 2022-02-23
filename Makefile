@@ -10,13 +10,16 @@ HFILES = \
 CFLAGS = \
 	-std=c17 -pedantic-errors -DJA_DEBUG
 
+LDFLAGS = \
+	 -ldl
+
 SRCS = $(patsubst %.c,src/%.c,$(CFILES))
 HDRS = $(patsubst %.h,src/%.h,$(HFILES))
 TESTS = $(sort $(wildcard tests/*.ja))
 TESTOKS = $(patsubst %.ja,%.ok,$(TESTS))
 
 ja: $(SRCS) $(HDRS)
-	gcc -o $@ $(CFLAGS) $(SRCS)
+	gcc -o $@ $(CFLAGS) $(SRCS) $(LDFLAGS)
 
 src/%.src.h: src/%
 	echo \

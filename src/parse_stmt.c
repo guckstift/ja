@@ -149,7 +149,7 @@ static Stmt *p_vardecl(int exported)
 	return core;
 }
 
-static Stmt *p_funcdecl(int exported)
+static Stmt *p_funcdecl(int exported, int dll)
 {
 	if(!eat(TK_function)) return 0;
 	Token *start = last;
@@ -201,6 +201,8 @@ static Stmt *p_funcdecl(int exported)
 	Decl *decl = new_func(
 		start, scope, ident->id, exported, returntype, params
 	);
+	
+	if(dll) decl->imported = 1;
 	
 	func_scope->funchost = decl;
 	
@@ -459,6 +461,38 @@ static Stmt *p_import()
 	return (Stmt*)import;
 }
 
+static Stmt *p_dllimport()
+{
+	if(!eat(TK_dllimport)) return 0;
+	Token *start = last;
+	
+	if(scope->parent)
+		fatal_at(last, "DLL imports can only be used at top level");
+	
+	Token *filename = eat(TK_STRING);
+	if(!filename) fatal_at(cur, "expected filename of library to import from");
+	
+	if(!eat(TK_LCURLY))
+		fatal_after(last, "expected { after library name");
+	
+	Decl **decls = 0;
+	
+	while(1) {
+		Decl *decl = 0;
+		(decl = &p_funcdecl(0, 1)->as_decl) ||
+		(decl = &p_vardecl(0)->as_decl) ;
+		if(!decl) break;
+		array_push(decls, decl);
+	}
+	
+	if(!eat(TK_RCURLY))
+		fatal_after(last, "expected } after library list");
+	
+	DllImport *import = new_dll_import(start, scope, filename->string, decls);
+	array_push(scope->dll_imports, import);
+	return (Stmt*)import;
+}
+
 static Stmt *p_export()
 {
 	if(!eat(TK_export)) return 0;
@@ -469,7 +503,7 @@ static Stmt *p_export()
 	
 	Stmt *stmt = 0;
 	(stmt = p_vardecl(1)) ||
-	(stmt = p_funcdecl(1)) ||
+	(stmt = p_funcdecl(1, 0)) ||
 	(stmt = p_structdecl(1)) ;
 	
 	if(!stmt) {
@@ -515,12 +549,13 @@ static Stmt *p_stmt()
 	Stmt *stmt = 0;
 	(stmt = p_print()) ||
 	(stmt = p_vardecl(0)) ||
-	(stmt = p_funcdecl(0)) ||
+	(stmt = p_funcdecl(0, 0)) ||
 	(stmt = p_structdecl(0)) ||
 	(stmt = p_ifstmt()) ||
 	(stmt = p_whilestmt()) ||
 	(stmt = p_returnstmt()) ||
 	(stmt = p_import()) ||
+	(stmt = p_dllimport()) ||
 	(stmt = p_export()) ||
 	(stmt = p_assign()) ;
 	return stmt;

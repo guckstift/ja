@@ -7,6 +7,7 @@
 	_(as) \
 	_(bool) \
 	_(cstring) \
+	_(dllimport) \
 	_(else) \
 	_(export) \
 	_(false) \
