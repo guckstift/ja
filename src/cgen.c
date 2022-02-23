@@ -400,9 +400,9 @@ static void gen_funchead(Decl *decl)
 	}
 }
 	
-void gen_vardecl_init(Decl *decl)
+void gen_vardecl_init(Decl *decl, int struct_inst_member)
 {
-	if(in_header || decl->scope->structhost)
+	if(in_header || decl->scope->structhost && !struct_inst_member)
 		return;
 	
 	if(decl->init) {
@@ -411,8 +411,22 @@ void gen_vardecl_init(Decl *decl)
 			gen_init_expr(decl->init);
 		}
 	}
+	else if(decl->type->kind == STRUCT) {
+		Decl *structdecl = decl->type->structdecl;
+		write(" = {");
+		
+		array_for(structdecl->members, i) {
+			if(i > 0) write(", ");
+			Decl *member = structdecl->members[i];
+			
+			write(".%s", member->private_id);
+			gen_vardecl_init(member, 1);
+		}
+		
+		write("}");
+	}
 	else if(
-		decl->type->kind == ARRAY || decl->type->kind == STRUCT ||
+		decl->type->kind == ARRAY ||
 		decl->type->kind == STRING || is_dynarray_ptr_type(decl->type)
 	) {
 		write(" = {0}");
@@ -506,7 +520,7 @@ static void gen_vardecl(Decl *decl)
 	else
 		write("%y %s%z", decl->type, decl->private_id, decl->type);
 	
-	gen_vardecl_init(decl);
+	gen_vardecl_init(decl, 0);
 	
 	write(";\n");
 }
@@ -556,8 +570,8 @@ static void gen_imports(Import **imports)
 		write("#include \"%s\"\n", import->unit->h_filename);
 		Decl **decls = import->decls;
 		
-		array_for(decls, i) {
-			gen_export_alias(decls[i]);
+		array_for(decls, j) {
+			gen_export_alias(decls[j]);
 		}
 	}
 }
@@ -568,8 +582,8 @@ static void gen_dll_import_decls(DllImport **imports)
 		DllImport *import = imports[i];
 		Decl **decls = import->decls;
 		
-		array_for(decls, i) {
-			Decl *decl = decls[i];
+		array_for(decls, j) {
+			Decl *decl = decls[j];
 			
 			if(decl->kind == FUNC) {
 				Type *returntype = decl->type->returntype;
@@ -590,8 +604,8 @@ static void gen_dll_imports(DllImport **imports)
 		Decl **decls = import->decls;
 		write(INDENT "dll = dlopen(\"%s\", RTLD_LAZY);\n", import->dll_name);
 		
-		array_for(decls, i) {
-			Decl *decl = decls[i];
+		array_for(decls, j) {
+			Decl *decl = decls[j];
 			
 			if(decl->kind == FUNC) {
 				write(

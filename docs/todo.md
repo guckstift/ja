@@ -22,6 +22,7 @@
 	import sym, sym2 from "./some/file.ja"; # exclusive symbols
 	)
 * break, continue
+* use default struct member inits
 
 # wip
 
@@ -42,7 +43,6 @@
 * tagged unions
 * enums
 * switch-case
-* file functions
 * delete/resize
 * variable arguments
 
@@ -53,7 +53,6 @@
 	import * from "./myfile.ja"; # all exported symbols
 	import "./file.ja" as unit; # import in namespace
 	)
-* use default struct member inits
 * refer to struct before definition (if ptr to)
 * auto pointer unpacking/packing
 * print arrays
@@ -81,6 +80,7 @@
 
 # ideas
 
+* file functions
 * error type
 * namespaces
 * external methods

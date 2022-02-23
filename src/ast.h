@@ -188,11 +188,11 @@ struct Decl {
 	char *public_id;
 	Type *type;
 	
-	uint8_t imported : 1;
-	uint8_t exported : 1;
-	uint8_t builtin : 1;
-	uint8_t isproto : 1;
-	uint8_t cfunc : 1;
+	uint8_t imported;
+	uint8_t exported;
+	uint8_t builtin;
+	uint8_t isproto;
+	uint8_t cfunc;
 	
 	union {
 		Expr *init; // var

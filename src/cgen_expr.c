@@ -108,7 +108,7 @@ static void gen_call(Expr *expr)
 
 static void gen_member(Expr *expr)
 {
-	write("(%e.%I)", expr->subexpr, expr->member->id);
+	write("(%e.%I)", expr->object, expr->member->id);
 }
 
 static void gen_exprs(Expr **exprs)

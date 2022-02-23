@@ -1,6 +1,17 @@
 
-while 1 {
-	if 1 {
-		break;
-	}
+var x = 90;
+
+struct Person {
+	var name = "Max";
+	var age = 22;
+	var health : int;
 }
+
+var max : Person;
+
+print max.name;
+
+var pmax = new Person;
+
+print pmax.name;
+

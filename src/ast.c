@@ -252,8 +252,11 @@ Expr *new_cast_expr(Expr *subexpr, Type *type)
 
 Expr *new_member_expr(Expr *object, Decl *member)
 {
+	assert(member);
+	
 	Expr *expr = new_expr(MEMBER, object->start, member->type, 0, 1);
 	expr->object = object;
+	expr->member = member;
 	return expr;
 }
 
@@ -317,7 +320,11 @@ Decl *new_decl(
 	decl->id = id;
 	decl->private_id = private_id;
 	decl->public_id = public_id;
+	decl->imported = 0;
 	decl->exported = exported;
+	decl->builtin = 0;
+	decl->isproto = 0;
+	decl->cfunc = 0;
 	decl->type = type;
 	return decl;
 }
@@ -422,6 +429,7 @@ Call *new_call(Scope *scope, Expr *call)
 
 Print *new_print(Token *start, Scope *scope, Expr *expr)
 {
+	assert(expr);
 	Print *print = &new_stmt(PRINT, expr->start, scope)->as_print;
 	print->expr = expr;
 	return print;

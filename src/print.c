@@ -416,7 +416,7 @@ static void print_expr(Expr *expr)
 			printf("))");
 			break;
 		case MEMBER:
-			print_expr(expr->subexpr);
+			print_expr(expr->object);
 			printf(".");
 			print_ident(expr->member->id);
 			break;
@@ -439,6 +439,9 @@ static void print_vardecl_core(Decl *decl)
 	if(decl->init) {
 		printf(" = ");
 		print_expr(decl->init);
+	}
+	if(decl->imported) {
+		printf(" (imported)");
 	}
 }
 
