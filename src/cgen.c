@@ -314,6 +314,12 @@ static void gen_stmt(Stmt *stmt, int noindent)
 			gen_mainfuncname(stmt->as_import.unit);
 			write("(argc, argv);\n");
 			break;
+		case BREAK:
+			write("%>break;\n");
+			break;
+		case CONTINUE:
+			write("%>continue;\n");
+			break;
 	}
 }
 

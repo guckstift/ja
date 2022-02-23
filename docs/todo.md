@@ -16,15 +16,15 @@
 * function parameters
 * codegen: externalize runtime.h
 * refactor: use DeclFlags
+* new operator
+* import (
+	import "./file.ja"; # only side effects
+	import sym, sym2 from "./some/file.ja"; # exclusive symbols
+	)
+* break, continue
 
 # wip
 
-* import (
-	X import "./file.ja"; # only side effects
-	X import sym, sym2 from "./some/file.ja"; # exclusive symbols
-	import * from "./myfile.ja"; # all exported symbols
-	import "./file.ja" as unit; # import in namespace
-	)
 * ffi
 	X load dlls
 	X load functions
@@ -42,13 +42,17 @@
 * tagged unions
 * enums
 * switch-case
-* break, continue (+ labeled)
 * file functions
-* new/delete/resize
+* delete/resize
 * variable arguments
 
 # todo
 
+* break, continue with labels
+* import (
+	import * from "./myfile.ja"; # all exported symbols
+	import "./file.ja" as unit; # import in namespace
+	)
 * use default struct member inits
 * refer to struct before definition (if ptr to)
 * auto pointer unpacking/packing
@@ -73,7 +77,6 @@
 * use/mixin/with
 * forced inline
 * optional arguments
-* constants
 * codegen: no ja_ prefix for members
 
 # ideas
@@ -83,3 +86,4 @@
 * external methods
 * any type
 * pseudo ptr arithmetic via @ index
+* constants

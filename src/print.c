@@ -567,6 +567,12 @@ static void print_stmt(Stmt *stmt)
 			print_indent();
 			printf("}");
 			break;
+		case BREAK:
+			print_keyword_cstr("break");
+			break;
+		case CONTINUE:
+			print_keyword_cstr("continue");
+			break;
 	}
 }
 

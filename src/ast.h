@@ -71,6 +71,8 @@ typedef enum {
 	RETURN,
 	IMPORT,
 	DLLIMPORT,
+	BREAK,
+	CONTINUE,
 } Kind;
 
 /*
@@ -293,7 +295,7 @@ Stmt *new_stmt(Kind kind, Token *start, Scope *scope);
 Import *new_import(Token *start, Scope *scope, Unit *unit, Decl **decls);
 DllImport *new_dll_import(Token *start, Scope *scope, char *name, Decl **decls);
 If *new_if(Token *start, Expr *cond, Block *if_body, Block *else_body);
-While *new_while(Token *start, Expr *cond, Block *body);
+While *new_while(Token *start, Scope *scope, Expr *cond, Block *body);
 Assign *new_assign(Scope *scope, Expr *target, Expr *expr);
 Call *new_call(Scope *scope, Expr *call);
 Print *new_print(Token *start, Scope *scope, Expr *expr);
@@ -304,6 +306,7 @@ struct Scope {
 	Scope *parent;
 	Decl *funchost;
 	Decl *structhost;
+	Stmt *loophost;
 	Import **imports;
 	DllImport **dll_imports;
 	Decl **decls;

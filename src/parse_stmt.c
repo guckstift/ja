@@ -363,12 +363,18 @@ static Stmt *p_whilestmt()
 	if(!eat(TK_LCURLY))
 		fatal_after(last, "expected { after condition");
 	
-	Block *body = p_block(0);
+	enter();
+	Scope *blockscope = leave();
+	printf("OK\n");
+	While *stmt = new_while(start, blockscope, cond, 0);
+	printf("OK\n");
+	blockscope->loophost = (Stmt*)stmt;
+	stmt->body = p_block(blockscope);
 	
 	if(!eat(TK_RCURLY))
 		fatal_after(last, "expected } after if-body");
 	
-	return (Stmt*)new_while(start, cond, body);
+	return (Stmt*)stmt;
 }
 
 static Stmt *p_returnstmt()
@@ -556,6 +562,34 @@ static Stmt *p_assign()
 	return (Stmt*)new_assign(scope, target, expr);
 }
 
+static Stmt *p_break()
+{
+	if(!eat(TK_break)) return 0;
+	Token *start = last;
+	
+	if(!scope->loophost)
+		fatal_at(start, "break can only be used inside loops");
+	
+	if(!eat(TK_SEMICOLON))
+		error_after(last, "expected semicolon after break");
+	
+	return new_stmt(BREAK, start, scope);
+}
+
+static Stmt *p_continue()
+{
+	if(!eat(TK_continue)) return 0;
+	Token *start = last;
+	
+	if(!scope->loophost)
+		fatal_at(start, "continue can only be used inside loops");
+	
+	if(!eat(TK_SEMICOLON))
+		error_after(last, "expected semicolon after continue");
+	
+	return new_stmt(CONTINUE, start, scope);
+}
+
 static Stmt *p_stmt()
 {
 	Stmt *stmt = 0;
@@ -569,6 +603,8 @@ static Stmt *p_stmt()
 	(stmt = p_import()) ||
 	(stmt = p_dllimport()) ||
 	(stmt = p_export()) ||
+	(stmt = p_break()) ||
+	(stmt = p_continue()) ||
 	(stmt = p_assign()) ;
 	return stmt;
 }

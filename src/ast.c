@@ -397,9 +397,9 @@ If *new_if(Token *start, Expr *cond, Block *if_body, Block *else_body)
 	return ifstmt;
 }
 
-While *new_while(Token *start, Expr *cond, Block *body)
+While *new_while(Token *start, Scope *scope, Expr *cond, Block *body)
 {
-	While *whilestmt = &new_stmt(WHILE, start, body->scope->parent)->as_while;
+	While *whilestmt = &new_stmt(WHILE, start, scope)->as_while;
 	whilestmt->cond = cond;
 	whilestmt->body = body;
 	return whilestmt;
@@ -440,6 +440,7 @@ Scope *new_scope(char *unit_id, Scope *parent) {
 	scope->parent = parent;
 	scope->funchost = parent ? parent->funchost : 0;
 	scope->structhost = 0;
+	scope->loophost = parent ? parent->loophost : 0;
 	scope->imports = 0;
 	scope->dll_imports = 0;
 	scope->decls = 0;

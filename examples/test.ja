@@ -1,8 +1,6 @@
 
-var x = new [2]int;
-
-var y = new string;
-
-<y = "HellO";
-
-print <y;
+while 1 {
+	if 1 {
+		break;
+	}
+}

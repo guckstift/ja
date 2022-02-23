@@ -6,6 +6,8 @@
 #define KEYWORDS(_) \
 	_(as) \
 	_(bool) \
+	_(break) \
+	_(continue) \
 	_(cstring) \
 	_(dllimport) \
 	_(else) \
