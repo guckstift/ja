@@ -20,6 +20,7 @@
 	_(int16) \
 	_(int32) \
 	_(int64) \
+	_(new) \
 	_(print) \
 	_(ptr) \
 	_(string) \

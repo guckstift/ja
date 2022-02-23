@@ -159,6 +159,11 @@ void gen_length(Expr *expr)
 	}
 }
 
+void gen_new(Expr *expr)
+{
+	write("(malloc(sizeof(%Y)))", expr->type->subtype);
+}
+
 void gen_expr(Expr *expr)
 {
 	switch(expr->kind) {
@@ -200,6 +205,9 @@ void gen_expr(Expr *expr)
 			break;
 		case LENGTH:
 			gen_length(expr);
+			break;
+		case NEW:
+			gen_new(expr);
 			break;
 	}
 }

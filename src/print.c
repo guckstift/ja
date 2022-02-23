@@ -424,6 +424,10 @@ static void print_expr(Expr *expr)
 			print_expr(expr->array);
 			printf(".length");
 			break;
+		case NEW:
+			print_keyword_cstr("new ");
+			print_type(expr->type->subtype);
+			break;
 	}
 }
 

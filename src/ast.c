@@ -291,6 +291,12 @@ Expr *new_binop_expr(Expr *left, Expr *right, Token *operator, Type *type)
 	return expr;
 }
 
+Expr *new_new_expr(Token *start, Type *obj_type)
+{
+	Type *type = new_ptr_type(obj_type);
+	return new_expr(NEW, start, type, 0, 0);
+}
+
 #include <stdio.h>
 
 Decl *new_decl(

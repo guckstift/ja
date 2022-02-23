@@ -115,6 +115,18 @@ static Expr *p_var()
 	return new_var_expr(ident, decl);
 }
 
+static Expr *p_new()
+{
+	if(!eat(TK_new)) return 0;
+	Token *start = last;
+	
+	Token *t_start = cur;
+	Type *obj_type = p_type();
+	if(!obj_type) fatal_at(t_start, "expected type oh object to create");
+	
+	return new_new_expr(start, obj_type);
+}
+
 static Expr *p_array()
 {
 	if(!eat(TK_LBRACK)) return 0;
@@ -174,6 +186,7 @@ static Expr *p_atom()
 	
 	Expr *expr = 0;
 	(expr = p_var()) ||
+	(expr = p_new()) ||
 	(expr = p_array()) ;
 	return expr;
 }

@@ -61,6 +61,7 @@ typedef enum {
 	CALL,
 	MEMBER,
 	LENGTH,
+	NEW,
 	
 	// statements
 	PRINT,
@@ -163,6 +164,7 @@ Expr *new_deref_expr(Token *start, Expr *ptr);
 Expr *new_ptr_expr(Token *start, Expr *subexpr);
 Expr *new_call_expr(Expr *callee, Expr **args);
 Expr *new_binop_expr(Expr *left, Expr *right, Token *operator, Type *type);
+Expr *new_new_expr(Token *start, Type *obj_type);
 
 /*
 	Statment Head

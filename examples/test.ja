@@ -1,11 +1,8 @@
 
-dllimport "libc.so.6" {
-	function fopen(filename : cstring, mode : cstring) : ptr;
-	function fwrite(p : cstring, size : uint, count : uint, stream : ptr) : uint;
-	var stdout : >ptr;
-}
+var x = new [2]int;
 
-var x = fopen("test.txt", "wb");
-fwrite("Hello\n", 1, 6, x);
-fwrite("Hello\n", 1, 6, <stdout);
+var y = new string;
 
+<y = "HellO";
+
+print <y;
