@@ -652,23 +652,41 @@ static void gen_dll_imports(DllImport **imports)
 	array_for(imports, i) {
 		DllImport *import = imports[i];
 		Decl **decls = import->decls;
-		write(INDENT "dll = dlopen(\"%s\", RTLD_LAZY);\n", import->dll_name);
+		
+		write(
+			INDENT "dll = dlopen(\"%s\", RTLD_LAZY);\n"
+			INDENT "if(dll == 0) {\n"
+			INDENT INDENT "fprintf(stderr, \"error: could not load library "
+				"%s\\n\");\n"
+			INDENT "}\n"
+			, import->dll_name
+			, import->dll_name
+		);
 		
 		array_for(decls, j) {
 			Decl *decl = decls[j];
 			
 			if(decl->kind == FUNC) {
 				write(
-					INDENT "*(void**)&(%s) = dlsym(dll, \"%t\");\n",
-					decl->private_id, decl->id
+					INDENT "*(void**)&%s = dlsym(dll, \"%t\");\n"
+					,decl->private_id, decl->id
 				);
 			}
 			else if(decl->kind == VAR) {
 				write(
-					INDENT "(%s) = dlsym(dll, \"%t\");\n",
+					INDENT "%s = dlsym(dll, \"%t\");\n",
 					decl->private_id, decl->id
 				);
 			}
+			
+			write(
+				INDENT "if(%s == 0) {\n"
+				INDENT INDENT "fprintf(stderr, \"error: could not load symbol "
+					"%s\\n\");\n"
+				INDENT "}\n"
+				, decl->private_id
+				, decl->private_id
+			);
 		}
 	}
 }

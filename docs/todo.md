@@ -32,9 +32,10 @@
 	X load dlls
 	X load functions
 	X load variables
-	check that funcs are protos
-	check that vars are pointer types
-	runtime check loaded dll and symbols
+	X runtime check loaded dll and symbols
+	X check that funcs are protos
+	X check that vars have no init
+	(?check that vars are pointer types?)
 * self hosting
 
 # for self hosting

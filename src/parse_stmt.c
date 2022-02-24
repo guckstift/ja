@@ -84,7 +84,7 @@ static Stmt *p_print()
 	return (Stmt*)new_print(start, scope, expr);
 }
 
-static Stmt *p_vardecl_core(Token *start, int exported, int param)
+static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 {
 	Token *ident = eat(TK_IDENT);
 	if(!ident) return 0;
@@ -98,6 +98,13 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param)
 	
 	Expr *init = 0;
 	if(!param && eat(TK_ASSIGN)) {
+		if(dll) {
+			fatal_at(
+				cur,
+				"variables imported from dlls can not have initialization"
+			);
+		}
+		
 		init = p_expr();
 		if(!init) fatal_after(last, "expected initializer after =");
 		
@@ -147,12 +154,12 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param)
 	return (Stmt*)decl;
 }
 
-static Stmt *p_vardecl(int exported)
+static Stmt *p_vardecl(int exported, int dll)
 {
 	if(!eat(TK_var)) return 0;
 	Token *start = last;
 	
-	Stmt *core = p_vardecl_core(start, exported, 0);
+	Stmt *core = p_vardecl_core(start, exported, 0, dll);
 	if(!core) fatal_after(last, "expected identifier after keyword var");
 	
 	if(!eat(TK_SEMICOLON))
@@ -180,7 +187,7 @@ static Stmt *p_funcdecl(int exported, int dll)
 	enter();
 	
 	while(1) {
-		Decl *param = &p_vardecl_core(0, 0, 1)->as_decl;
+		Decl *param = &p_vardecl_core(0, 0, 1, 0)->as_decl;
 		if(!param) break;
 		array_push(params, param);
 		if(exported) make_type_exportable(param->type);
@@ -226,6 +233,10 @@ static Stmt *p_funcdecl(int exported, int dll)
 	}
 	else {
 		fatal_after(last, "expected { or ; after function head");
+	}
+	
+	if(dll && decl->isproto == 0) {
+		fatal_after(last, "foreign functions can not have implementations");
 	}
 	
 	Decl *existing = lookup(decl->id);
@@ -290,7 +301,7 @@ static Stmt *p_structdecl(int exported)
 	enter();
 	
 	while(1) {
-		Decl *member = &p_vardecl(0)->as_decl;
+		Decl *member = &p_vardecl(0, 0)->as_decl;
 		if(!member) break;
 		array_push(members, member);
 		if(exported) make_type_exportable(member->type);
@@ -496,7 +507,7 @@ static Stmt *p_dllimport()
 	while(1) {
 		Decl *decl = 0;
 		(decl = &p_funcdecl(0, 1)->as_decl) ||
-		(decl = &p_vardecl(0)->as_decl) ;
+		(decl = &p_vardecl(0, 1)->as_decl) ;
 		if(!decl) break;
 		array_push(decls, decl);
 	}
@@ -518,7 +529,7 @@ static Stmt *p_export()
 		fatal_at(last, "exports can only be done at top level");
 	
 	Stmt *stmt = 0;
-	(stmt = p_vardecl(1)) ||
+	(stmt = p_vardecl(1, 0)) ||
 	(stmt = p_funcdecl(1, 0)) ||
 	(stmt = p_structdecl(1)) ;
 	
@@ -654,7 +665,7 @@ static Stmt *p_stmt()
 {
 	Stmt *stmt = 0;
 	(stmt = p_print()) ||
-	(stmt = p_vardecl(0)) ||
+	(stmt = p_vardecl(0, 0)) ||
 	(stmt = p_funcdecl(0, 0)) ||
 	(stmt = p_structdecl(0)) ||
 	(stmt = p_ifstmt()) ||
