@@ -682,10 +682,10 @@ static void gen_dll_imports(DllImport **imports)
 			write(
 				INDENT "if(%s == 0) {\n"
 				INDENT INDENT "fprintf(stderr, \"error: could not load symbol "
-					"%s\\n\");\n"
+					"%t\\n\");\n"
 				INDENT "}\n"
 				, decl->private_id
-				, decl->private_id
+				, decl->id
 			);
 		}
 	}
@@ -738,14 +738,14 @@ static void gen_c()
 	Scope *unit_scope = cur_unit->block->scope;
 	Decl **decls = unit_scope->decls;
 	
-	write("\n// dll imports\n");
-	gen_dll_import_decls(unit_scope->dll_imports);
-	
 	write("\n// imports\n");
 	gen_imports(unit_scope->imports);
 	
 	write("\n// structures\n");
 	gen_structdecls(decls);
+	
+	write("\n// dll imports\n");
+	gen_dll_import_decls(unit_scope->dll_imports);
 	
 	write("\n// variables\n");
 	gen_vardecls(decls);
@@ -784,7 +784,10 @@ static void gen_c()
 	
 	gen_block(cur_unit->block);
 	
-	write("}\n");
+	write(
+		INDENT "return 0;\n"
+		"}\n"
+	);
 	
 	fclose(ofs);
 }

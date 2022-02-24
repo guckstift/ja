@@ -37,6 +37,7 @@
 	X check that vars have no init
 	(?check that vars are pointer types?)
 * self hosting
+* binops & | ^
 
 # for self hosting
 

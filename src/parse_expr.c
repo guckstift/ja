@@ -388,12 +388,14 @@ static Token *p_operator(int level)
 			break;
 		case OL_ADD:
 			(op = eat(TK_PLUS)) ||
-			(op = eat(TK_MINUS)) ;
+			(op = eat(TK_MINUS)) ||
+			(op = eat(TK_PIPE)) ;
 			break;
 		case OL_MUL:
 			(op = eat(TK_MUL)) ||
 			(op = eat(TK_DSLASH)) ||
-			(op = eat(TK_MOD)) ;
+			(op = eat(TK_MOD)) ||
+			(op = eat(TK_AMP)) ;
 			break;
 	}
 	return op;

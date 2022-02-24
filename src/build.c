@@ -186,9 +186,6 @@ static Unit *build_unit(char *filename, int ismain)
 	#ifdef JA_DEBUG
 	print_c_code(unit->c_filename);
 	#endif
-	#ifdef JA_DEBUG
-	print_ast(unit->block);
-	#endif
 	
 	unit->obj_filename = 0;
 	unit->obj_main_filename = 0;

@@ -63,6 +63,8 @@
 	_("-", MINUS) \
 	_("*", MUL) \
 	_("%", MOD) \
+	_("&", AMP) \
+	_("|", PIPE) \
 
 typedef enum {
 	TK_EOF,
