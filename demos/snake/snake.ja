@@ -1,0 +1,48 @@
+struct SDL_Event {
+	var type : uint32;
+	var pad : [8]int32;
+}
+
+dllimport "libSDL2-2.0.so" {
+	function SDL_Init(flags : uint32) : int32;
+	
+	function SDL_CreateWindow(
+		title : cstring, x : int32, y : int32, w : int32, h : int32,
+		flags : uint32
+	) : ptr;
+	
+	function SDL_CreateRenderer(
+		wnd : ptr, index : int32, flags : uint32
+	) : ptr;
+	
+	function SDL_PollEvent(event : >SDL_Event) : int32;
+	function SDL_DestroyWindow(wnd : ptr);
+	function SDL_Quit();
+}
+
+var SDL_INIT_VIDEO = 0x20;
+var SDL_WINDOW_SHOWN = 0x4;
+var SDL_WINDOWPOS_CENTERED = 0x2FFF0000;
+var SDL_QUIT = 0x100;
+
+print SDL_Init(SDL_INIT_VIDEO);
+
+var wnd = SDL_CreateWindow(
+	"Snake", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 256, 256, 0
+);
+
+var renderer = SDL_CreateRenderer(wnd, 0-1, 0);
+var running = true;
+var event : SDL_Event;
+
+while running {
+	while SDL_PollEvent(>event) {
+		if event.type == SDL_QUIT {
+			running = false;
+			break;
+		}
+	}
+}
+
+SDL_DestroyWindow(wnd);
+SDL_Quit();
