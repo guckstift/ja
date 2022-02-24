@@ -21,6 +21,9 @@ TESTOKS = $(patsubst %.ja,%.ok,$(TESTS))
 ja: $(SRCS) $(HDRS)
 	gcc -o $@ $(CFLAGS) $(SRCS) $(LDFLAGS)
 
+jaja: ja $(wildcard jasrc/*.ja)
+	./ja -c jaja jasrc/ja.ja
+
 src/%.src.h: src/%
 	echo \
 		"#define" \

@@ -246,7 +246,7 @@ void write_cache_file(char *name, char *text)
 	fclose(fs);
 }
 
-void build(char *main_filename)
+Project *build(char *main_filename, char *outfilename)
 {
 	project = malloc(sizeof(Project));
 	project->units = 0;
@@ -269,14 +269,16 @@ void build(char *main_filename)
 	printf(COL_YELLOW "=== linking ===" COL_RESET "\n");
 	#endif
 	
-	char *exe_filename = 0;
-	str_append(exe_filename, cache_dir);
-	str_append(exe_filename, "/");
-	str_append(exe_filename, main_unit->unit_id);
+	if(!outfilename) {
+		outfilename = 0;
+		str_append(outfilename, cache_dir);
+		str_append(outfilename, "/");
+		str_append(outfilename, main_unit->unit_id);
+	}
 	
 	char *cmd = 0;
 	str_append(cmd, "gcc -o ");
-	str_append(cmd, exe_filename);
+	str_append(cmd, outfilename);
 	
 	str_append(cmd, " ");
 	str_append(cmd, cache_dir);
@@ -298,7 +300,7 @@ void build(char *main_filename)
 	int res = run_cmd(cmd);
 	if(res) error("could not link the object files");
 	
+	project->exe_filename = outfilename;
 	printf(COL_YELLOW "=== done ===" COL_RESET "\n");
-	
-	run_cmd(exe_filename);
+	return project;
 }

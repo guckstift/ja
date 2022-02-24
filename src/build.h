@@ -21,9 +21,10 @@ typedef struct Unit {
 
 typedef struct {
 	Unit **units;
+	char *exe_filename;
 } Project;
 
-void build(char *main_filename);
+Project *build(char *main_filename, char *outfilename);
 Unit *import(char *filename);
 
 #endif

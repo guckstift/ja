@@ -1,12 +1,4 @@
 
-
-var x : >[]int;
-
-x = new [7]int;
-print x.length;
-delete x;
-
-x = new [40]int;
-print x.length;
-delete x;
-
+for arg in argv {
+	print arg;
+}
