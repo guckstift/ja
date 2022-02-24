@@ -451,6 +451,13 @@ Return *new_return(Token *start, Scope *scope, Expr *expr)
 	return returnstmt;
 }
 
+Delete *new_delete(Token *start, Scope *scope, Expr *expr)
+{
+	Delete *stmt = &new_stmt(DELETE, start, scope)->as_delete;
+	stmt->expr = expr;
+	return stmt;
+}
+
 ForEach *new_foreach(
 	Token *start, Scope *scope, Expr *array, Decl *iter, Block *body
 ) {

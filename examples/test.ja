@@ -1,5 +1,4 @@
 
-var h = "Hello World";
-var x = h[1];
+var x= new int;
 
-print x;
+delete x;

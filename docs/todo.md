@@ -24,6 +24,7 @@
 * break, continue
 * use default struct member inits
 * for-each on arrays (for x in arr {...})
+* delete
 
 # wip
 
@@ -44,7 +45,7 @@
 * tagged unions
 * enums
 * switch-case
-* delete/resize
+* resize operator for dyn arrays
 * variable arguments
 
 # todo

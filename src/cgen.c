@@ -357,6 +357,9 @@ static void gen_stmt(Stmt *stmt, int noindent)
 		case FOREACH:
 			gen_foreach(&stmt->as_foreach);
 			break;
+		case DELETE:
+			write("%>free(%e);\n", stmt->as_delete.expr);
+			break;
 	}
 }
 

@@ -21,6 +21,7 @@ typedef struct Stmt Stmt;
 typedef struct Scope Scope;
 typedef struct Block Block;
 typedef struct ForEach ForEach;
+typedef struct Delete Delete;
 
 /*
 	Kind
@@ -75,6 +76,7 @@ typedef enum {
 	BREAK,
 	CONTINUE,
 	FOREACH,
+	DELETE,
 } Kind;
 
 /*
@@ -285,6 +287,11 @@ struct ForEach {
 	Block *body;
 };
 
+struct Delete {
+	STMT_HEAD
+	Expr *expr;
+};
+
 struct Stmt {
 	union {
 		struct { STMT_HEAD };
@@ -298,6 +305,7 @@ struct Stmt {
 		Print as_print;
 		Return as_return;
 		ForEach as_foreach;
+		Delete as_delete;
 	};
 };
 
@@ -310,6 +318,7 @@ Assign *new_assign(Scope *scope, Expr *target, Expr *expr);
 Call *new_call(Scope *scope, Expr *call);
 Print *new_print(Token *start, Scope *scope, Expr *expr);
 Return *new_return(Token *start, Scope *scope, Expr *expr);
+Delete *new_delete(Token *start, Scope *scope, Expr *expr);
 
 ForEach *new_foreach(
 	Token *start, Scope *scope, Expr *array, Decl *iter, Block *body

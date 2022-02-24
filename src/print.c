@@ -588,6 +588,10 @@ static void print_stmt(Stmt *stmt)
 			print_indent();
 			printf("}");
 			break;
+		case DELETE:
+			print_keyword_cstr("delete ");
+			print_expr(stmt->as_delete.expr);
+			break;
 	}
 }
 

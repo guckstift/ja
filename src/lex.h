@@ -9,6 +9,7 @@
 	_(break) \
 	_(continue) \
 	_(cstring) \
+	_(delete) \
 	_(dllimport) \
 	_(else) \
 	_(export) \

@@ -632,6 +632,24 @@ static Stmt *p_for()
 	return (Stmt*)foreach;
 }
 
+static Stmt *p_delete()
+{
+	if(!eat(TK_delete)) return 0;
+	Token *start = last;
+	Expr *expr = p_expr();
+	
+	if(!expr)
+		fatal_after(last, "expected object to delete");
+	
+	if(expr->type->kind != PTR)
+		fatal_at(expr->start, "expression to delete is not a pointer");
+	
+	if(!eat(TK_SEMICOLON))
+		error_after(last, "expected semicolon after delete");
+	
+	return (Stmt*)new_delete(start, scope, expr);
+}
+
 static Stmt *p_stmt()
 {
 	Stmt *stmt = 0;
@@ -648,6 +666,7 @@ static Stmt *p_stmt()
 	(stmt = p_break()) ||
 	(stmt = p_continue()) ||
 	(stmt = p_for()) ||
+	(stmt = p_delete()) ||
 	(stmt = p_assign()) ;
 	return stmt;
 }
