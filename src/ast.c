@@ -224,9 +224,18 @@ Expr *new_array_expr(Token *start, Expr **items, int isconst)
 
 Expr *new_subscript_expr(Expr *array, Expr *index)
 {
-	Expr *expr = new_expr(
-		SUBSCRIPT, array->start, array->type->itemtype, 0, 1
-	);
+	Expr *expr = 0;
+	
+	if(array->type->kind == STRING) {
+		expr = new_expr(
+			SUBSCRIPT, array->start, array->type, 0, 1
+		);
+	}
+	else {
+		expr = new_expr(
+			SUBSCRIPT, array->start, array->type->itemtype, 0, 1
+		);
+	}
 	
 	expr->array = array;
 	expr->index = index;

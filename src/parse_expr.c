@@ -242,8 +242,8 @@ static Expr *p_subscript_x(Expr *expr)
 		expr = new_deref_expr(expr->start, expr);
 	}
 	
-	if(expr->type->kind != ARRAY) {
-		fatal_after(last, "need array to subscript");
+	if(expr->type->kind != ARRAY && expr->type->kind != STRING) {
+		fatal_after(last, "need array or string to subscript");
 	}
 	
 	Expr *index = p_expr();

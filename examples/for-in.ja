@@ -1,0 +1,17 @@
+
+var a = [1,2,4,9];
+var b : >[]int = >a;
+
+for x in a {
+	print x;
+	if x == 4 {
+		break;
+	}
+}
+
+for x in b {
+	print x;
+	if x == 4 {
+		break;
+	}
+}

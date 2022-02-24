@@ -63,6 +63,15 @@ static void gen_subscript(Expr *expr)
 			itemtype, itemtype, dynarray, index
 		);
 	}
+	else if(expr->subexpr->type->kind == STRING) {
+		Expr *string = expr->subexpr;
+		Expr *index = expr->index;
+		
+		write(
+			"((jastring){1L, %e.string + %e})",
+			string, index
+		);
+	}
 	else {
 		write("(%e[%e])", expr->subexpr, expr->index);
 	}

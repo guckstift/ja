@@ -1,17 +1,5 @@
 
-var a = [1,2,4,9];
-var b : >[]int = >a;
+var h = "Hello World";
+var x = h[1];
 
-for x in a {
-	print x;
-	if x == 4 {
-		break;
-	}
-}
-
-for x in b {
-	print x;
-	if x == 4 {
-		break;
-	}
-}
+print x;
