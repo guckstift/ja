@@ -7,6 +7,9 @@ struct Project {
 	var units : >[]Unit;
 }
 
+var project : >Project;
+
 export function build(main_filename :string)
 {
+	project = new Project;
 }

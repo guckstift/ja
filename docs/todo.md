@@ -77,10 +77,10 @@
 * use/mixin/with
 * forced inline
 * optional arguments
-* codegen: no ja_ prefix for members
 
 # ideas
 
+* codegen: no ja_ prefix for members
 * file functions
 * error type
 * namespaces

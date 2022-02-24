@@ -316,6 +316,16 @@ static void gen_foreach(ForEach *foreach)
 	write("%>}\n");
 }
 
+static void gen_delete(Delete *stmt)
+{
+	if(is_dynarray_ptr_type(stmt->expr->type)) {
+		write("%>free(%e.items);\n", stmt->expr);
+	}
+	else {
+		write("%>free(%e);\n", stmt->expr);
+	}
+}
+
 static void gen_stmt(Stmt *stmt, int noindent)
 {
 	switch(stmt->kind) {
@@ -358,7 +368,7 @@ static void gen_stmt(Stmt *stmt, int noindent)
 			gen_foreach(&stmt->as_foreach);
 			break;
 		case DELETE:
-			write("%>free(%e);\n", stmt->as_delete.expr);
+			gen_delete(&stmt->as_delete);
 			break;
 	}
 }

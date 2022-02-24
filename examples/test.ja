@@ -1,4 +1,12 @@
 
-var x= new int;
 
+var x : >[]int;
+
+x = new [7]int;
+print x.length;
 delete x;
+
+x = new [40]int;
+print x.length;
+delete x;
+
