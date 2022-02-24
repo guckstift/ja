@@ -289,15 +289,28 @@ static void gen_foreach(ForEach *foreach)
 	Type *type = array->type;
 	Type *itemtype = type->itemtype;
 	
-	write(
-		"%>for(int64_t it_%t = 0; it_%t < %i; it_%t ++) {\n",
-		iter->id, iter->id, type->length, iter->id
-	);
+	write("%>for(int64_t it_%t = 0; it_%t < ", iter->id, iter->id);
 	
-	write(
-		INDENT "%>%y %s%z = %e[it_%t];\n",
-		itemtype, iter->private_id, itemtype, array, iter->id
-	);
+	if(type->length == -1 && array->kind == DEREF) {
+		array = array->ptr;
+		write("%e.length; ", array);
+		write("it_%t ++) {\n", iter->id);
+		
+		write(
+			INDENT "%>%y %s%z = ((%y(*)%z)%e.items)[it_%t];\n",
+			itemtype, iter->private_id, itemtype,
+			itemtype, itemtype, array, iter->id
+		);
+	}
+	else {
+		write("%i; ", type->length);
+		write("it_%t ++) {\n", iter->id);
+		
+		write(
+			INDENT "%>%y %s%z = %e[it_%t];\n",
+			itemtype, iter->private_id, itemtype, array, iter->id
+		);
+	}
 	
 	gen_block(foreach->body);
 	write("%>}\n");

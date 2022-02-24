@@ -23,6 +23,7 @@
 	)
 * break, continue
 * use default struct member inits
+* for-each on arrays (for x in arr {...})
 
 # wip
 
@@ -66,7 +67,6 @@
 	; must also delete before return, break or continue)
 * explicit uninitialized var (var x : int = ?)
 * for range (for x = 0..1 {} for x = 5 .. <1 {})
-* for-each on arrays (for x in arr {...})
 * type-ids
 * type-alias definition
 * build: cache C files, compiled objects

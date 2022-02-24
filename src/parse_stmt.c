@@ -605,6 +605,10 @@ static Stmt *p_for()
 	if(!array)
 		fatal_after(last, "expected iterable");
 	
+	while(array->type->kind == PTR) {
+		array = new_deref_expr(array->start, array);
+	}
+	
 	Type *type = array->type;
 	if(type->kind != ARRAY)
 		fatal_at(array->start, "expected iterable of type array");
