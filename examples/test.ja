@@ -1,17 +1,9 @@
 
-var x = 90;
+var a = [1,2,4,9];
 
-struct Person {
-	var name = "Max";
-	var age = 22;
-	var health : int;
+for x in a {
+	print x;
+	if x == 4 {
+		break;
+	}
 }
-
-var max : Person;
-
-print max.name;
-
-var pmax = new Person;
-
-print pmax.name;
-

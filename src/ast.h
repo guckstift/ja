@@ -20,6 +20,7 @@ typedef struct Return Return;
 typedef struct Stmt Stmt;
 typedef struct Scope Scope;
 typedef struct Block Block;
+typedef struct ForEach ForEach;
 
 /*
 	Kind
@@ -73,6 +74,7 @@ typedef enum {
 	DLLIMPORT,
 	BREAK,
 	CONTINUE,
+	FOREACH,
 } Kind;
 
 /*
@@ -276,6 +278,13 @@ struct Return {
 	Expr *expr;
 };
 
+struct ForEach {
+	STMT_HEAD
+	Expr *array;
+	Decl *iter;
+	Block *body;
+};
+
 struct Stmt {
 	union {
 		struct { STMT_HEAD };
@@ -288,6 +297,7 @@ struct Stmt {
 		Call as_call;
 		Print as_print;
 		Return as_return;
+		ForEach as_foreach;
 	};
 };
 
@@ -300,6 +310,10 @@ Assign *new_assign(Scope *scope, Expr *target, Expr *expr);
 Call *new_call(Scope *scope, Expr *call);
 Print *new_print(Token *start, Scope *scope, Expr *expr);
 Return *new_return(Token *start, Scope *scope, Expr *expr);
+
+ForEach *new_foreach(
+	Token *start, Scope *scope, Expr *array, Decl *iter, Block *body
+);
 
 struct Scope {
 	char *unit_id;

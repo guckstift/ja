@@ -576,6 +576,18 @@ static void print_stmt(Stmt *stmt)
 		case CONTINUE:
 			print_keyword_cstr("continue");
 			break;
+		case FOREACH:
+			print_keyword_cstr("for ");
+			print_ident(stmt->as_foreach.iter->id);
+			print_keyword_cstr(" in ");
+			print_expr(stmt->as_foreach.array);
+			printf(" {\n");
+			level ++;
+			print_stmts(stmt->as_foreach.body->stmts);
+			level --;
+			print_indent();
+			printf("}");
+			break;
 	}
 }
 

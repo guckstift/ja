@@ -442,6 +442,16 @@ Return *new_return(Token *start, Scope *scope, Expr *expr)
 	return returnstmt;
 }
 
+ForEach *new_foreach(
+	Token *start, Scope *scope, Expr *array, Decl *iter, Block *body
+) {
+	ForEach *stmt = &new_stmt(FOREACH, start, scope)->as_foreach;
+	stmt->array = array;
+	stmt->iter = iter;
+	stmt->body = body;
+	return stmt;
+}
+
 Scope *new_scope(char *unit_id, Scope *parent) {
 	Scope *scope = malloc(sizeof(Scope));
 	scope->unit_id = unit_id ? unit_id : parent ? parent->unit_id : 0;

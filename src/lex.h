@@ -13,10 +13,12 @@
 	_(else) \
 	_(export) \
 	_(false) \
+	_(for) \
 	_(from) \
 	_(function) \
 	_(if) \
 	_(import) \
+	_(in) \
 	_(int) \
 	_(int8) \
 	_(int16) \

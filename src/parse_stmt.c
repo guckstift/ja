@@ -365,9 +365,7 @@ static Stmt *p_whilestmt()
 	
 	enter();
 	Scope *blockscope = leave();
-	printf("OK\n");
 	While *stmt = new_while(start, blockscope, cond, 0);
-	printf("OK\n");
 	blockscope->loophost = (Stmt*)stmt;
 	stmt->body = p_block(blockscope);
 	
@@ -590,6 +588,46 @@ static Stmt *p_continue()
 	return new_stmt(CONTINUE, start, scope);
 }
 
+static Stmt *p_for()
+{
+	if(!eat(TK_for)) return 0;
+	Token *start = last;
+	
+	Token *iter_name = eat(TK_IDENT);
+	if(!iter_name)
+		error_after(last, "expected identifier as iterator");
+	
+	if(!eat(TK_in))
+		error_at(cur, "expected 'in' after iterator");
+	
+	Expr *array = p_expr();
+	
+	if(!array)
+		fatal_after(last, "expected iterable");
+	
+	Type *type = array->type;
+	if(type->kind != ARRAY)
+		fatal_at(array->start, "expected iterable of type array");
+	
+	Type *itemtype = array->type->itemtype;
+	Decl *iter = new_var(iter_name, scope, iter_name->id, 0, itemtype, 0);
+	
+	if(!eat(TK_LCURLY))
+		fatal_after(last, "expected { after for-in-head");
+	
+	enter();
+	declare(iter);
+	Scope *blockscope = leave();
+	ForEach *foreach = new_foreach(start, blockscope, array, iter, 0);
+	blockscope->loophost = (Stmt*)foreach;
+	foreach->body = p_block(blockscope);
+	
+	if(!eat(TK_RCURLY))
+		fatal_after(last, "expected } after for-body");
+	
+	return (Stmt*)foreach;
+}
+
 static Stmt *p_stmt()
 {
 	Stmt *stmt = 0;
@@ -605,6 +643,7 @@ static Stmt *p_stmt()
 	(stmt = p_export()) ||
 	(stmt = p_break()) ||
 	(stmt = p_continue()) ||
+	(stmt = p_for()) ||
 	(stmt = p_assign()) ;
 	return stmt;
 }

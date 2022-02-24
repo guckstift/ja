@@ -282,6 +282,27 @@ static void gen_vardecl_stmt(Decl *decl)
 	}
 }
 
+static void gen_foreach(ForEach *foreach)
+{
+	Decl *iter = foreach->iter;
+	Expr *array = foreach->array;
+	Type *type = array->type;
+	Type *itemtype = type->itemtype;
+	
+	write(
+		"%>for(int64_t it_%t = 0; it_%t < %i; it_%t ++) {\n",
+		iter->id, iter->id, type->length, iter->id
+	);
+	
+	write(
+		INDENT "%>%y %s%z = %e[it_%t];\n",
+		itemtype, iter->private_id, itemtype, array, iter->id
+	);
+	
+	gen_block(foreach->body);
+	write("%>}\n");
+}
+
 static void gen_stmt(Stmt *stmt, int noindent)
 {
 	switch(stmt->kind) {
@@ -319,6 +340,9 @@ static void gen_stmt(Stmt *stmt, int noindent)
 			break;
 		case CONTINUE:
 			write("%>continue;\n");
+			break;
+		case FOREACH:
+			gen_foreach(&stmt->as_foreach);
 			break;
 	}
 }
