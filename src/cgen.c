@@ -400,9 +400,45 @@ static void gen_params(Decl **params)
 {
 	array_for(params, i) {
 		Decl *param = params[i];
+		Type *type = param->type;
 		if(i > 0) write(", ");
-		write("%y %s%z", param->type, param->private_id, param->type);
+		
+		if(type->kind == ARRAY) {
+			Type *itemtype = type->itemtype;
+			
+			for(int64_t j=0; j < type->length; j++) {
+				if(j > 0) write(", ");
+				
+				write(
+					"%y ap%i_%t%z",
+					itemtype, j, param->id, itemtype
+				);
+			}
+		}
+		else {
+			write("%y %s%z", type, param->private_id, type);
+		}
 	}
+}
+
+static void gen_array_param_decls(Decl **params)
+{
+	level ++;
+	
+	array_for(params, i) {
+		Decl *param = params[i];
+		Type *type = param->type;
+		write("%>%y %s%z = {", type, param->private_id, type);
+		
+		for(int64_t j=0; j < type->length; j++) {
+			if(j > 0) write(", ");
+			write("ap%i_%t", j, param->id);
+		}
+		
+		write("};\n");
+	}
+	
+	level --;
 }
 
 // --- //
@@ -542,6 +578,7 @@ static void gen_funcdecl(Decl *decl)
 	
 	gen_funchead(decl);
 	write(" {\n");
+	gen_array_param_decls(decl->params);
 	gen_block(decl->body);
 	write("%>}\n");
 }

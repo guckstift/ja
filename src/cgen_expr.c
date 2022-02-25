@@ -112,6 +112,42 @@ static void gen_binop(Expr *expr)
 	}
 }
 
+static void gen_exprs(Expr **exprs)
+{
+	array_for(exprs, i) {
+		if(i > 0) write(", ");
+		gen_expr(exprs[i]);
+	}
+}
+
+static void gen_args(Expr **exprs)
+{
+	array_for(exprs, i) {
+		if(i > 0) write(", ");
+		Expr *expr = exprs[i];
+		Type *type = expr->type;
+		
+		if(type->kind == ARRAY) {
+			if(expr->kind == ARRAY) {
+				array_for(expr->items, j) {
+					Expr *item = expr->items[j];
+					if(j > 0) write(", ");
+					write("%e", item);
+				}
+			}
+			else {
+				for(int64_t j=0; j < type->length; j++) {
+					if(j > 0) write(", ");
+					write("%e[%i]", expr, j);
+				}
+			}
+		}
+		else {
+			gen_expr(exprs[i]);
+		}
+	}
+}
+
 static void gen_array(Expr *expr)
 {
 	write("((%Y){", expr->type);
@@ -122,7 +158,7 @@ static void gen_array(Expr *expr)
 static void gen_call(Expr *expr)
 {
 	write("(%e(", expr->callee);
-	gen_exprs(expr->args);
+	gen_args(expr->args);
 	write(")");
 	
 	if(expr->callee->type->returntype->kind == ARRAY) {
@@ -135,14 +171,6 @@ static void gen_call(Expr *expr)
 static void gen_member(Expr *expr)
 {
 	write("(%e.%I)", expr->object, expr->member->id);
-}
-
-static void gen_exprs(Expr **exprs)
-{
-	array_for(exprs, i) {
-		if(i > 0) write(", ");
-		gen_expr(exprs[i]);
-	}
 }
 
 void gen_init_expr(Expr *expr)

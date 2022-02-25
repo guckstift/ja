@@ -27,6 +27,7 @@
 * delete
 * binops & | ^
 * binops logical and, or
+* pass arrays by value
 
 # wip
 

@@ -1,13 +1,12 @@
-var x = true && false;
-var y = "Hi" && "";
-var z = 0 && 10;
 
-var x2 = true || false;
-var y2 = "Hi" || "";
-var z2 = 0 || 10;
+function foo(ar : [2]int)
+{
+	ar[0] = 9;
+}
 
-print "Hello" == "Hello";
+var x = [1,2];
+print x[0];
+foo(x);
+print x[0];
 
-var k = "Hello" && y2;
-
-print 0xf ^ 0xff;
+foo([1,2]);
