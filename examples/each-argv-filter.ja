@@ -1,0 +1,6 @@
+
+for arg in argv {
+	if arg[0] == "a" || arg[0] == "b" {
+		print arg;
+	}
+}

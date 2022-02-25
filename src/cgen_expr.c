@@ -79,16 +79,33 @@ static void gen_subscript(Expr *expr)
 
 static void gen_binop(Expr *expr)
 {
-	if(
-		expr->left->type->kind == STRING &&
-		expr->operator->kind == TK_EQUALS
-	) {
+	Expr *left = expr->left;
+	Expr *right = expr->right;
+	Token *op = expr->operator;
+	
+	if(left->type->kind == STRING && op->kind == TK_EQUALS) {
 		write(
 			"(%e.length == %e.length && "
 			"memcmp(%e.string, %e.string, %e.length) == 0)",
 			expr->left, expr->right,
 			expr->left, expr->right, expr->left
 		);
+	}
+	else if(op->kind == TK_AND) {
+		if(expr->type->kind == STRING) {
+			write("(%e.length == 0 ? %e : %e)", left, left, right);
+		}
+		else {
+			write("(!(%e) ? %e : %e)", left, left, right);
+		}
+	}
+	else if(op->kind == TK_OR) {
+		if(expr->type->kind == STRING) {
+			write("(%e.length != 0 ? %e : %e)", left, right, left);
+		}
+		else {
+			write("(%e ? %e : %e)", left, right, left);
+		}
 	}
 	else {
 		write("(%e %s %e)", expr->left, expr->operator->punct, expr->right);

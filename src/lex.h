@@ -41,6 +41,8 @@
 	_(while) \
 
 #define PUNCTS(_) \
+	_("&&", AND) \
+	_("||", OR) \
 	_("==", EQUALS) \
 	_("!=", NEQUALS) \
 	_("<=", LEQUALS) \
@@ -65,6 +67,7 @@
 	_("%", MOD) \
 	_("&", AMP) \
 	_("|", PIPE) \
+	_("^", XOR) \
 
 typedef enum {
 	TK_EOF,

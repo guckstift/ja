@@ -25,6 +25,8 @@
 * use default struct member inits
 * for-each on arrays (for x in arr {...})
 * delete
+* binops & | ^
+* binops logical and, or
 
 # wip
 
@@ -37,11 +39,9 @@
 	X check that vars have no init
 	(?check that vars are pointer types?)
 * self hosting
-* binops & | ^
 
 # for self hosting
 
-* binops logical and, or
 * binop float division /
 * unions
 * tagged unions
@@ -52,6 +52,7 @@
 
 # todo
 
+* default struct member inits for new
 * break, continue with labels
 * import (
 	import * from "./myfile.ja"; # all exported symbols

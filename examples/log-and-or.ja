@@ -9,5 +9,3 @@ var z2 = 0 || 10;
 print "Hello" == "Hello";
 
 var k = "Hello" && y2;
-
-print 0xf ^ 0xff;

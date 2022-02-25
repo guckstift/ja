@@ -1,16 +1,9 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include "eval.h"
 #include "utils.h"
 
 #include "parse_utils.h"
-
-typedef enum {
-	OL_CMP,
-	OL_ADD,
-	OL_MUL,
-	
-	_OPLEVEL_COUNT,
-} OpLevel;
 
 static Expr *p_expr();
 static Expr **p_exprs();
@@ -374,10 +367,26 @@ static Expr *p_prefix()
 	return expr;
 }
 
+typedef enum {
+	OL_OR,
+	OL_AND,
+	OL_CMP,
+	OL_ADD,
+	OL_MUL,
+	
+	_OPLEVEL_COUNT,
+} OpLevel;
+
 static Token *p_operator(int level)
 {
 	Token *op = 0;
 	switch(level) {
+		case OL_OR:
+			(op = eat(TK_OR)) ;
+			break;
+		case OL_AND:
+			(op = eat(TK_AND)) ;
+			break;
 		case OL_CMP:
 			(op = eat(TK_LOWER)) ||
 			(op = eat(TK_GREATER)) ||
@@ -389,7 +398,8 @@ static Token *p_operator(int level)
 		case OL_ADD:
 			(op = eat(TK_PLUS)) ||
 			(op = eat(TK_MINUS)) ||
-			(op = eat(TK_PIPE)) ;
+			(op = eat(TK_PIPE)) ||
+			(op = eat(TK_XOR)) ;
 			break;
 		case OL_MUL:
 			(op = eat(TK_MUL)) ||
@@ -419,15 +429,28 @@ static Expr *p_binop(int level)
 		Type *rtype = right->type;
 		Type *type = 0;
 		
-		if(is_integral_type(ltype) && is_integral_type(rtype)) {
+		int found = 0;
+		
+		if(level == OL_OR || level == OL_AND) {
+			if(!type_equ(ltype, rtype)) {
+				fatal_at(operator,
+					"types must be the same for operator %t", operator
+				);
+			}
+			type = ltype;
+			found = 1;
+		}
+		else if(is_integral_type(ltype) && is_integral_type(rtype)) {
 			if(level == OL_CMP) {
 				type = new_type(BOOL);
 				right = cast_expr(right, ltype, 0);
+				found = 1;
 			}
-			else {
+			else if(level == OL_ADD || level == OL_MUL) {
 				type = new_type(INT64);
 				left = cast_expr(left, type, 0);
 				right = cast_expr(right, type, 0);
+				found = 1;
 			}
 		}
 		else if(
@@ -435,8 +458,10 @@ static Expr *p_binop(int level)
 			operator->kind == TK_EQUALS
 		) {
 			type = new_type(BOOL);
+			found = 1;
 		}
-		else {
+		
+		if(found == 0) {
 			fatal_at(
 				operator,
 				"can not use types  %y  and  %y  with operator %t",

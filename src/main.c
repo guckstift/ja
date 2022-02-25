@@ -48,7 +48,6 @@ static void parse_args(int argc, char **argv)
 int main(int argc, char *argv[])
 {
 	parse_args(argc, argv);
-	printf("OK %s\n", filename);
 	Project *project = build(filename, outfilename);
 	
 	if(!compile_only) {
