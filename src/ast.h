@@ -53,6 +53,7 @@ typedef enum {
 	ARRAY,
 	FUNC,
 	STRUCT,
+	ENUM,
 	
 	// expressions
 	VAR,
@@ -87,6 +88,7 @@ typedef enum {
 	* array
 	* func
 	* struct
+	* enum
 */
 
 struct Type {
@@ -100,7 +102,7 @@ struct Type {
 	
 	union {
 		int64_t length; // array length (-1 = incomplete)
-		Decl *structdecl; // struct
+		Decl *decl; // struct, enum
 		Type **paramtypes; // func
 	};
 };
@@ -206,6 +208,7 @@ struct Decl {
 	union {
 		Decl **members; // struct
 		Decl **params; // func
+		Token **enums; // enum
 	};
 };
 
@@ -226,6 +229,10 @@ Decl *new_func(
 
 Decl *new_struct(
 	Token *start, Scope *scope, Token *id, int exported, Decl **members
+);
+
+Decl *new_enum(
+	Token *start, Scope *scope, Token *id, Token **enums, int exported
 );
 
 Decl *clone_decl(Decl *decl);

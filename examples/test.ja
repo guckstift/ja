@@ -1,12 +1,4 @@
 
-function foo(ar : [2]int)
-{
-	ar[0] = 9;
+enum Foo {
+	Hello, world,
 }
-
-var x = [1,2];
-print x[0];
-foo(x);
-print x[0];
-
-foo([1,2]);

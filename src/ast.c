@@ -81,7 +81,14 @@ Type *new_func_type(Type *returntype, Type **paramtypes)
 Type *new_struct_type(Decl *decl)
 {
 	Type *type = new_type(STRUCT);
-	type->structdecl = decl;
+	type->decl = decl;
+	return type;
+}
+
+Type *new_enum_type(Decl *decl)
+{
+	Type *type = new_type(ENUM);
+	type->decl = decl;
 	return type;
 }
 
@@ -118,7 +125,7 @@ int type_equ(Type *left, Type *right)
 	}
 	
 	if(left->kind == STRUCT && right->kind == STRUCT) {
-		return left->structdecl == right->structdecl;
+		return left->decl == right->decl;
 	}
 	
 	return left->kind == right->kind;
@@ -369,6 +376,15 @@ Decl *new_struct(
 	Decl *decl = new_decl(STRUCT, start, scope, id, exported, 0);
 	decl->type = new_struct_type(decl);
 	decl->members = members;
+	return decl;
+}
+
+Decl *new_enum(
+	Token *start, Scope *scope, Token *id, Token **enums, int exported
+) {
+	Decl *decl = new_decl(ENUM, start, scope, id, exported, 0);
+	decl->type = new_enum_type(decl);
+	decl->enums = enums;
 	return decl;
 }
 

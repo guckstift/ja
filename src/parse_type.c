@@ -97,7 +97,7 @@ void make_type_exportable(Type *type)
 	}
 	
 	if(type->kind == STRUCT) {
-		Decl *decl = type->structdecl;
+		Decl *decl = type->decl;
 		
 		if(decl->exported == 0) {
 			decl->exported = 1;

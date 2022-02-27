@@ -287,7 +287,7 @@ static Expr *p_member_x(Expr *expr)
 	if(type->kind != STRUCT)
 		fatal_at(expr->start, "no instance to get member from");
 	
-	Decl **members = type->structdecl->members;
+	Decl **members = type->decl->members;
 	Decl *member = 0;
 	
 	array_for(members, i) {

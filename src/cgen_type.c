@@ -3,17 +3,17 @@
 
 static void gen_struct_type(Type *type)
 {
-	if(type->structdecl->exported && is_in_header()) {
-		write("%X", type->structdecl->id);
+	if(type->decl->exported && is_in_header()) {
+		write("%X", type->decl->id);
 	}
 	else if(
-		type->structdecl->scope != get_cur_unit()->block->stmts[0]->scope &&
-		type->structdecl->imported == 0
+		type->decl->scope != get_cur_unit()->block->stmts[0]->scope &&
+		type->decl->imported == 0
 	) {
-		write("%s", type->structdecl->public_id);
+		write("%s", type->decl->public_id);
 	}
 	else {
-		write("%I", type->structdecl->id);
+		write("%I", type->decl->id);
 	}
 }
 

@@ -12,6 +12,7 @@
 	_(delete) \
 	_(dllimport) \
 	_(else) \
+	_(enum) \
 	_(export) \
 	_(false) \
 	_(for) \

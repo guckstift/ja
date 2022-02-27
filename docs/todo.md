@@ -40,13 +40,13 @@
 	X check that vars have no init
 	(?check that vars are pointer types?)
 * self hosting
+* enums
 
 # for self hosting
 
 * binop float division /
 * unions
 * tagged unions
-* enums
 * switch-case
 * resize operator for dyn arrays
 * variable arguments

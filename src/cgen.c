@@ -498,7 +498,7 @@ void gen_vardecl_init(Decl *decl, int struct_inst_member)
 		}
 	}
 	else if(decl->type->kind == STRUCT) {
-		Decl *structdecl = decl->type->structdecl;
+		Decl *structdecl = decl->type->decl;
 		write(" = {");
 		
 		array_for(structdecl->members, i) {

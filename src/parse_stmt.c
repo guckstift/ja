@@ -661,6 +661,44 @@ static Stmt *p_delete()
 	return (Stmt*)new_delete(start, scope, expr);
 }
 
+static Stmt *p_enum()
+{
+	if(!eat(TK_enum)) return 0;
+	Token *start = last;
+	
+	if(scope->parent)
+		fatal_at(last, "enums can only be declared at top level");
+	
+	Token *ident = eat(TK_IDENT);
+	if(!ident)
+		fatal_after(last, "expected identifier after keyword enum");
+	
+	if(!eat(TK_LCURLY))
+		fatal_after(last, "expected {");
+	
+	Token **enums = 0;
+	
+	while(1) {
+		Token *ident = eat(TK_IDENT);
+		if(!ident) break;
+		array_push(enums, ident);
+		if(!eat(TK_COMMA)) break;
+	}
+	
+	if(!eat(TK_RCURLY))
+		fatal_after(last, "expected } after enum body");
+	
+	if(array_length(enums) == 0)
+		fatal_at(start, "empty enum");
+	
+	Decl *decl = new_enum(start, scope, ident->id, enums, 0);
+	
+	if(!declare(decl))
+		fatal_at(ident, "name %t already declared", ident);
+	
+	return (Stmt*)decl;
+}
+
 static Stmt *p_stmt()
 {
 	Stmt *stmt = 0;
@@ -678,6 +716,7 @@ static Stmt *p_stmt()
 	(stmt = p_continue()) ||
 	(stmt = p_for()) ||
 	(stmt = p_delete()) ||
+	(stmt = p_enum()) ||
 	(stmt = p_assign()) ;
 	return stmt;
 }

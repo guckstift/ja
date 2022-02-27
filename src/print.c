@@ -333,7 +333,7 @@ static void fprint_type(FILE *fs, Type *type)
 			fprint_type(fs, type->returntype);
 			break;
 		case STRUCT:
-			fprint_ident(fs, type->structdecl->id);
+			fprint_ident(fs, type->decl->id);
 			break;
 	}
 }
@@ -471,6 +471,15 @@ static void print_func(Decl *func)
 	}
 }
 
+static void print_idents(Token **idents)
+{
+	array_for(idents, i) {
+		print_indent();
+		print_ident(idents[i]->id);
+		printf(",\n");
+	}
+}
+
 static void print_stmt(Stmt *stmt)
 {
 	switch(stmt->kind) {
@@ -591,6 +600,17 @@ static void print_stmt(Stmt *stmt)
 		case DELETE:
 			print_keyword_cstr("delete ");
 			print_expr(stmt->as_delete.expr);
+			break;
+		case ENUM:
+			if(stmt->as_decl.exported) print_keyword_cstr("export ");
+			print_keyword_cstr("enum ");
+			print_ident(stmt->as_decl.id);
+			printf(" {\n");
+			level ++;
+			print_idents(stmt->as_decl.enums);
+			level --;
+			print_indent();
+			printf("}");
 			break;
 	}
 }
