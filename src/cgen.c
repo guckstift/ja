@@ -512,7 +512,7 @@ void gen_vardecl_init(Decl *decl, int struct_inst_member)
 		write("}");
 	}
 	else if(
-		decl->type->kind == ARRAY ||
+		decl->type->kind == ARRAY || decl->type->kind == UNION ||
 		decl->type->kind == STRING || is_dynarray_ptr_type(decl->type)
 	) {
 		write(" = {0}");
@@ -575,7 +575,11 @@ static void gen_structdecl(Decl *decl)
 	if(in_header && !decl->exported)
 		return;
 	
-	write("%>typedef struct {\n");
+	if(decl->kind == STRUCT)
+		write("%>typedef struct {\n");
+	else if(decl->kind == UNION)
+		write("%>typedef union {\n");
+	
 	level ++;
 	gen_vardecls(decl->members);
 	level --;
@@ -664,7 +668,7 @@ static void gen_enumdecls(Decl **decls)
 static void gen_structdecls(Decl **decls)
 {
 	array_for(decls, i) {
-		if(decls[i]->kind == STRUCT) {
+		if(decls[i]->kind == STRUCT || decls[i]->kind == UNION) {
 			gen_structdecl(decls[i]);
 		}
 	}
@@ -800,7 +804,7 @@ static void gen_h()
 	write("\n// exported enums\n");
 	gen_enumdecls(decls);
 	
-	write("\n// exported structures\n");
+	write("\n// exported structures & unions\n");
 	gen_structdecls(decls);
 	
 	write("\n// exported functions\n");
@@ -831,7 +835,7 @@ static void gen_c()
 	write("\n// enums\n");
 	gen_enumdecls(decls);
 	
-	write("\n// structures\n");
+	write("\n// structures & unions\n");
 	gen_structdecls(decls);
 	
 	write("\n// dll imports\n");

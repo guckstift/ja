@@ -372,6 +372,47 @@ static Stmt *p_enumdecl(int exported)
 	return (Stmt*)decl;
 }
 
+static Stmt *p_uniondecl(int exported)
+{
+	if(!eat(TK_union)) return 0;
+	Token *start = last;
+	
+	if(scope->parent)
+		fatal_at(last, "unions can only be declared at top level");
+	
+	Token *ident = eat(TK_IDENT);
+	if(!ident)
+		fatal_after(last, "expected identifier after keyword union");
+	
+	if(!eat(TK_LCURLY))
+		fatal_after(last, "expected {");
+	
+	Decl **members = 0;
+	enter();
+	
+	while(1) {
+		Decl *member = &p_vardecl(0, 0)->as_decl;
+		if(!member) break;
+		array_push(members, member);
+		if(exported) make_type_exportable(member->type);
+	}
+	
+	if(!eat(TK_RCURLY))
+		fatal_after(last, "expected } after union body");
+	
+	if(array_length(members) == 0)
+		fatal_at(start, "empty union");
+	
+	Scope *struct_scope = leave();
+	Decl *decl = new_union(start, scope, ident->id, exported, members);
+	
+	if(!declare(decl))
+		fatal_at(ident, "name %t already declared", ident);
+	
+	struct_scope->structhost = decl;
+	return (Stmt*)decl;
+}
+
 static Stmt *p_ifstmt()
 {
 	if(!eat(TK_if)) return 0;
@@ -719,6 +760,7 @@ static Stmt *p_stmt()
 	(stmt = p_funcdecl(0, 0)) ||
 	(stmt = p_structdecl(0)) ||
 	(stmt = p_enumdecl(0)) ||
+	(stmt = p_uniondecl(0)) ||
 	(stmt = p_ifstmt()) ||
 	(stmt = p_whilestmt()) ||
 	(stmt = p_returnstmt()) ||

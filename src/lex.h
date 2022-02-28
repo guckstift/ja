@@ -38,6 +38,7 @@
 	_(uint16) \
 	_(uint32) \
 	_(uint64) \
+	_(union) \
 	_(var) \
 	_(while) \
 

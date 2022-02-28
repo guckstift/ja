@@ -92,6 +92,13 @@ Type *new_enum_type(Decl *decl)
 	return type;
 }
 
+Type *new_union_type(Decl *decl)
+{
+	Type *type = new_type(UNION);
+	type->decl = decl;
+	return type;
+}
+
 int type_equ(Type *left, Type *right)
 {
 	if(left->kind == PTR && right->kind == PTR) {
@@ -398,6 +405,15 @@ Decl *new_enum(
 	Decl *decl = new_decl(ENUM, start, scope, id, exported, 0);
 	decl->type = new_enum_type(decl);
 	decl->items = items;
+	return decl;
+}
+
+Decl *new_union(
+	Token *start, Scope *scope, Token *id, int exported, Decl **members
+) {
+	Decl *decl = new_decl(UNION, start, scope, id, exported, 0);
+	decl->type = new_union_type(decl);
+	decl->members = members;
 	return decl;
 }
 

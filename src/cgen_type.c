@@ -85,6 +85,9 @@ void gen_type(Type *type)
 		case STRUCT:
 			gen_struct_or_enum_type(type);
 			break;
+		case UNION:
+			gen_struct_or_enum_type(type);
+			break;
 		case ENUM:
 			gen_struct_or_enum_type(type);
 			break;

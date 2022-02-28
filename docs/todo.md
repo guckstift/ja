@@ -29,6 +29,7 @@
 * binops logical and, or
 * pass arrays by value
 * short-circuiting and, or
+* enums
 
 # wip
 
@@ -41,14 +42,13 @@
 	X check that vars have no init
 	(?check that vars are pointer types?)
 * self hosting
-* enums
+* unions (tagless)
 
 # for self hosting
 
 * float types
 * correct float to string conversion
 * binop float division /
-* unions
 * tagged unions
 * switch-case
 * resize operator for dyn arrays
@@ -56,6 +56,8 @@
 
 # todo
 
+* self refering members to structures and unions
+* refer to enum items without enum.prefix
 * runtime: array bounds check
 * bit shift operators
 * prefix operators minus and bit-inversion - ~

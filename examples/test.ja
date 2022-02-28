@@ -1,14 +1,7 @@
 
-enum Foo {
-	Hello, world,
+union Test {
+	var x : int;
+	var y : uint;
 }
 
-export enum Bar {
-	Hello, world,
-}
-
-export var Bar_ja_Hello = 9;
-
-var x = Foo.Hello;
-
-var y = Bar.world;
+var a : Test;

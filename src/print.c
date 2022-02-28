@@ -338,6 +338,9 @@ static void fprint_type(FILE *fs, Type *type)
 		case ENUM:
 			fprint_ident(fs, type->decl->id);
 			break;
+		case UNION:
+			fprint_ident(fs, type->decl->id);
+			break;
 	}
 }
 
@@ -507,6 +510,17 @@ static void print_stmt(Stmt *stmt)
 		case STRUCT:
 			if(stmt->as_decl.exported) print_keyword_cstr("export ");
 			print_keyword_cstr("struct ");
+			print_ident(stmt->as_decl.id);
+			printf(" {\n");
+			level ++;
+			print_stmts((Stmt**)stmt->as_decl.members);
+			level --;
+			print_indent();
+			printf("}");
+			break;
+		case UNION:
+			if(stmt->as_decl.exported) print_keyword_cstr("export ");
+			print_keyword_cstr("union ");
 			print_ident(stmt->as_decl.id);
 			printf(" {\n");
 			level ++;
