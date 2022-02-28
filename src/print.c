@@ -335,6 +335,9 @@ static void fprint_type(FILE *fs, Type *type)
 		case STRUCT:
 			fprint_ident(fs, type->decl->id);
 			break;
+		case ENUM:
+			fprint_ident(fs, type->decl->id);
+			break;
 	}
 }
 
@@ -471,12 +474,12 @@ static void print_func(Decl *func)
 	}
 }
 
-static void print_idents(Token **idents)
+static void print_enumitems(EnumItem **items)
 {
-	array_for(idents, i) {
+	array_for(items, i) {
 		print_indent();
-		print_ident(idents[i]->id);
-		printf(",\n");
+		print_ident(items[i]->id);
+		printf(" = %li,\n", items[i]->num);
 	}
 }
 
@@ -607,7 +610,7 @@ static void print_stmt(Stmt *stmt)
 			print_ident(stmt->as_decl.id);
 			printf(" {\n");
 			level ++;
-			print_idents(stmt->as_decl.enums);
+			print_enumitems(stmt->as_decl.items);
 			level --;
 			print_indent();
 			printf("}");

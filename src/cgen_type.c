@@ -1,7 +1,7 @@
 #include "cgen.h"
 #include "cgen_utils.h"
 
-static void gen_struct_type(Type *type)
+static void gen_struct_or_enum_type(Type *type)
 {
 	if(type->decl->exported && is_in_header()) {
 		write("%X", type->decl->id);
@@ -83,7 +83,10 @@ void gen_type(Type *type)
 			write("char*");
 			break;
 		case STRUCT:
-			gen_struct_type(type);
+			gen_struct_or_enum_type(type);
+			break;
+		case ENUM:
+			gen_struct_or_enum_type(type);
 			break;
 		case PTR:
 			gen_ptr_type(type);

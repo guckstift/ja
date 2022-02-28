@@ -40,8 +40,8 @@ static Type *p_nametype()
 	if(!decl)
 		fatal_at(ident, "name %t not declared", ident);
 	
-	if(decl->kind != STRUCT)
-		fatal_at(ident, "%t is not a structure", ident);
+	if(decl->kind != STRUCT && decl->kind != ENUM)
+		fatal_at(ident, "%t is not a structure or enum", ident);
 	
 	return decl->type;
 }

@@ -9,6 +9,7 @@ typedef struct Expr Expr;
 typedef struct StmtHead StmtHead;
 typedef struct Import Import;
 typedef struct DllImport DllImport;
+typedef struct EnumItem EnumItem;
 typedef struct DeclFlags DeclFlags;
 typedef struct Decl Decl;
 typedef struct If If;
@@ -187,6 +188,12 @@ Expr *new_new_expr(Token *start, Type *obj_type);
 	Decl
 */
 
+struct EnumItem {
+	Token *id;
+	int64_t num;
+	Decl *enumdecl;
+};
+
 struct Decl {
 	STMT_HEAD
 	Token *id;
@@ -208,7 +215,7 @@ struct Decl {
 	union {
 		Decl **members; // struct
 		Decl **params; // func
-		Token **enums; // enum
+		EnumItem **items; // enum
 	};
 };
 
@@ -232,7 +239,7 @@ Decl *new_struct(
 );
 
 Decl *new_enum(
-	Token *start, Scope *scope, Token *id, Token **enums, int exported
+	Token *start, Scope *scope, Token *id, EnumItem **items, int exported
 );
 
 Decl *clone_decl(Decl *decl);

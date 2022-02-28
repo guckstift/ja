@@ -28,6 +28,7 @@
 * binops & | ^
 * binops logical and, or
 * pass arrays by value
+* short-circuiting and, or
 
 # wip
 
@@ -44,6 +45,8 @@
 
 # for self hosting
 
+* float types
+* correct float to string conversion
 * binop float division /
 * unions
 * tagged unions
@@ -53,6 +56,10 @@
 
 # todo
 
+* runtime: array bounds check
+* bit shift operators
+* prefix operators minus and bit-inversion - ~
+* structure literals
 * default struct member inits for new
 * break, continue with labels
 * import (
@@ -66,7 +73,6 @@
 * print ptrs contents
 * print multiple arguments
 * chained comparison (a == b > c  is  a == b && b > c)
-* short-circuiting and, or
 * codegen: spare () on equal level binop chains (except explicit ())
 * owned ptr type !int (deletes automatically at scope end
 	; must also delete before return, break or continue)
@@ -75,8 +81,6 @@
 * type-ids
 * type-alias definition
 * build: cache C files, compiled objects
-* float types
-* correct float to string conversion
 * anonymous structs, unions
 * use/mixin/with
 * forced inline
@@ -92,3 +96,4 @@
 * any type
 * pseudo ptr arithmetic via @ index
 * constants
+* compile time execution

@@ -2,3 +2,5 @@
 enum Foo {
 	Hello, world,
 }
+
+var foo : Foo;

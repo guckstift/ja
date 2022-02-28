@@ -128,6 +128,10 @@ int type_equ(Type *left, Type *right)
 		return left->decl == right->decl;
 	}
 	
+	if(left->kind == ENUM && right->kind == ENUM) {
+		return left->decl == right->decl;
+	}
+	
 	return left->kind == right->kind;
 }
 
@@ -380,11 +384,11 @@ Decl *new_struct(
 }
 
 Decl *new_enum(
-	Token *start, Scope *scope, Token *id, Token **enums, int exported
+	Token *start, Scope *scope, Token *id, EnumItem **items, int exported
 ) {
 	Decl *decl = new_decl(ENUM, start, scope, id, exported, 0);
 	decl->type = new_enum_type(decl);
-	decl->enums = enums;
+	decl->items = items;
 	return decl;
 }
 

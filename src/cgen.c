@@ -524,6 +524,35 @@ void gen_vardecl_init(Decl *decl, int struct_inst_member)
 
 // --- //
 
+static void gen_enumdecl(Decl *decl)
+{
+	if(decl->imported)
+		return;
+	
+	if(!in_header && decl->exported) {
+		gen_export_alias(decl);
+		return;
+	}
+	
+	if(in_header && !decl->exported)
+		return;
+	
+	write("%>typedef enum {\n");
+	level ++;
+	EnumItem **items = decl->items;
+	
+	array_for(items, i) {
+		write("%>%t = %i,\n", items[i]->id, items[i]->num);
+	}
+	
+	level --;
+	
+	if(in_header)
+		write("%>} %s;\n", decl->public_id);
+	else
+		write("%>} %s;\n", decl->private_id);
+}
+
 static void gen_structdecl(Decl *decl)
 {
 	if(decl->imported)
@@ -613,6 +642,15 @@ static void gen_vardecl(Decl *decl)
 }
 
 // --- //
+
+static void gen_enumdecls(Decl **decls)
+{
+	array_for(decls, i) {
+		if(decls[i]->kind == ENUM) {
+			gen_enumdecl(decls[i]);
+		}
+	}
+}
 
 static void gen_structdecls(Decl **decls)
 {
@@ -777,6 +815,9 @@ static void gen_c()
 	
 	write("\n// imports\n");
 	gen_imports(unit_scope->imports);
+	
+	write("\n// enums\n");
+	gen_enumdecls(decls);
 	
 	write("\n// structures\n");
 	gen_structdecls(decls);

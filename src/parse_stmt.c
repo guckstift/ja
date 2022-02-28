@@ -676,22 +676,33 @@ static Stmt *p_enum()
 	if(!eat(TK_LCURLY))
 		fatal_after(last, "expected {");
 	
-	Token **enums = 0;
+	EnumItem **items = 0;
+	int64_t num = 0;
 	
 	while(1) {
 		Token *ident = eat(TK_IDENT);
 		if(!ident) break;
-		array_push(enums, ident);
+		
+		array_for(items, i) {
+			if(items[i]->id == ident->id) {
+				fatal_at(ident, "enum item already defined");
+			}
+		}
+		
+		EnumItem *item = malloc(sizeof(EnumItem));
+		item->id = ident->id;
+		item->num = num++;
+		array_push(items, item);
 		if(!eat(TK_COMMA)) break;
 	}
 	
 	if(!eat(TK_RCURLY))
 		fatal_after(last, "expected } after enum body");
 	
-	if(array_length(enums) == 0)
+	if(array_length(items) == 0)
 		fatal_at(start, "empty enum");
 	
-	Decl *decl = new_enum(start, scope, ident->id, enums, 0);
+	Decl *decl = new_enum(start, scope, ident->id, items, 0);
 	
 	if(!declare(decl))
 		fatal_at(ident, "name %t already declared", ident);
