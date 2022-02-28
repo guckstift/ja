@@ -218,6 +218,26 @@ void gen_new(Expr *expr)
 	write("(malloc(sizeof(%Y)))", expr->type->subtype);
 }
 
+void gen_enum_item(Expr *expr)
+{
+	EnumItem *item = expr->item;
+	Type *type = expr->type;
+	Decl *decl = type->decl;
+	
+	if(decl->exported) {
+		write(
+			"_%s_ja_%t",
+			decl->public_id, item->id
+		);
+	}
+	else {
+		write(
+			"_%s_ja_%t",
+			decl->private_id, item->id
+		);
+	}
+}
+
 void gen_expr(Expr *expr)
 {
 	switch(expr->kind) {
@@ -264,7 +284,7 @@ void gen_expr(Expr *expr)
 			gen_new(expr);
 			break;
 		case ENUM:
-			write("%t", expr->item->id);
+			gen_enum_item(expr);
 			break;
 	}
 }

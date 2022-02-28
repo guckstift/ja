@@ -323,6 +323,55 @@ static Stmt *p_structdecl(int exported)
 	return (Stmt*)decl;
 }
 
+static Stmt *p_enumdecl(int exported)
+{
+	if(!eat(TK_enum)) return 0;
+	Token *start = last;
+	
+	if(scope->parent)
+		fatal_at(last, "enums can only be declared at top level");
+	
+	Token *ident = eat(TK_IDENT);
+	if(!ident)
+		fatal_after(last, "expected identifier after keyword enum");
+	
+	if(!eat(TK_LCURLY))
+		fatal_after(last, "expected {");
+	
+	EnumItem **items = 0;
+	int64_t num = 0;
+	
+	while(1) {
+		Token *ident = eat(TK_IDENT);
+		if(!ident) break;
+		
+		array_for(items, i) {
+			if(items[i]->id == ident->id) {
+				fatal_at(ident, "enum item already defined");
+			}
+		}
+		
+		EnumItem *item = malloc(sizeof(EnumItem));
+		item->id = ident->id;
+		item->num = num++;
+		array_push(items, item);
+		if(!eat(TK_COMMA)) break;
+	}
+	
+	if(!eat(TK_RCURLY))
+		fatal_after(last, "expected } after enum body");
+	
+	if(array_length(items) == 0)
+		fatal_at(start, "empty enum");
+	
+	Decl *decl = new_enum(start, scope, ident->id, items, exported);
+	
+	if(!declare(decl))
+		fatal_at(ident, "name %t already declared", ident);
+	
+	return (Stmt*)decl;
+}
+
 static Stmt *p_ifstmt()
 {
 	if(!eat(TK_if)) return 0;
@@ -531,7 +580,8 @@ static Stmt *p_export()
 	Stmt *stmt = 0;
 	(stmt = p_vardecl(1, 0)) ||
 	(stmt = p_funcdecl(1, 0)) ||
-	(stmt = p_structdecl(1)) ;
+	(stmt = p_structdecl(1)) ||
+	(stmt = p_enumdecl(1)) ;
 	
 	if(!stmt) {
 		fatal_at(
@@ -661,55 +711,6 @@ static Stmt *p_delete()
 	return (Stmt*)new_delete(start, scope, expr);
 }
 
-static Stmt *p_enum()
-{
-	if(!eat(TK_enum)) return 0;
-	Token *start = last;
-	
-	if(scope->parent)
-		fatal_at(last, "enums can only be declared at top level");
-	
-	Token *ident = eat(TK_IDENT);
-	if(!ident)
-		fatal_after(last, "expected identifier after keyword enum");
-	
-	if(!eat(TK_LCURLY))
-		fatal_after(last, "expected {");
-	
-	EnumItem **items = 0;
-	int64_t num = 0;
-	
-	while(1) {
-		Token *ident = eat(TK_IDENT);
-		if(!ident) break;
-		
-		array_for(items, i) {
-			if(items[i]->id == ident->id) {
-				fatal_at(ident, "enum item already defined");
-			}
-		}
-		
-		EnumItem *item = malloc(sizeof(EnumItem));
-		item->id = ident->id;
-		item->num = num++;
-		array_push(items, item);
-		if(!eat(TK_COMMA)) break;
-	}
-	
-	if(!eat(TK_RCURLY))
-		fatal_after(last, "expected } after enum body");
-	
-	if(array_length(items) == 0)
-		fatal_at(start, "empty enum");
-	
-	Decl *decl = new_enum(start, scope, ident->id, items, 0);
-	
-	if(!declare(decl))
-		fatal_at(ident, "name %t already declared", ident);
-	
-	return (Stmt*)decl;
-}
-
 static Stmt *p_stmt()
 {
 	Stmt *stmt = 0;
@@ -717,6 +718,7 @@ static Stmt *p_stmt()
 	(stmt = p_vardecl(0, 0)) ||
 	(stmt = p_funcdecl(0, 0)) ||
 	(stmt = p_structdecl(0)) ||
+	(stmt = p_enumdecl(0)) ||
 	(stmt = p_ifstmt()) ||
 	(stmt = p_whilestmt()) ||
 	(stmt = p_returnstmt()) ||
@@ -727,7 +729,6 @@ static Stmt *p_stmt()
 	(stmt = p_continue()) ||
 	(stmt = p_for()) ||
 	(stmt = p_delete()) ||
-	(stmt = p_enum()) ||
 	(stmt = p_assign()) ;
 	return stmt;
 }

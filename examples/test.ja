@@ -3,4 +3,12 @@ enum Foo {
 	Hello, world,
 }
 
-var foo : Foo = Foo.Hello;
+export enum Bar {
+	Hello, world,
+}
+
+export var Bar_ja_Hello = 9;
+
+var x = Foo.Hello;
+
+var y = Bar.world;

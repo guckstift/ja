@@ -542,7 +542,16 @@ static void gen_enumdecl(Decl *decl)
 	EnumItem **items = decl->items;
 	
 	array_for(items, i) {
-		write("%>%t = %i,\n", items[i]->id, items[i]->num);
+		if(in_header)
+			write(
+				"%>_%s_ja_%t = %i,\n",
+				decl->public_id, items[i]->id, items[i]->num
+			);
+		else
+			write(
+				"%>_%s_ja_%t = %i,\n",
+				decl->private_id, items[i]->id, items[i]->num
+			);
 	}
 	
 	level --;
@@ -787,6 +796,9 @@ static void gen_h()
 	write(";\n");
 	
 	Decl **decls = cur_unit->block->scope->decls;
+	
+	write("\n// exported enums\n");
+	gen_enumdecls(decls);
 	
 	write("\n// exported structures\n");
 	gen_structdecls(decls);
