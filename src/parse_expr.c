@@ -284,22 +284,40 @@ static Expr *p_member_x(Expr *expr)
 	)
 		return new_length_expr(expr);
 	
-	if(type->kind != STRUCT)
-		fatal_at(expr->start, "no instance to get member from");
+	if(type->kind != STRUCT && type->kind != ENUM)
+		fatal_at(expr->start, "no instance or enum to get member from");
 	
-	Decl **members = type->decl->members;
-	Decl *member = 0;
-	
-	array_for(members, i) {
-		if(members[i]->id == ident->id) {
-			member = members[i];
-			break;
+	if(type->kind == STRUCT) {
+		Decl **members = type->decl->members;
+		Decl *member = 0;
+		
+		array_for(members, i) {
+			if(members[i]->id == ident->id) {
+				member = members[i];
+				break;
+			}
 		}
+		
+		if(!member) fatal_at(ident, "name %t not declared in struct", ident);
+		return new_member_expr(expr, member);
+	}
+	else if(type->kind == ENUM) {
+		Decl *enumdecl = type->decl;
+		EnumItem **items = enumdecl->items;
+		EnumItem *item = 0;
+		
+		array_for(items, i) {
+			if(items[i]->id == ident->id) {
+				item = items[i];
+				break;
+			}
+		}
+		
+		if(!item) fatal_at(ident, "name %t not declared in enum", ident);
+		return new_enum_item_expr(expr->start, enumdecl, item);
 	}
 	
-	if(!member) fatal_at(ident, "name %t not declared in struct", ident);
-	
-	return new_member_expr(expr, member);
+	return 0;
 }
 
 static Expr *p_postfix()

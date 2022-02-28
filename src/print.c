@@ -431,6 +431,11 @@ static void print_expr(Expr *expr)
 			print_keyword_cstr("new ");
 			print_type(expr->type->subtype);
 			break;
+		case ENUM:
+			print_ident(expr->type->decl->id);
+			printf(".");
+			print_ident(expr->item->id);
+			break;
 	}
 }
 

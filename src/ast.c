@@ -320,6 +320,15 @@ Expr *new_new_expr(Token *start, Type *obj_type)
 	return new_expr(NEW, start, type, 0, 0);
 }
 
+Expr *new_enum_item_expr(Token *start, Decl *enumdecl, EnumItem *item)
+{
+	assert(item);
+	
+	Expr *expr = new_expr(ENUM, start, enumdecl->type, 1, 0);
+	expr->item = item;
+	return expr;
+}
+
 #include <stdio.h>
 
 Decl *new_decl(

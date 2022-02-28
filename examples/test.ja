@@ -3,4 +3,4 @@ enum Foo {
 	Hello, world,
 }
 
-var foo : Foo;
+var foo : Foo = Foo.Hello;

@@ -153,6 +153,7 @@ struct Expr {
 		Expr *index; // subscript
 		Expr *object; // member
 		Expr **args; // call
+		EnumItem *item; // enum
 	};
 	
 	Token *operator; // binop
@@ -174,6 +175,7 @@ Expr *new_ptr_expr(Token *start, Expr *subexpr);
 Expr *new_call_expr(Expr *callee, Expr **args);
 Expr *new_binop_expr(Expr *left, Expr *right, Token *operator, Type *type);
 Expr *new_new_expr(Token *start, Type *obj_type);
+Expr *new_enum_item_expr(Token *start, Decl *enumdecl, EnumItem *item);
 
 /*
 	Statment Head

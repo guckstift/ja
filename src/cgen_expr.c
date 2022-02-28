@@ -263,5 +263,8 @@ void gen_expr(Expr *expr)
 		case NEW:
 			gen_new(expr);
 			break;
+		case ENUM:
+			write("%t", expr->item->id);
+			break;
 	}
 }
