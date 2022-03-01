@@ -32,6 +32,7 @@
 * enums
 * unions (tagless)
 * prefix operators minus and bit-inversion - ~
+* for range (for x = 0..1 {})
 
 # wip
 
@@ -80,7 +81,6 @@
 * owned ptr type !int (deletes automatically at scope end
 	; must also delete before return, break or continue)
 * explicit uninitialized var (var x : int = ?)
-* for range (for x = 0..1 {} for x = 5 .. <1 {})
 * type-ids
 * type-alias definition
 * build: cache C files, compiled objects
@@ -91,6 +91,7 @@
 
 # ideas
 
+* for range exclusive end (for x = 5 .. <1)
 * codegen: no ja_ prefix for members
 * file functions
 * error type

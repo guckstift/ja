@@ -503,6 +503,17 @@ Delete *new_delete(Token *start, Scope *scope, Expr *expr)
 	return stmt;
 }
 
+For *new_for(
+	Token *start, Scope *scope, Decl *iter, Expr *from, Expr *to, Block *body
+) {
+	For *stmt = &new_stmt(FOR, start, scope)->as_for;
+	stmt->iter = iter;
+	stmt->from = from;
+	stmt->to = to;
+	stmt->body = body;
+	return stmt;
+}
+
 ForEach *new_foreach(
 	Token *start, Scope *scope, Expr *array, Decl *iter, Block *body
 ) {

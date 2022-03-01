@@ -1,5 +1,10 @@
 
-var x = -true;
-var y = (~2) as uint;
+var a = [1,2,3];
 
-print ~y;
+for x in a {
+	print x;
+}
+
+for x = 1 .. 10 {
+	print x;
+}

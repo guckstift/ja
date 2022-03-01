@@ -21,6 +21,7 @@ typedef struct Return Return;
 typedef struct Stmt Stmt;
 typedef struct Scope Scope;
 typedef struct Block Block;
+typedef struct For For;
 typedef struct ForEach ForEach;
 typedef struct Delete Delete;
 
@@ -80,6 +81,7 @@ typedef enum {
 	DLLIMPORT,
 	BREAK,
 	CONTINUE,
+	FOR,
 	FOREACH,
 	DELETE,
 } Kind;
@@ -306,6 +308,14 @@ struct Return {
 	Expr *expr;
 };
 
+struct For {
+	STMT_HEAD
+	Decl *iter;
+	Expr *from;
+	Expr *to;
+	Block *body;
+};
+
 struct ForEach {
 	STMT_HEAD
 	Expr *array;
@@ -330,6 +340,7 @@ struct Stmt {
 		Call as_call;
 		Print as_print;
 		Return as_return;
+		For as_for;
 		ForEach as_foreach;
 		Delete as_delete;
 	};
@@ -345,6 +356,10 @@ Call *new_call(Scope *scope, Expr *call);
 Print *new_print(Token *start, Scope *scope, Expr *expr);
 Return *new_return(Token *start, Scope *scope, Expr *expr);
 Delete *new_delete(Token *start, Scope *scope, Expr *expr);
+
+For *new_for(
+	Token *start, Scope *scope, Decl *iter, Expr *from, Expr *to, Block *body
+);
 
 ForEach *new_foreach(
 	Token *start, Scope *scope, Expr *array, Decl *iter, Block *body

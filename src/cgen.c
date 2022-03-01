@@ -282,6 +282,27 @@ static void gen_vardecl_stmt(Decl *decl)
 	}
 }
 
+static void gen_for(For *stmt)
+{
+	Decl *iter = stmt->iter;
+	Expr *from = stmt->from;
+	Expr *to = stmt->to;
+	Type *itertype = iter->type;
+	
+	write(
+		"%>for("
+			"%y %s%z = %e; "
+			"%s <= %e; "
+			"%s ++) {\n",
+		itertype, iter->private_id, itertype, from,
+		iter->private_id, to,
+		iter->private_id
+	);
+	
+	gen_block(stmt->body);
+	write("%>}\n");
+}
+
 static void gen_foreach(ForEach *foreach)
 {
 	Decl *iter = foreach->iter;
@@ -363,6 +384,9 @@ static void gen_stmt(Stmt *stmt, int noindent)
 			break;
 		case CONTINUE:
 			write("%>continue;\n");
+			break;
+		case FOR:
+			gen_for(&stmt->as_for);
 			break;
 		case FOREACH:
 			gen_foreach(&stmt->as_foreach);

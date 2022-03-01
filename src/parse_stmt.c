@@ -714,23 +714,51 @@ static Stmt *p_for()
 	if(!iter_name)
 		error_after(last, "expected identifier as iterator");
 	
-	if(!eat(TK_in))
-		error_at(cur, "expected 'in' after iterator");
+	int flavour = 0;
+	Type *itemtype = 0;
+	Expr *array = 0;
+	Expr *from = 0;
+	Expr *to = 0;
 	
-	Expr *array = p_expr();
-	
-	if(!array)
-		fatal_after(last, "expected iterable");
-	
-	while(array->type->kind == PTR) {
-		array = new_deref_expr(array->start, array);
+	if(eat(TK_in)) {
+		array = p_expr();
+		
+		if(!array)
+			fatal_after(last, "expected iterable");
+		
+		while(array->type->kind == PTR) {
+			array = new_deref_expr(array->start, array);
+		}
+		
+		Type *type = array->type;
+		if(type->kind != ARRAY)
+			fatal_at(array->start, "expected iterable of type array");
+		
+		itemtype = array->type->itemtype;
+	}
+	else if(eat(TK_ASSIGN)) {
+		flavour = 1;
+		from = p_expr();
+		if(!from) fatal_at(last, "expected start value after =");
+		
+		if(!is_integral_type(from->type))
+			fatal_at(last, "start expression must be of integral type");
+		
+		if(!eat(TK_DOTDOT))
+			fatal_after(last, "expected .. after start expression");
+		
+		to = p_expr();
+		if(!to) fatal_at(last, "expected end value after ..");
+		
+		if(!is_integral_type(to->type))
+			fatal_at(last, "end expression must be of integral type");
+		
+		itemtype = from->type;
+	}
+	else {
+		error_at(cur, "expected 'in' or '=' after iterator");
 	}
 	
-	Type *type = array->type;
-	if(type->kind != ARRAY)
-		fatal_at(array->start, "expected iterable of type array");
-	
-	Type *itemtype = array->type->itemtype;
 	Decl *iter = new_var(iter_name, scope, iter_name->id, 0, itemtype, 0);
 	
 	if(!eat(TK_LCURLY))
@@ -739,14 +767,27 @@ static Stmt *p_for()
 	enter();
 	declare(iter);
 	Scope *blockscope = leave();
-	ForEach *foreach = new_foreach(start, blockscope, array, iter, 0);
-	blockscope->loophost = (Stmt*)foreach;
-	foreach->body = p_block(blockscope);
 	
-	if(!eat(TK_RCURLY))
-		fatal_after(last, "expected } after for-body");
+	if(flavour == 0) {
+		ForEach *foreach = new_foreach(start, blockscope, array, iter, 0);
+		blockscope->loophost = (Stmt*)foreach;
+		foreach->body = p_block(blockscope);
 	
-	return (Stmt*)foreach;
+		if(!eat(TK_RCURLY))
+			fatal_after(last, "expected } after for-body");
+		
+		return (Stmt*)foreach;
+	}
+	else {
+		For *forstmt = new_for(start, blockscope, iter, from, to, 0);
+		blockscope->loophost = (Stmt*)forstmt;
+		forstmt->body = p_block(blockscope);
+	
+		if(!eat(TK_RCURLY))
+			fatal_after(last, "expected } after for-body");
+		
+		return (Stmt*)forstmt;
+	}
 }
 
 static Stmt *p_delete()

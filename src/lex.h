@@ -43,6 +43,7 @@
 	_(while) \
 
 #define PUNCTS(_) \
+	_("..", DOTDOT) \
 	_("&&", AND) \
 	_("||", OR) \
 	_("==", EQUALS) \
