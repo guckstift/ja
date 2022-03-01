@@ -439,6 +439,16 @@ static void print_expr(Expr *expr)
 			printf(".");
 			print_ident(expr->item->id);
 			break;
+		case NEGATION:
+			printf("(-");
+			print_expr(expr->subexpr);
+			printf(")");
+			break;
+		case COMPLEMENT:
+			printf("(~");
+			print_expr(expr->subexpr);
+			printf(")");
+			break;
 	}
 }
 

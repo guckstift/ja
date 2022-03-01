@@ -286,5 +286,11 @@ void gen_expr(Expr *expr)
 		case ENUM:
 			gen_enum_item(expr);
 			break;
+		case NEGATION:
+			write("(-%e)", expr->subexpr);
+			break;
+		case COMPLEMENT:
+			write("(~%e)", expr->subexpr);
+			break;
 	}
 }

@@ -31,6 +31,7 @@
 * short-circuiting and, or
 * enums
 * unions (tagless)
+* prefix operators minus and bit-inversion - ~
 
 # wip
 
@@ -60,7 +61,7 @@
 * refer to enum items without enum.prefix
 * runtime: array bounds check
 * bit shift operators
-* prefix operators minus and bit-inversion - ~
+* prefix logical not
 * structure literals
 * default struct member inits for new
 * break, continue with labels

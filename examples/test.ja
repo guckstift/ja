@@ -1,11 +1,5 @@
 
-union Test {
-	var x : int;
-	var y : uint;
-}
+var x = -true;
+var y = (~2) as uint;
 
-var a : Test;
-
-a.x = 0-1;
-print a.y;
-print a.x;
+print ~y;

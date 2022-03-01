@@ -67,6 +67,8 @@ typedef enum {
 	MEMBER,
 	LENGTH,
 	NEW,
+	NEGATION,
+	COMPLEMENT,
 	
 	// statements
 	PRINT,
@@ -143,7 +145,7 @@ struct Expr {
 		int64_t length; // string
 		Decl *decl; // var
 		Decl *member; // member
-		Expr *subexpr; // ptr, cast
+		Expr *subexpr; // ptr, cast, negation
 		Expr *ptr; // deref
 		Expr *array; // subscript, length
 		Expr *callee; // call

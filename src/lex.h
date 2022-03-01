@@ -70,6 +70,7 @@
 	_("&", AMP) \
 	_("|", PIPE) \
 	_("^", XOR) \
+	_("~", TILDE) \
 
 typedef enum {
 	TK_EOF,

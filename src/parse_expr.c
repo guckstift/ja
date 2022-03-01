@@ -376,11 +376,58 @@ static Expr *p_deref()
 	return new_deref_expr(start, ptr);
 }
 
+static Expr *p_negation()
+{
+	if(!eat(TK_MINUS)) return 0;
+	Token *start = last;
+	
+	Expr *subexpr = p_prefix();
+	
+	if(!subexpr)
+		fatal_at(last, "expected expression to negate");
+		
+	if(!is_integral_type(subexpr->type))
+		fatal_at(subexpr->start, "expected integral type to negate");
+	
+	if(subexpr->kind == NEGATION)
+		return subexpr->subexpr;
+	
+	Expr *expr = new_expr(NEGATION, start, new_type(INT), subexpr->isconst, 0);
+	expr->subexpr = subexpr;
+	return eval_unary(expr);
+}
+
+static Expr *p_complement()
+{
+	if(!eat(TK_TILDE)) return 0;
+	Token *start = last;
+	
+	Expr *subexpr = p_prefix();
+	
+	if(!subexpr)
+		fatal_at(last, "expected expression to complement");
+		
+	if(!is_integral_type(subexpr->type))
+		fatal_at(subexpr->start, "expected integral type to complement");
+	
+	if(subexpr->kind == COMPLEMENT)
+		return subexpr->subexpr;
+	
+	Expr *expr = new_expr(
+		COMPLEMENT, start, new_type(INT), subexpr->isconst, 0
+	);
+	
+	expr->subexpr = subexpr;
+	return eval_unary(expr);
+}
+
 static Expr *p_prefix()
 {
 	Expr *expr = 0;
 	(expr = p_ptr()) ||
 	(expr = p_deref()) ||
+	(expr = p_negation()) ||
+	(expr = p_complement()) ||
 	(expr = p_postfix()) ;
 	return expr;
 }
