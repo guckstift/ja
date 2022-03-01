@@ -5,3 +5,7 @@ union Test {
 }
 
 var a : Test;
+
+a.x = 0-1;
+print a.y;
+print a.x;

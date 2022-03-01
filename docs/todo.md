@@ -30,6 +30,7 @@
 * pass arrays by value
 * short-circuiting and, or
 * enums
+* unions (tagless)
 
 # wip
 
@@ -42,7 +43,6 @@
 	X check that vars have no init
 	(?check that vars are pointer types?)
 * self hosting
-* unions (tagless)
 
 # for self hosting
 

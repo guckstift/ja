@@ -284,10 +284,10 @@ static Expr *p_member_x(Expr *expr)
 	)
 		return new_length_expr(expr);
 	
-	if(type->kind != STRUCT && type->kind != ENUM)
+	if(type->kind != STRUCT && type->kind != ENUM && type->kind != UNION)
 		fatal_at(expr->start, "no instance or enum to get member from");
 	
-	if(type->kind == STRUCT) {
+	if(type->kind == STRUCT || type->kind == UNION) {
 		Decl **members = type->decl->members;
 		Decl *member = 0;
 		

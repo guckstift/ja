@@ -353,7 +353,22 @@ static Stmt *p_enumdecl(int exported)
 		
 		EnumItem *item = malloc(sizeof(EnumItem));
 		item->id = ident->id;
-		item->num = num++;
+		
+		if(eat(TK_ASSIGN)) {
+			Expr *val = p_expr();
+			if(!val) fatal_at(last, "expected expression after =");
+			
+			if(!is_integer_type(val->type))
+				fatal_at(last, "expression must be integer");
+			
+			if(!val->isconst) fatal_at(last, "expression must be constant");
+			
+			item->num = val->value;
+		}
+		else {
+			item->num = num++;
+		}
+		
 		array_push(items, item);
 		if(!eat(TK_COMMA)) break;
 	}
