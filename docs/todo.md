@@ -33,6 +33,8 @@
 * unions (tagless)
 * prefix operators minus and bit-inversion - ~
 * for range (for x = 0..1 {})
+* print arrays
+* print ptrs contents
 
 # wip
 
@@ -72,9 +74,7 @@
 	)
 * refer to struct before definition (if ptr to)
 * auto pointer unpacking/packing
-* print arrays
 * print structs
-* print ptrs contents
 * print multiple arguments
 * chained comparison (a == b > c  is  a == b && b > c)
 * codegen: spare () on equal level binop chains (except explicit ())

@@ -153,9 +153,36 @@ static void gen_assign(Expr *target, Expr *expr)
 	}
 }
 
-static void gen_print(Expr *expr)
+static void gen_print(Expr *expr, int repr)
 {
+	if(expr->type->kind == PTR) {
+		if(is_dynarray_ptr_type(expr->type)) {
+			write("%>printf(\"dynarray\");\n");
+			return;
+		}
+		
+		write(
+			"%>if(%e) {\n"
+			INDENT "%>printf(\">\");\n"
+			, expr
+		);
+		
+		level ++;
+		gen_print(new_deref_expr(expr->start, expr), 1);
+		level --;
+		
+		write(
+			"%>}\n"
+			"%>else {\n"
+			INDENT "%>printf(\"null\");\n"
+			"%>}\n"
+		);
+		return;
+	}
+	
 	if(expr->type->kind == STRING) {
+		if(repr) write("%>printf(\"\\\"\");\n");
+		
 		if(expr->kind == STRING) {
 			write(
 				"%>fwrite(\"%S\", 1, %i, stdout);\n",
@@ -168,7 +195,31 @@ static void gen_print(Expr *expr)
 				expr, expr
 			);
 		}
-		write("%>printf(\"\\n\");\n");
+		
+		if(repr) write("%>printf(\"\\\"\");\n");
+		return;
+	}
+	else if(expr->type->kind == ARRAY) {
+		write("%>printf(\"[\");\n");
+		
+		if(expr->kind == ARRAY) {
+			array_for(expr->items, i) {
+				if(i > 0) write("%>printf(\", \");\n");
+				Expr *item = expr->items[i];
+				gen_print(item, 1);
+			}
+		}
+		else if(expr->type->length >= 0) {
+			for(int64_t i=0; i < expr->type->length; i++) {
+				if(i > 0) write("%>printf(\", \");\n");
+				gen_print(
+					new_subscript_expr(expr, new_int_expr(expr->start, i)),
+					1
+				);
+			}
+		}
+		
+		write("%>printf(\"]\");\n");
 		return;
 	}
 	
@@ -207,12 +258,16 @@ static void gen_print(Expr *expr)
 			break;
 	}
 	
-	write(" \"\\n\", ");
+	write(", ");
 	
 	if(expr->type->kind == PTR)
 		write("(void*)");
 	
 	gen_expr(expr);
+	
+	if(is_dynarray_ptr_type(expr->type)) {
+		write(".items");
+	}
 	
 	if(expr->type->kind == BOOL)
 		write(" ? \"true\" : \"false\"");
@@ -351,7 +406,8 @@ static void gen_stmt(Stmt *stmt, int noindent)
 {
 	switch(stmt->kind) {
 		case PRINT:
-			gen_print(stmt->as_print.expr);
+			gen_print(stmt->as_print.expr, 0);
+			write("%>printf(\"\\n\");\n");
 			break;
 		case VAR:
 			gen_vardecl_stmt(&stmt->as_decl);

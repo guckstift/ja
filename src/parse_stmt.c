@@ -73,7 +73,8 @@ static Stmt *p_print()
 	
 	if(
 		!is_integral_type(expr->type) &&
-		expr->type->kind != PTR && expr->type->kind != STRING
+		expr->type->kind != PTR && expr->type->kind != STRING &&
+		expr->type->kind != ARRAY
 	) {
 		fatal_at(expr->start, "can only print numbers, strings or pointers");
 	}
