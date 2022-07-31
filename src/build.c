@@ -12,8 +12,8 @@
 #include "print.h"
 #include "cgen.h"
 #include "utils.h"
-#include "runtime.h.src.h"
-#include "runtime.c.src.h"
+#include "../build/runtime.h.res"
+#include "../build/runtime.c.res"
 
 #define COL_YELLOW  "\x1b[38;2;255;255;0m"
 #define COL_RESET   "\x1b[0m"
@@ -256,8 +256,8 @@ Project *build(char *main_filename, char *outfilename)
 		mkdir(cache_dir, 0755);
 	}
 	
-	write_cache_file("runtime.h", RUNTIME_H_SRC);
-	write_cache_file("runtime.c", RUNTIME_C_SRC);
+	write_cache_file("runtime.h", RUNTIME_H_RES);
+	write_cache_file("runtime.c", RUNTIME_C_RES);
 	
 	char *real_main_filename = realpath(main_filename, NULL);
 	Unit *main_unit = build_unit(real_main_filename, 1);
