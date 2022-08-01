@@ -71,6 +71,7 @@ static Stmt *p_print()
 	Expr *expr = p_expr();
 	if(!expr) fatal_after(last, "expected expression to print");
 	
+	/*
 	if(
 		!is_integral_type(expr->type) &&
 		expr->type->kind != PTR && expr->type->kind != STRING &&
@@ -78,6 +79,7 @@ static Stmt *p_print()
 	) {
 		fatal_at(expr->start, "can only print numbers, strings or pointers");
 	}
+	*/
 	
 	if(!eat(TK_SEMICOLON))
 		error_after(last, "expected semicolon after print statement");

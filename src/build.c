@@ -10,6 +10,7 @@
 #include <libgen.h>
 #include "build.h"
 #include "print.h"
+#include "analyze.h"
 #include "cgen.h"
 #include "utils.h"
 #include "../build/runtime.h.res"
@@ -26,6 +27,7 @@
 static char *cache_dir;
 static char *cur_unit_dirname;
 static Project *project;
+static BuildOptions options;
 
 static void error(char *msg, ...)
 {
@@ -164,20 +166,39 @@ static Unit *build_unit(char *filename, int ismain)
 	array_push(project->units, unit);
 	
 	#ifdef JA_DEBUG
-	printf(COL_YELLOW "=== lexing ===" COL_RESET "\n");
-	#endif
-	unit->tokens = lex(unit->src, unit->src_len);
-	#ifdef JA_DEBUG
-	print_tokens(unit->tokens);
+		printf(COL_YELLOW "=== lexing ===" COL_RESET "\n");
 	#endif
 	
+	unit->tokens = lex(unit->src, unit->src_len);
+	
+	if(options.show_tokens)
+		print_tokens(unit->tokens);
+	
 	#ifdef JA_DEBUG
-	printf(COL_YELLOW "=== parsing ===" COL_RESET "\n");
+		printf(COL_YELLOW "=== parsing ===" COL_RESET "\n");
 	#endif
+	
 	unit->block = parse(unit->tokens, unit->unit_id);
+	
 	#ifdef JA_DEBUG
-	print_ast(unit->block);
+		printf(COL_YELLOW "[OK]" COL_RESET "\n");
 	#endif
+	
+	if(options.show_ast)
+		print_ast(unit->block);
+	
+	#ifdef JA_DEBUG
+		printf(COL_YELLOW "=== analyzing ===" COL_RESET "\n");
+	#endif
+	
+	analyze(unit);
+	
+	#ifdef JA_DEBUG
+		printf(COL_YELLOW "[OK]" COL_RESET "\n");
+	#endif
+	
+	if(options.show_ast)
+		print_ast(unit->block);
 	
 	#ifdef JA_DEBUG
 	printf(COL_YELLOW "=== generating code ===" COL_RESET "\n");
@@ -243,8 +264,10 @@ void write_cache_file(char *name, char *text)
 	fclose(fs);
 }
 
-Project *build(char *main_filename, char *outfilename)
+Project *build(BuildOptions _options)
 {
+	options = _options;
+	
 	project = malloc(sizeof(Project));
 	project->units = 0;
 	
@@ -259,23 +282,23 @@ Project *build(char *main_filename, char *outfilename)
 	write_cache_file("runtime.h", RUNTIME_H_RES);
 	write_cache_file("runtime.c", RUNTIME_C_RES);
 	
-	char *real_main_filename = realpath(main_filename, NULL);
+	char *real_main_filename = realpath(options.main_filename, NULL);
 	Unit *main_unit = build_unit(real_main_filename, 1);
 	
 	#ifdef JA_DEBUG
 	printf(COL_YELLOW "=== linking ===" COL_RESET "\n");
 	#endif
 	
-	if(!outfilename) {
-		outfilename = 0;
-		str_append(outfilename, cache_dir);
-		str_append(outfilename, "/");
-		str_append(outfilename, main_unit->unit_id);
+	if(!options.outfilename) {
+		options.outfilename = 0;
+		str_append(options.outfilename, cache_dir);
+		str_append(options.outfilename, "/");
+		str_append(options.outfilename, main_unit->unit_id);
 	}
 	
 	char *cmd = 0;
 	str_append(cmd, "gcc -o ");
-	str_append(cmd, outfilename);
+	str_append(cmd, options.outfilename);
 	
 	str_append(cmd, " ");
 	str_append(cmd, cache_dir);
@@ -297,7 +320,7 @@ Project *build(char *main_filename, char *outfilename)
 	int res = run_cmd(cmd);
 	if(res) error("could not link the object files");
 	
-	project->exe_filename = outfilename;
+	project->exe_filename = options.outfilename;
 	printf(COL_YELLOW "=== done ===" COL_RESET "\n");
 	return project;
 }

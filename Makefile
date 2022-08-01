@@ -2,11 +2,11 @@ PROGNAME = \
 	ja
 
 CFILES = \
-	ast.c build.c cgen.c cgen_expr.c cgen_type.c eval.c lex.c main.c parse.c \
-	parse_expr.c parse_stmt.c parse_type.c print.c utils.c
+	analyze.c ast.c build.c cgen.c cgen_expr.c cgen_type.c eval.c lex.c main.c \
+	parse.c parse_expr.c parse_stmt.c parse_type.c print.c utils.c
 
 HFILES = \
-	ast.h build.h eval.h cgen.h lex.h parse.h parse_utils.h print.h \
+	analyze.h ast.h build.h eval.h cgen.h lex.h parse.h parse_utils.h print.h \
 	utils.h \
 
 RESOURCES = \
@@ -53,7 +53,7 @@ $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
 
 $(BUILDDIR)/deps: $(SRCS) $(HDRS) $(RESS) | $(BUILDDIR)
-	gcc -MM $(SRCS) > $@
+	gcc -MM $(SRCS) | sed -e 's|^\([a-z].*\)|$(BUILDDIR)/\1|' > $@
 
 clean:
 	rm -rf $$(cat .gitignore)

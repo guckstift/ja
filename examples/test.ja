@@ -1,22 +1,2 @@
-
-print 1;
-print "Hello";
-
-var x = 90;
-print >x;
-
-print ["Hello","World"];
-
-print [[1,2]];
-
-var a = [1,2,3,5];
-
-print a;
-
-var k : >[]int = >a;
-
-print k;
-
-var X : >int;
-
-print X;
+var x = 9;
+print x;

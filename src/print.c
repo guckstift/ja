@@ -367,7 +367,7 @@ static void print_expr(Expr *expr)
 			print_string(expr->string, expr->length);
 			break;
 		case VAR:
-			print_ident(expr->decl->id);
+			print_ident(expr->id);
 			break;
 		case PTR:
 			printf("(>");

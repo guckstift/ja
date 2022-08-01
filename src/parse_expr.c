@@ -99,13 +99,13 @@ static Expr *p_var()
 	Token *ident = last;
 	Decl *decl = lookup(ident->id);
 	
-	if(!decl)
-		fatal_at(last, "name %t not declared", ident);
+	//if(!decl)
+	//	fatal_at(last, "name %t not declared", ident);
 	
 	if(decl->kind == STRUCT)
 		fatal_at(last, "%t is the name of a structure", ident);
 	
-	return new_var_expr(ident, decl);
+	return new_var_expr(ident);
 }
 
 static Expr *p_new()

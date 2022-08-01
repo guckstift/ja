@@ -221,11 +221,11 @@ Expr *new_cstring_expr(Token *start, char *string)
 	return expr;
 }
 
-Expr *new_var_expr(Token *start, Decl *decl)
+Expr *new_var_expr(Token *start)
 {
-	Type *type = decl->type;
-	Expr *expr = new_expr(VAR, start, type, 0, decl->kind != FUNC);
-	expr->decl = decl;
+	Expr *expr = new_expr(VAR, start, 0, 0, 1);
+	expr->decl = 0;
+	expr->id = start->id;
 	return expr;
 }
 

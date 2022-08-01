@@ -1,6 +1,7 @@
 #ifndef BUILD_H
 #define BUILD_H
 
+#include <stdbool.h>
 #include "lex.h"
 #include "parse.h"
 
@@ -24,7 +25,14 @@ typedef struct {
 	char *exe_filename;
 } Project;
 
-Project *build(char *main_filename, char *outfilename);
+typedef struct {
+	char *main_filename;
+	char *outfilename;
+	bool show_tokens;
+	bool show_ast;
+} BuildOptions;
+
+Project *build(BuildOptions options);
 Unit *import(char *filename);
 
 #endif

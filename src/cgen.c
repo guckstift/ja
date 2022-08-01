@@ -330,7 +330,7 @@ static void gen_vardecl_stmt(Decl *decl)
 		if(decl->init && !decl->init->isconst) {
 			// with non-constant initializer
 			gen_assign(
-				new_var_expr(decl->start, decl),
+				new_var_expr(decl->start),
 				decl->init
 			);
 		}
