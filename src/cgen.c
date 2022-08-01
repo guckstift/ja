@@ -3,7 +3,7 @@
 #include <inttypes.h>
 #include "cgen.h"
 #include "cgen_utils.h"
-#include "utils.h"
+#include "array.h"
 
 #define INDENT      "    "
 #define COL_YELLOW  "\x1b[38;2;255;255;0m"

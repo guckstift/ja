@@ -3,11 +3,11 @@ PROGNAME = \
 
 CFILES = \
 	analyze.c ast.c build.c cgen.c cgen_expr.c cgen_type.c eval.c lex.c main.c \
-	parse.c parse_expr.c parse_stmt.c parse_type.c print.c utils.c
+	parse.c parse_expr.c parse_stmt.c parse_type.c print.c
 
 HFILES = \
-	analyze.h ast.h build.h eval.h cgen.h lex.h parse.h parse_utils.h print.h \
-	utils.h \
+	analyze.h array.h ast.h build.h eval.h cgen.h lex.h parse.h \
+	parse_internal.h print.h string.h
 
 RESOURCES = \
 	runtime.h runtime.c

@@ -1,6 +1,6 @@
 #include "cgen.h"
 #include "cgen_utils.h"
-#include "utils.h"
+#include "array.h"
 
 static void gen_exprs(Expr **exprs);
 

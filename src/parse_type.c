@@ -3,11 +3,10 @@
 #include <inttypes.h>
 #include <string.h>
 #include "parse.h"
+#include "parse_internal.h"
 #include "eval.h"
 #include "build.h"
-#include "utils.h"
-
-#include "parse_utils.h"
+#include "array.h"
 
 static Type *p_type();
 

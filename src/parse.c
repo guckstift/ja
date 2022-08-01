@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "parse_internal.h"
 #include "print.h"
-#include "utils.h"
-
-#include "parse_utils.h"
+#include "array.h"
 
 static Block *p_block(Scope *scope)
 {
@@ -25,7 +24,7 @@ Block *parse(Token *tokens, char *_unit_id)
 	
 	cur = tokens;
 	last = 0;
-	src_end = array_last(tokens).start + array_last(tokens).length;
+	src_end = array_last(tokens)->start + array_last(tokens)->length;
 	scope = 0;
 	unit_id = _unit_id;
 	

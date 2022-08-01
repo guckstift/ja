@@ -4,7 +4,7 @@
 #include <string.h>
 #include <assert.h>
 #include "print.h"
-#include "utils.h"
+#include "array.h"
 #include "build.h"
 
 #define COL_RESET   "\x1b[0m"
@@ -250,7 +250,7 @@ void print_tokens(Token *tokens)
 	for(Token *token = tokens; token->kind != TK_EOF; token ++) {
 		if(last_line != token->line) {
 			line_pref_len = print_line_num(
-				token->line, array_last(tokens).line
+				token->line, array_last(tokens)->line
 			);
 			
 			last_line = token->line;

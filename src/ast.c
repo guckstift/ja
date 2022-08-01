@@ -1,7 +1,8 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "ast.h"
-#include "utils.h"
+#include "array.h"
+#include "string.h"
 
 Type *new_type(Kind kind)
 {
@@ -343,14 +344,14 @@ Decl *new_decl(
 	Type *type
 ) {
 	char *private_id = 0;
-	str_append(private_id, "ja_");
-	str_append_token(private_id, id);
+	string_append(private_id, "ja_");
+	string_append_token(private_id, id);
 	
 	char *public_id = 0;
-	str_append(public_id, "_");
-	str_append(public_id, scope->unit_id);
-	str_append(public_id, "_");
-	str_append_token(public_id, id);
+	string_append(public_id, "_");
+	string_append(public_id, scope->unit_id);
+	string_append(public_id, "_");
+	string_append_token(public_id, id);
 		
 	Decl *decl = &new_stmt(kind, start, scope)->as_decl;
 	decl->id = id;

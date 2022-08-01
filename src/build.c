@@ -12,7 +12,7 @@
 #include "print.h"
 #include "analyze.h"
 #include "cgen.h"
-#include "utils.h"
+#include "string.h"
 #include "../build/runtime.h.res"
 #include "../build/runtime.c.res"
 
@@ -21,8 +21,6 @@
 
 #define lo_nibble(x) ((x) & 0xf)
 #define hi_nibble(x) ((x) >> 4 & 0xf)
-
-#define str_append(dest, src) (dest) = _str_append(dest, src)
 
 static char *cache_dir;
 static char *cur_unit_dirname;
@@ -102,10 +100,10 @@ static int run_cmd(char *cmd)
 static void compile_c(char *cfile, char *ofile)
 {
 	char *cmd = 0;
-	str_append(cmd, "gcc -c -std=c17 -pedantic-errors -o ");
-	str_append(cmd, ofile);
-	str_append(cmd, " ");
-	str_append(cmd, cfile);
+	string_append(cmd, "gcc -c -std=c17 -pedantic-errors -o ");
+	string_append(cmd, ofile);
+	string_append(cmd, " ");
+	string_append(cmd, cfile);
 	int res = run_cmd(cmd);
 	if(res) error("could not compile the C code");
 }
@@ -144,14 +142,14 @@ static Unit *build_unit(char *filename, int ismain)
 	unit->h_filename = 0;
 	unit->c_filename = 0;
 	unit->c_main_filename = 0;
-	str_append(unit->c_filename, cache_dir);
-	str_append(unit->c_filename, "/");
-	str_append(unit->c_filename, unit->unit_id);
-	str_append(unit->h_filename, unit->c_filename);
-	str_append(unit->h_filename, ".h");
-	str_append(unit->c_main_filename, unit->c_filename);
-	str_append(unit->c_main_filename, ".main.c");
-	str_append(unit->c_filename, ".c");
+	string_append(unit->c_filename, cache_dir);
+	string_append(unit->c_filename, "/");
+	string_append(unit->c_filename, unit->unit_id);
+	string_append(unit->h_filename, unit->c_filename);
+	string_append(unit->h_filename, ".h");
+	string_append(unit->c_main_filename, unit->c_filename);
+	string_append(unit->c_main_filename, ".main.c");
+	string_append(unit->c_filename, ".c");
 	
 	FILE *fs = fopen(filename, "rb");
 	if(!fs) error("can not open input file '%s'", filename);
@@ -210,21 +208,21 @@ static Unit *build_unit(char *filename, int ismain)
 	
 	unit->obj_filename = 0;
 	unit->obj_main_filename = 0;
-	str_append(unit->obj_filename, cache_dir);
-	str_append(unit->obj_filename, "/");
-	str_append(unit->obj_filename, unit->unit_id);
-	str_append(unit->obj_main_filename, unit->obj_filename);
-	str_append(unit->obj_main_filename, ".main.o");
-	str_append(unit->obj_filename, ".o");
+	string_append(unit->obj_filename, cache_dir);
+	string_append(unit->obj_filename, "/");
+	string_append(unit->obj_filename, unit->unit_id);
+	string_append(unit->obj_main_filename, unit->obj_filename);
+	string_append(unit->obj_main_filename, ".main.o");
+	string_append(unit->obj_filename, ".o");
 	
 	compile_c(unit->c_filename, unit->obj_filename);
 	
 	if(unit->ismain) {
 		char *cmd = 0;
-		str_append(cmd, "gcc -c -std=c17 -pedantic-errors -o ");
-		str_append(cmd, unit->obj_main_filename);
-		str_append(cmd, " ");
-		str_append(cmd, unit->c_main_filename);
+		string_append(cmd, "gcc -c -std=c17 -pedantic-errors -o ");
+		string_append(cmd, unit->obj_main_filename);
+		string_append(cmd, " ");
+		string_append(cmd, unit->c_main_filename);
 		int res = run_cmd(cmd);
 		if(res) error("could not compile the C main code");
 	}
@@ -240,9 +238,9 @@ static Unit *build_unit(char *filename, int ismain)
 Unit *import(char *filename)
 {
 	char *abs_filename = 0;
-	str_append(abs_filename, cur_unit_dirname);
-	str_append(abs_filename, "/");
-	str_append(abs_filename, filename);
+	string_append(abs_filename, cur_unit_dirname);
+	string_append(abs_filename, "/");
+	string_append(abs_filename, filename);
 	
 	char *real_filename = realpath(abs_filename, NULL);
 	if(real_filename == 0) {
@@ -255,9 +253,9 @@ Unit *import(char *filename)
 void write_cache_file(char *name, char *text)
 {
 	char *path = 0;
-	str_append(path, getenv("HOME"));
-	str_append(path, "/.ja/");
-	str_append(path, name);
+	string_append(path, getenv("HOME"));
+	string_append(path, "/.ja/");
+	string_append(path, name);
 	
 	FILE *fs = fopen(path, "wb");
 	fwrite(text, 1, strlen(text), fs);
@@ -272,8 +270,8 @@ Project *build(BuildOptions _options)
 	project->units = 0;
 	
 	cache_dir = 0;
-	str_append(cache_dir, getenv("HOME"));
-	str_append(cache_dir, "/.ja");
+	string_append(cache_dir, getenv("HOME"));
+	string_append(cache_dir, "/.ja");
 	
 	if(!dir_exists(cache_dir)) {
 		mkdir(cache_dir, 0755);
@@ -291,31 +289,31 @@ Project *build(BuildOptions _options)
 	
 	if(!options.outfilename) {
 		options.outfilename = 0;
-		str_append(options.outfilename, cache_dir);
-		str_append(options.outfilename, "/");
-		str_append(options.outfilename, main_unit->unit_id);
+		string_append(options.outfilename, cache_dir);
+		string_append(options.outfilename, "/");
+		string_append(options.outfilename, main_unit->unit_id);
 	}
 	
 	char *cmd = 0;
-	str_append(cmd, "gcc -o ");
-	str_append(cmd, options.outfilename);
+	string_append(cmd, "gcc -o ");
+	string_append(cmd, options.outfilename);
 	
-	str_append(cmd, " ");
-	str_append(cmd, cache_dir);
-	str_append(cmd, "/runtime.c");
+	string_append(cmd, " ");
+	string_append(cmd, cache_dir);
+	string_append(cmd, "/runtime.c");
 	
 	array_for(project->units, i) {
 		Unit *unit = project->units[i];
-		str_append(cmd, " ");
-		str_append(cmd, unit->obj_filename);
+		string_append(cmd, " ");
+		string_append(cmd, unit->obj_filename);
 		
 		if(unit->ismain) {
-			str_append(cmd, " ");
-			str_append(cmd, unit->obj_main_filename);
+			string_append(cmd, " ");
+			string_append(cmd, unit->obj_main_filename);
 		}
 	}
 	
-	str_append(cmd, " -ldl");
+	string_append(cmd, " -ldl");
 	
 	int res = run_cmd(cmd);
 	if(res) error("could not link the object files");

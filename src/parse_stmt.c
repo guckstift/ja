@@ -1,8 +1,7 @@
 #include <stdio.h>
+#include "parse_internal.h"
 #include "build.h"
-#include "utils.h"
-
-#include "parse_utils.h"
+#include "array.h"
 
 static Block *p_block(Scope *scope);
 

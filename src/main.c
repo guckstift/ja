@@ -5,7 +5,7 @@
 #include <dlfcn.h>
 #include "print.h"
 #include "build.h"
-#include "utils.h"
+#include "string.h"
 
 #define COL_YELLOW  "\x1b[38;2;255;255;0m"
 #define COL_RESET   "\x1b[0m"
@@ -66,11 +66,11 @@ int main(int argc, char *argv[])
 	
 	if(!compile_only) {
 		char *cmd = 0;
-		str_append(cmd, project->exe_filename);
+		string_append(cmd, project->exe_filename);
 		
 		for(int64_t i=1; i < prog_argc; i++) {
-			str_append(cmd, " ");
-			str_append(cmd, prog_argv[i]);
+			string_append(cmd, " ");
+			string_append(cmd, prog_argv[i]);
 		}
 		
 		#ifdef JA_DEBUG

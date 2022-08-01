@@ -5,7 +5,7 @@
 #include <inttypes.h>
 #include "lex.h"
 #include "print.h"
-#include "utils.h"
+#include "array.h"
 
 #define hex2int(x) ( \
 	(x) >= '0' && (x) <= '9' ? x - '0' : \
