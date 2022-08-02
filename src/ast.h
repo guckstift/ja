@@ -1,6 +1,7 @@
 #ifndef AST_H
 #define AST_H
 
+#include <stdbool.h>
 #include "lex.h"
 
 typedef struct Unit Unit;
@@ -217,6 +218,9 @@ struct Decl {
 	uint8_t builtin;
 	uint8_t isproto;
 	uint8_t cfunc;
+	uint8_t deps_scanned;
+	
+	Decl **deps; // func: variables used from outer scope
 	
 	union {
 		Expr *init; // var
@@ -381,6 +385,7 @@ Scope *new_scope(char *unit_id, Scope *parent);
 
 Decl *lookup_flat_in(Token *id, Scope *scope);
 Decl *lookup_in(Token *id, Scope *scope);
+bool scope_contains_scope(Scope *upper, Scope *lower);
 int declare_in(Decl *decl, Scope *scope);
 int redeclare_in(Decl *decl, Scope *scope);
 

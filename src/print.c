@@ -490,6 +490,19 @@ static void print_func(Decl *func)
 	if(!func->isproto) {
 		printf(" {\n");
 		level ++;
+		
+		if(array_length(func->deps) > 0) {
+			print_indent();
+			printf("# uses outer vars: ");
+			
+			array_for(func->deps, i) {
+				print_ident(func->deps[i]->id);
+				printf(" ");
+			}
+			
+			printf("\n");
+		}
+		
 		print_block(func->body);
 		level --;
 		print_indent();

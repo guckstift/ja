@@ -15,7 +15,17 @@ static void a_var(Expr *expr)
 		fatal_at(expr->start, "name %t not declared", expr->id);
 	
 	if(decl->kind == VAR && decl->start > expr->start)
-		fatal_at(expr->start, "name %t declared later", expr->id);
+		fatal_at(expr->start, "variable %t declared later", expr->id);
+	
+	if(decl->kind == VAR && scope->funchost) {
+		Decl *func = scope->funchost;
+		Scope *func_scope = func->body->scope;
+		Scope *var_scope = decl->scope;
+		
+		if(scope_contains_scope(var_scope, func_scope)) {
+			array_push(func->deps, decl);
+		}
+	}
 	
 	expr->decl = decl;
 	expr->type = decl->type;
@@ -51,6 +61,7 @@ static void a_stmt(Stmt *stmt)
 			break;
 		case FUNC:
 			a_block(stmt->as_decl.body);
+			stmt->as_decl.deps_scanned = 1;
 			break;
 		case CALL:
 			a_call(stmt->as_call.call);
@@ -68,7 +79,6 @@ static void a_stmts(Stmt **stmts)
 static void a_block(Block *block)
 {
 	scope = block->scope;
-	
 	a_stmts(block->stmts);
 }
 

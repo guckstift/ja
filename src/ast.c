@@ -363,6 +363,7 @@ Decl *new_decl(
 	decl->builtin = 0;
 	decl->isproto = 0;
 	decl->cfunc = 0;
+	decl->deps_scanned = 0;
 	decl->type = type;
 	return decl;
 }
@@ -387,6 +388,7 @@ Decl *new_func(
 	}
 	
 	Decl *decl = new_decl(FUNC, start, scope, id, exported, 0);
+	decl->deps = 0;
 	decl->type = new_func_type(returntype, paramtypes);
 	decl->params = params;
 	return decl;
@@ -563,6 +565,16 @@ Decl *lookup_in(Token *id, Scope *scope)
 	}
 	
 	return 0;
+}
+
+bool scope_contains_scope(Scope *upper, Scope *lower)
+{
+	if(lower->parent) {
+		if(lower->parent == upper) return true;
+		return scope_contains_scope(upper, lower->parent);
+	}
+	
+	return false;
 }
 
 int declare_in(Decl *decl, Scope *scope)
