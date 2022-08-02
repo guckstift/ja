@@ -4,7 +4,6 @@
 #include "eval.h"
 #include "array.h"
 
-
 static Expr *p_expr();
 static Expr **p_exprs();
 static Expr *p_prefix();
@@ -280,9 +279,10 @@ static Expr *p_member_x(Expr *expr)
 	
 	if(
 		(type->kind == ARRAY || type->kind == STRING) &&
-		token_text_equals(ident, "length")
-	)
+		tokequ_str(ident, "length")
+	) {
 		return new_length_expr(expr);
+	}
 	
 	if(type->kind != STRUCT && type->kind != ENUM && type->kind != UNION)
 		fatal_at(expr->start, "no instance or enum to get member from");

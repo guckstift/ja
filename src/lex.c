@@ -1,5 +1,4 @@
 #include <ctype.h>
-#include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <inttypes.h>
@@ -19,39 +18,6 @@
 )
 
 static Token **ids = 0;
-
-char *get_token_kind_name(TokenKind kind)
-{
-	switch(kind) {
-		case TK_EOF:
-			return "end of file";
-		case TK_IDENT:
-			return "identifier";
-		case TK_INT:
-			return "integer literal";
-		
-		#define F(x) \
-			case TK_ ## x: \
-				return "keyword " #x;
-		
-		KEYWORDS(F)
-		#undef F
-		
-		#define F(x, y) \
-			case TK_ ## y: \
-				return "'" x "'";
-		
-		PUNCTS(F)
-		#undef F
-	}
-}
-
-int token_text_equals(Token *token, char *text)
-{
-	return
-		strlen(text) == token->length &&
-		memcmp(text, token->start, token->length) == 0 ;
-}
 
 Token *create_id(char *start, int64_t length)
 {
@@ -82,7 +48,7 @@ Token *lex(char *src, int64_t src_len)
 {
 	char *src_end = src + src_len;
 	Token *tokens = 0;
-	Token *last_token = 0;
+	Token *last = 0;
 	char *pos = src;
 	int64_t line = 1;
 	char *linep = pos;
@@ -95,7 +61,7 @@ Token *lex(char *src, int64_t src_len)
 			.start = start, \
 			.length = pos - start, \
 		})); \
-		last_token = tokens + array_length(tokens) - 1; \
+		last = tokens + array_length(tokens) - 1; \
 	} while(0)
 	
 	#define match(s) ( \
@@ -105,18 +71,19 @@ Token *lex(char *src, int64_t src_len)
 	
 	while(pos < src_end) {
 		char *start = pos;
-	
+		
+		// new line
+		
+		if(*pos == '\n') {
+			pos ++;
+			line ++;
+			linep = pos;
+		}
+		
 		// whitespace
 		
-		if(isspace(*pos)) {
-			if(*pos == '\n') {
-				pos ++;
-				line ++;
-				linep = pos;
-			}
-			else {
-				pos ++;
-			}
+		else if(isspace(*pos)) {
+			pos ++;
 		}
 		
 		// comments
@@ -128,6 +95,7 @@ Token *lex(char *src, int64_t src_len)
 			int64_t start_line = line;
 			char *start_linep = linep;
 			pos += 2;
+			
 			while(pos < src_end) {
 				if(match("*/")) {
 					pos += 2;
@@ -142,11 +110,13 @@ Token *lex(char *src, int64_t src_len)
 					pos ++;
 				}
 			}
+			
 			if(pos == src_end) {
 				print_error(
 					start_line, start_linep, src_end, start_linep,
 					"unterminated multi line comment"
 				);
+				
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -159,10 +129,10 @@ Token *lex(char *src, int64_t src_len)
 			
 			#define F(x) \
 				if( \
-					last_token->length == strlen(#x) && \
-					memcmp(last_token->start, #x, strlen(#x)) == 0 \
+					last->length == strlen(#x) && \
+					memcmp(last->start, #x, strlen(#x)) == 0 \
 				) { \
-					last_token->kind = TK_ ## x; \
+					last->kind = TK_ ## x; \
 				} else
 			
 			KEYWORDS(F);
@@ -176,17 +146,20 @@ Token *lex(char *src, int64_t src_len)
 			
 			if(match("0x")) {
 				pos += 2;
+				
 				while(isxdigit(*pos) || *pos == '_') {
 					if(*pos == '_') {
 						pos ++;
 						continue;
 					}
+					
 					ival *= 16;
 					ival += hex2int(*pos);
 					pos ++;
 				}
+				
 				emit(TK_INT);
-				last_token->ival = ival;
+				last->ival = ival;
 			}
 			else {
 				while(isdigit(*pos) || *pos == '_') {
@@ -194,12 +167,14 @@ Token *lex(char *src, int64_t src_len)
 						pos ++;
 						continue;
 					}
+					
 					ival *= 10;
 					ival += *pos - '0';
 					pos ++;
 				}
+				
 				emit(TK_INT);
-				last_token->ival = ival;
+				last->ival = ival;
 			}
 		}
 		
@@ -217,6 +192,7 @@ Token *lex(char *src, int64_t src_len)
 					start_line, start_linep, src_end, start_linep,
 					"unterminated string literal"
 				);
+				
 				exit(EXIT_FAILURE);
 			}
 			
@@ -226,8 +202,8 @@ Token *lex(char *src, int64_t src_len)
 			buf[length] = 0;
 			pos ++;
 			emit(TK_STRING);
-			last_token->string = buf;
-			last_token->string_length = length;
+			last->string = buf;
+			last->string_length = length;
 		}
 		
 		// punctuators
@@ -236,7 +212,7 @@ Token *lex(char *src, int64_t src_len)
 			else if(match(x)) { \
 				pos += strlen(x); \
 				emit(TK_ ## y); \
-				last_token->punct = x; \
+				last->punct = x; \
 			}
 		
 		PUNCTS(F)
@@ -250,6 +226,7 @@ Token *lex(char *src, int64_t src_len)
 				"unrecognized punctuator '%c' (ignoring)",
 				(uint8_t)*pos
 			);
+			
 			pos ++;
 		}
 		
@@ -261,6 +238,7 @@ Token *lex(char *src, int64_t src_len)
 				"unrecognized character (byte value: 0x%b; ignoring)",
 				(uint8_t)*pos
 			);
+			
 			pos ++;
 		}
 	}
@@ -271,12 +249,14 @@ Token *lex(char *src, int64_t src_len)
 	for(Token *token = tokens; token->kind != TK_EOF; token ++) {
 		if(token->kind == TK_IDENT) {
 			token->id = 0;
+			
 			array_for(ids, i) {
 				if(tokequ(token, ids[i])) {
 					token->id = ids[i];
 					break;
 				}
 			}
+			
 			if(token->id == 0) {
 				token->id = token;
 				array_push(ids, token);

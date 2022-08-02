@@ -10,9 +10,6 @@
 		: 0 \
 )
 
-#define string_clone(s) \
-	malloc(strlen(s) + 1 + sizeof)
-
 #define string_append(d, s)  do { \
 	uint64_t oldlen = string_length(d); \
 	uint64_t pluslen = strlen(s); \
@@ -28,5 +25,8 @@
 	memcpy((d) + oldlen, (t)->start, pluslen); \
 	(d)[oldlen + pluslen] = 0; \
 } while(0)
+
+char *string_clone(char *src);
+char *string_concat(char *first, ...);
 
 #endif

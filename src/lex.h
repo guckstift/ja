@@ -2,6 +2,7 @@
 #define LEX_H
 
 #include <stdint.h>
+#include <string.h>
 
 #define KEYWORDS(_) \
 	_(as) \
@@ -73,6 +74,16 @@
 	_("^", XOR) \
 	_("~", TILDE) \
 
+#define tokequ(a, b) ( \
+	(a)->length == (b)->length && \
+	memcmp((a)->start, (b)->start, (a)->length) == 0 \
+)
+
+#define tokequ_str(t, s) ( \
+	(t)->length == strlen(s) && \
+	memcmp((t)->start, (s), (t)->length) == 0 \
+)
+
 typedef enum {
 	TK_EOF,
 	TK_IDENT,
@@ -108,8 +119,6 @@ typedef struct Token {
 	};
 } Token;
 
-char *get_token_kind_name(TokenKind kind);
-int token_text_equals(Token *token, char *text);
 Token *create_id(char *start, int64_t length);
 Token *lex(char *src, int64_t src_len);
 

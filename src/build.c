@@ -43,6 +43,7 @@ static char *idfy(char *input)
 	char *output = malloc(olen);
 	char *ip = input;
 	char *op = output;
+	
 	while(*ip) {
 		if(*ip <= 0x1f) {
 			// control chars and out-of-ascii
@@ -99,13 +100,12 @@ static int run_cmd(char *cmd)
 
 static void compile_c(char *cfile, char *ofile)
 {
-	char *cmd = 0;
-	string_append(cmd, "gcc -c -std=c17 -pedantic-errors -o ");
-	string_append(cmd, ofile);
-	string_append(cmd, " ");
-	string_append(cmd, cfile);
+	char *cmd = string_concat(
+		"gcc -c -std=c17 -pedantic-errors -o ", ofile, " ", cfile, 0
+	);
+	
 	int res = run_cmd(cmd);
-	if(res) error("could not compile the C code");
+	if(res) error("could not compile %s", cfile);
 }
 
 static int dir_exists(char *dirname)
@@ -124,14 +124,14 @@ static Unit *build_unit(char *filename, int ismain)
 	
 	array_for(project->units, i) {
 		Unit *unit = project->units[i];
+		
 		if(strcmp(unit->src_filename, filename) == 0) {
 			return unit;
 		}
 	}
 	
 	char *old_unit_dirname = cur_unit_dirname;
-	cur_unit_dirname = malloc(strlen(filename) + 1);
-	strcpy(cur_unit_dirname, filename);
+	cur_unit_dirname = string_clone(filename);
 	cur_unit_dirname = dirname(cur_unit_dirname);
 	
 	Unit *unit = malloc(sizeof(Unit));
@@ -139,16 +139,9 @@ static Unit *build_unit(char *filename, int ismain)
 	unit->src_filename = filename;
 	unit->unit_id = idfy(unit->src_filename);
 	
-	unit->h_filename = 0;
-	unit->c_filename = 0;
-	unit->c_main_filename = 0;
-	string_append(unit->c_filename, cache_dir);
-	string_append(unit->c_filename, "/");
-	string_append(unit->c_filename, unit->unit_id);
-	string_append(unit->h_filename, unit->c_filename);
-	string_append(unit->h_filename, ".h");
-	string_append(unit->c_main_filename, unit->c_filename);
-	string_append(unit->c_main_filename, ".main.c");
+	unit->c_filename = string_concat(cache_dir, "/", unit->unit_id, 0);
+	unit->h_filename = string_concat(unit->c_filename, ".h", 0);
+	unit->c_main_filename = string_concat(unit->c_filename, ".main.c", 0);
 	string_append(unit->c_filename, ".c");
 	
 	FILE *fs = fopen(filename, "rb");
@@ -206,25 +199,14 @@ static Unit *build_unit(char *filename, int ismain)
 	print_c_code(unit->c_filename);
 	#endif
 	
-	unit->obj_filename = 0;
-	unit->obj_main_filename = 0;
-	string_append(unit->obj_filename, cache_dir);
-	string_append(unit->obj_filename, "/");
-	string_append(unit->obj_filename, unit->unit_id);
-	string_append(unit->obj_main_filename, unit->obj_filename);
-	string_append(unit->obj_main_filename, ".main.o");
+	unit->obj_filename = string_concat(cache_dir, "/", unit->unit_id, 0);
+	unit->obj_main_filename = string_concat(unit->obj_filename, ".main.o", 0);
 	string_append(unit->obj_filename, ".o");
 	
 	compile_c(unit->c_filename, unit->obj_filename);
 	
 	if(unit->ismain) {
-		char *cmd = 0;
-		string_append(cmd, "gcc -c -std=c17 -pedantic-errors -o ");
-		string_append(cmd, unit->obj_main_filename);
-		string_append(cmd, " ");
-		string_append(cmd, unit->c_main_filename);
-		int res = run_cmd(cmd);
-		if(res) error("could not compile the C main code");
+		compile_c(unit->c_main_filename, unit->obj_main_filename);
 	}
 	
 	#ifdef JA_DEBUG
@@ -237,12 +219,9 @@ static Unit *build_unit(char *filename, int ismain)
 
 Unit *import(char *filename)
 {
-	char *abs_filename = 0;
-	string_append(abs_filename, cur_unit_dirname);
-	string_append(abs_filename, "/");
-	string_append(abs_filename, filename);
-	
+	char *abs_filename = string_concat(cur_unit_dirname, "/", filename, 0);
 	char *real_filename = realpath(abs_filename, NULL);
+	
 	if(real_filename == 0) {
 		error("could not import %s\n", abs_filename);
 	}
@@ -252,11 +231,7 @@ Unit *import(char *filename)
 
 void write_cache_file(char *name, char *text)
 {
-	char *path = 0;
-	string_append(path, getenv("HOME"));
-	string_append(path, "/.ja/");
-	string_append(path, name);
-	
+	char *path = string_concat(cache_dir, "/", name, 0);
 	FILE *fs = fopen(path, "wb");
 	fwrite(text, 1, strlen(text), fs);
 	fclose(fs);
@@ -269,9 +244,7 @@ Project *build(BuildOptions _options)
 	project = malloc(sizeof(Project));
 	project->units = 0;
 	
-	cache_dir = 0;
-	string_append(cache_dir, getenv("HOME"));
-	string_append(cache_dir, "/.ja");
+	cache_dir = string_concat(getenv("HOME"), "/.ja", 0);
 	
 	if(!dir_exists(cache_dir)) {
 		mkdir(cache_dir, 0755);
@@ -288,19 +261,14 @@ Project *build(BuildOptions _options)
 	#endif
 	
 	if(!options.outfilename) {
-		options.outfilename = 0;
-		string_append(options.outfilename, cache_dir);
-		string_append(options.outfilename, "/");
-		string_append(options.outfilename, main_unit->unit_id);
+		options.outfilename = string_concat(
+			cache_dir, "/", main_unit->unit_id, 0
+		);
 	}
 	
-	char *cmd = 0;
-	string_append(cmd, "gcc -o ");
-	string_append(cmd, options.outfilename);
-	
-	string_append(cmd, " ");
-	string_append(cmd, cache_dir);
-	string_append(cmd, "/runtime.c");
+	char *cmd = string_concat(
+		"gcc -o ", options.outfilename, " ", cache_dir, "/runtime.c", 0
+	);
 	
 	array_for(project->units, i) {
 		Unit *unit = project->units[i];
