@@ -52,7 +52,7 @@ function foo()
 
 function bar()
 {
-	return foo; // error: foo depends on x which is declared later
+	return foo; // error: foo uses x which is declared later
 }
 
 var x = "Hello";

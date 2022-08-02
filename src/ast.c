@@ -304,7 +304,8 @@ Expr *new_ptr_expr(Token *start, Expr *subexpr)
 
 Expr *new_call_expr(Expr *callee, Expr **args)
 {
-	Expr *call = new_expr(CALL, callee->start, callee->type->returntype, 0, 0);
+	//Expr *call = new_expr(CALL, callee->start, callee->type->returntype, 0, 0);
+	Expr *call = new_expr(CALL, callee->start, 0, 0, 0);
 	call->callee = callee;
 	call->args = args;
 	return call;

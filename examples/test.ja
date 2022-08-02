@@ -1,2 +1,11 @@
+function bar()
+{
+	foo();
+}
+
 var x = 9;
-print x;
+
+function foo()
+{
+	print x;
+}

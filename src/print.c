@@ -271,6 +271,11 @@ static void print_indent()
 
 static void fprint_type(FILE *fs, Type *type)
 {
+	if(!type) {
+		fprintf(fs, "(null)");
+		return;
+	}
+	
 	switch(type->kind) {
 		case NONE:
 			fprint_keyword_cstr(fs, "none");

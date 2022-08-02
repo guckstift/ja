@@ -112,12 +112,14 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 		
 		Token *init_start = init->start;
 		
+		/*
 		if(init->type->kind == FUNC)
 			fatal_at(init_start, "can not use function as value");
 		
 		if(init->type->kind == NONE)
 			fatal_at(init_start, "expression has no value");
-	
+		*/
+		
 		if(scope->structhost && !init->isconst)
 			fatal_at(
 				init_start,
@@ -128,21 +130,23 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 		if(type == 0)
 			type = init->type;
 		
-		complete_type(type, init);
-		init = cast_expr(init, type, 0);
+		//complete_type(type, init);
+		//init = cast_expr(init, type, 0);
 	}
 	
-	if(type == 0)
+	if(type == 0 && init == 0)
 		fatal_at(
 			ident, "%s without type declared",
 			param ? "parameter" : "variable"
 		);
 	
+	/*
 	if(!is_complete_type(type))
 		fatal_at(
 			ident, "%s with incomplete type  %y  declared",
 			param ? "parameter" : "variable", type
 		);
+	*/
 	
 	if(exported) {
 		make_type_exportable(type);
@@ -208,15 +212,19 @@ static Stmt *p_funcdecl(int exported, int dll)
 		if(!returntype)
 			fatal_after(last, "expected return type after colon");
 		
+		/*
 		if(!is_complete_type(returntype))
 			fatal_at(
 				ident, "function with incomplete type  %y  declared",
 				returntype
 			);
+		*/
 		
+		/*
 		if(exported) {
 			make_type_exportable(returntype);
 		}
+		*/
 	}
 	
 	Decl *decl = new_func(
@@ -250,6 +258,7 @@ static Stmt *p_funcdecl(int exported, int dll)
 		if(existing->isproto == 0)
 			fatal_at(ident, "function %t already implemented", ident);
 		
+		/*
 		if(!type_equ(existing->type, decl->type)) {
 			fatal_at(start,
 				"function prototype had a different signature  %y "
@@ -257,6 +266,7 @@ static Stmt *p_funcdecl(int exported, int dll)
 				existing->type, decl->type
 			);
 		}
+		*/
 		
 		if(decl->exported != existing->exported)
 			fatal_at(
@@ -306,7 +316,7 @@ static Stmt *p_structdecl(int exported)
 		Decl *member = &p_vardecl(0, 0)->as_decl;
 		if(!member) break;
 		array_push(members, member);
-		if(exported) make_type_exportable(member->type);
+		// if(exported) make_type_exportable(member->type);
 	}
 	
 	if(!eat(TK_RCURLY))
@@ -360,8 +370,10 @@ static Stmt *p_enumdecl(int exported)
 			Expr *val = p_expr();
 			if(!val) fatal_at(last, "expected expression after =");
 			
+			/*
 			if(!is_integer_type(val->type))
 				fatal_at(last, "expression must be integer");
+			*/
 			
 			if(!val->isconst) fatal_at(last, "expression must be constant");
 			
@@ -411,7 +423,7 @@ static Stmt *p_uniondecl(int exported)
 		Decl *member = &p_vardecl(0, 0)->as_decl;
 		if(!member) break;
 		array_push(members, member);
-		if(exported) make_type_exportable(member->type);
+		// if(exported) make_type_exportable(member->type);
 	}
 	
 	if(!eat(TK_RCURLY))
@@ -671,7 +683,7 @@ static Stmt *p_assign()
 	if(!expr)
 		fatal_at(last, "expected right side after =");
 		
-	expr = cast_expr(expr, target->type, 0);
+	//expr = cast_expr(expr, target->type, 0);
 	
 	if(!eat(TK_SEMICOLON))
 		error_after(last, "expected semicolon after assignment");

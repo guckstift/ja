@@ -16,7 +16,7 @@ BUILDDIR = \
 	build
 
 CFLAGS = \
-	-std=c17 -pedantic-errors -D JA_DEBUG
+	-std=c17 -pedantic-errors -D JA_DEBUG -g
 
 LDFLAGS = \
 	 -ldl
