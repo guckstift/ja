@@ -41,6 +41,12 @@ typedef struct {
 	char *unit_id;
 } ParseState;
 
+static Token *cur;
+static Token *last;
+static char *src_end;
+static Scope *scope;
+static char *unit_id;
+
 Expr *cast_expr(Expr *expr, Type *type, int explicit);
 Expr *p_expr_pub(ParseState *state);
 
@@ -49,12 +55,6 @@ Block *p_block_pub(ParseState *state, Scope *scope);
 void make_type_exportable(Type *type);
 Type *complete_type(Type *type, Expr *expr);
 Type *p_type_pub(ParseState *state);
-
-static Token *cur;
-static Token *last;
-static char *src_end;
-static Scope *scope;
-static char *unit_id;
 
 static Decl *lookup_flat(Token *id)
 {
