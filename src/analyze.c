@@ -1,8 +1,11 @@
+#include <stdbool.h>
 #include "analyze.h"
 #include "array.h"
 #include "parse_internal.h"
 
 #include <stdio.h>
+
+static bool repeat_analyze = false;
 
 static void a_block(Block *block);
 static void a_expr(Expr *expr);
@@ -19,11 +22,27 @@ static void a_var(Expr *expr)
 	
 	if(decl->kind == VAR && scope->funchost) {
 		Decl *func = scope->funchost;
-		Scope *func_scope = func->body->scope;
-		Scope *var_scope = decl->scope;
 		
-		if(scope_contains_scope(var_scope, func_scope)) {
-			array_push(func->deps, decl);
+		if(func->deps_scanned == 0) {
+			Scope *func_scope = func->body->scope;
+			Scope *var_scope = decl->scope;
+			
+			if(scope_contains_scope(var_scope, func_scope)) {
+				array_push(func->deps, decl);
+			}
+		}
+	}
+	
+	if(decl->kind == FUNC && decl->deps_scanned) {
+		array_for(decl->deps, i) {
+			Decl *dep = decl->deps[i];
+			
+			if(dep->start > expr->start) {
+				fatal_at(
+					expr->start, "%t uses %t which is declared later",
+					expr->id, dep->id
+				);
+			}
 		}
 	}
 	
@@ -61,7 +80,12 @@ static void a_stmt(Stmt *stmt)
 			break;
 		case FUNC:
 			a_block(stmt->as_decl.body);
-			stmt->as_decl.deps_scanned = 1;
+			
+			if(stmt->as_decl.deps_scanned == 0) {
+				stmt->as_decl.deps_scanned = 1;
+				repeat_analyze = true;
+			}
+			
 			break;
 		case CALL:
 			a_call(stmt->as_call.call);
@@ -86,4 +110,9 @@ void analyze(Unit *unit)
 {
 	src_end = unit->src + unit->src_len;
 	a_block(unit->block);
+	
+	if(repeat_analyze) {
+		repeat_analyze = false;
+		analyze(unit);
+	}
 }
