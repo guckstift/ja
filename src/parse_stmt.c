@@ -127,8 +127,8 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 				"with constant values"
 			);
 		
-		if(type == 0)
-			type = init->type;
+		//if(type == 0)
+		//	type = init->type;
 		
 		//complete_type(type, init);
 		//init = cast_expr(init, type, 0);

@@ -10,6 +10,66 @@ static bool repeat_analyze = false;
 static void a_block(Block *block);
 static void a_expr(Expr *expr);
 
+static Expr *eval_integral_cast(Expr *expr, Type *type)
+{
+	expr->type = type;
+	expr->kind = INT;
+	
+	switch(type->kind) {
+		case BOOL:
+			expr->kind = BOOL;
+			expr->value = expr->value != 0;
+			break;
+		case INT8:
+			expr->value = (int8_t)expr->value;
+			break;
+		case UINT8:
+			expr->value = (uint8_t)expr->value;
+			break;
+		case INT16:
+			expr->value = (int16_t)expr->value;
+			break;
+		case UINT16:
+			expr->value = (uint16_t)expr->value;
+			break;
+		case INT32:
+			expr->value = (int32_t)expr->value;
+			break;
+		case UINT32:
+			expr->value = (uint32_t)expr->value;
+			break;
+	}
+	
+	return expr;
+}
+
+/*
+	Might modify expr
+*/
+static Expr *adjust_expr_to_type(Expr *expr, Type *type)
+{
+	Type *expr_type = expr->type;
+	
+	// types equal => no adjustment needed
+	if(type_equ(expr_type, type))
+		return expr;
+	
+	// integral types are castable into other integral types
+	if(is_integral_type(expr_type) && is_integral_type(type)) {
+		if(expr->isconst) {
+			return eval_integral_cast(expr, type);
+		}
+		
+		return new_cast_expr(expr, type);
+	}
+	
+	fatal_at(
+		expr->start,
+		"can not convert type  %y  to  %y",
+		expr_type, type
+	);
+}
+
 static void a_var(Expr *expr)
 {
 	Decl *decl = lookup(expr->id);
@@ -67,6 +127,28 @@ static void a_expr(Expr *expr)
 	}
 }
 
+static void a_vardecl(Decl *decl)
+{
+	if(decl->init) {
+		a_expr(decl->init);
+		
+		if(decl->type == 0)
+			decl->type = decl->init->type;
+		else
+			decl->init = adjust_expr_to_type(decl->init, decl->type);
+	}
+}
+
+static void a_funcdecl(Decl *decl)
+{
+	a_block(decl->body);
+	
+	if(decl->deps_scanned == 0) {
+		decl->deps_scanned = 1;
+		repeat_analyze = true;
+	}
+}
+
 static void a_stmt(Stmt *stmt)
 {
 	switch(stmt->kind) {
@@ -74,18 +156,10 @@ static void a_stmt(Stmt *stmt)
 			a_expr(stmt->as_print.expr);
 			break;
 		case VAR:
-			if(stmt->as_decl.init)
-				a_expr(stmt->as_decl.init);
-			
+			a_vardecl(&stmt->as_decl);
 			break;
 		case FUNC:
-			a_block(stmt->as_decl.body);
-			
-			if(stmt->as_decl.deps_scanned == 0) {
-				stmt->as_decl.deps_scanned = 1;
-				repeat_analyze = true;
-			}
-			
+			a_funcdecl(&stmt->as_decl);
 			break;
 		case CALL:
 			a_call(stmt->as_call.call);

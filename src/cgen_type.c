@@ -45,6 +45,11 @@ void gen_type_postfix(Type *type)
 
 void gen_type(Type *type)
 {
+	if(!type) {
+		write("/* nulltype */");
+		return;
+	}
+	
 	switch(type->kind) {
 		case NONE:
 			write("void");

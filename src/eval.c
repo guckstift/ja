@@ -115,8 +115,6 @@ Expr *eval_binop(Expr *expr)
 
 Expr *eval_integral_cast(Expr *expr, Type *type)
 {
-	Type *src_type = expr->type;
-	
 	if(expr->isconst) {
 		expr->type = type;
 		expr->kind = INT;
