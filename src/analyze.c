@@ -173,6 +173,13 @@ static void a_funcdecl(Decl *decl)
 	}
 }
 
+static void a_assign(Assign *assign)
+{
+	a_expr(assign->target);
+	a_expr(assign->expr);
+	assign->expr = adjust_expr_to_type(assign->expr, assign->target->type);
+}
+
 static void a_stmt(Stmt *stmt)
 {
 	switch(stmt->kind) {
@@ -184,6 +191,9 @@ static void a_stmt(Stmt *stmt)
 			break;
 		case FUNC:
 			a_funcdecl(&stmt->as_decl);
+			break;
+		case ASSIGN:
+			a_assign(&stmt->as_assign);
 			break;
 		case CALL:
 			a_call(stmt->as_call.call);

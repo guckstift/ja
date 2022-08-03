@@ -1,4 +1,3 @@
-var x = 0;
-var y = >x;
-var z = <y;
-var a = ><><y;
+var a = 9;
+var x : >int64 = >a;
+<x = 80;
