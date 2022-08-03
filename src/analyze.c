@@ -54,7 +54,7 @@ static Expr *adjust_expr_to_type(Expr *expr, Type *type)
 	if(type_equ(expr_type, type))
 		return expr;
 	
-	// integral types are castable into other integral types
+	// integral types are castable amongst themselves
 	if(is_integral_type(expr_type) && is_integral_type(type)) {
 		if(expr->isconst) {
 			return eval_integral_cast(expr, type);
@@ -63,7 +63,7 @@ static Expr *adjust_expr_to_type(Expr *expr, Type *type)
 		return new_cast_expr(expr, type);
 	}
 	
-	// array literal with equal length to array type
+	// array literal with matching length
 	if(
 		expr->kind == ARRAY && type->kind == ARRAY &&
 		expr_type->length == type->length
@@ -143,6 +143,34 @@ static void a_deref(Expr *expr)
 	expr->type = ptr->type->subtype;
 }
 
+static void a_subscript(Expr *expr)
+{
+	Expr *array = expr->array;
+	Expr *index = expr->index;
+	a_expr(array);
+	a_expr(index);
+	
+	if(array->type->kind != ARRAY && array->type->kind != STRING)
+		fatal_at(array->start, "need array or string to subscript");
+	
+	if(!is_integral_type(index->type))
+		fatal_at(index->start, "index is not an integer or a boolean");
+	
+	if(
+		array->type->kind == ARRAY && array->type->length >= 0 &&
+		index->isconst
+	) {
+		if(index->value < 0 || index->value >= array->type->length)
+			fatal_at(
+				index->start,
+				"index is out of range, must be between 0 .. %u",
+				array->type->length - 1
+			);
+	}
+	
+	expr->type = array->type->itemtype;
+}
+
 static void a_array(Expr *expr)
 {
 	Expr **items = expr->items;
@@ -178,6 +206,9 @@ static void a_expr(Expr *expr)
 			break;
 		case DEREF:
 			a_deref(expr);
+			break;
+		case SUBSCRIPT:
+			a_subscript(expr);
 			break;
 		case ARRAY:
 			a_array(expr);

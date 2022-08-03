@@ -257,14 +257,21 @@ Expr *new_subscript_expr(Expr *array, Expr *index)
 {
 	Expr *expr = 0;
 	
-	if(array->type->kind == STRING) {
-		expr = new_expr(
-			SUBSCRIPT, array->start, array->type, 0, 1
-		);
+	if(array->type) {
+		if(array->type->kind == STRING) {
+			expr = new_expr(
+				SUBSCRIPT, array->start, array->type, 0, 1
+			);
+		}
+		else {
+			expr = new_expr(
+				SUBSCRIPT, array->start, array->type->itemtype, 0, 1
+			);
+		}
 	}
 	else {
 		expr = new_expr(
-			SUBSCRIPT, array->start, array->type->itemtype, 0, 1
+			SUBSCRIPT, array->start, 0, 0, 1
 		);
 	}
 	

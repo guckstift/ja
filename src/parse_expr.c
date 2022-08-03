@@ -232,35 +232,9 @@ static Expr *p_subscript_x(Expr *expr)
 	}
 	*/
 	
-	/*
-	if(expr->type->kind != ARRAY && expr->type->kind != STRING) {
-		fatal_after(last, "need array or string to subscript");
-	}
-	*/
-	
 	Expr *index = p_expr();
 	if(!index)
 		fatal_after(last, "expected index expression after [");
-	
-	/*
-	if(!is_integral_type(index->type))
-		fatal_at(index->start, "index is not integral");
-	*/
-	
-	/*
-	if(
-		expr->type->kind == ARRAY &&
-		expr->type->length >= 0 &&
-		index->isconst
-	) {
-		if(index->value < 0 || index->value >= expr->type->length)
-			fatal_at(
-				index->start,
-				"index is out of range, must be between 0 .. %u",
-				expr->type->length - 1
-			);
-	}
-	*/
 	
 	if(!eat(TK_RBRACK))
 		fatal_after(last, "expected ] after index expression");
