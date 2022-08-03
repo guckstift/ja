@@ -1,6 +1,4 @@
-var a = 9;
+var x = [1];
 var b = true;
-var x : [3]int = [a, false, b];
-var y = [a];
-
-x = [1,2,3];
+x = [b];
+var y : [1]int = [b];

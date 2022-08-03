@@ -124,7 +124,6 @@ static Expr *p_array()
 	
 	Token *start = last;
 	Expr **items = 0;
-	//Type *itemtype = 0;
 	uint64_t length = 0;
 	int isconst = 1;
 	
@@ -133,16 +132,6 @@ static Expr *p_array()
 		if(!item) break;
 		
 		isconst = isconst && item->isconst;
-		
-		/*
-		if(!itemtype) {
-			itemtype = item->type;
-		}
-		else if(!type_equ(itemtype, item->type)) {
-			item = cast_expr(item, itemtype, 0);
-		}
-		*/
-		
 		array_push(items, item);
 		length ++;
 		
@@ -153,7 +142,7 @@ static Expr *p_array()
 		fatal_after(last, "expected comma or ]");
 	
 	if(length == 0)
-		fatal_at(last, "empty array literal is not allowed");
+		fatal_at(last, "array literals can not be empty");
 	
 	return new_array_expr(start, items, isconst);
 }

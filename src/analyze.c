@@ -63,6 +63,21 @@ static Expr *adjust_expr_to_type(Expr *expr, Type *type)
 		return new_cast_expr(expr, type);
 	}
 	
+	// array literal with equal length to array type
+	if(
+		expr->kind == ARRAY && type->kind == ARRAY &&
+		expr_type->length == type->length
+	) {
+		array_for(expr->items, i) {
+			expr->items[i] = adjust_expr_to_type(
+				expr->items[i], type->itemtype
+			);
+		}
+		
+		expr_type->itemtype = type->itemtype;
+		return expr;
+	}
+	
 	fatal_at(
 		expr->start,
 		"can not convert type  %y  to  %y",
