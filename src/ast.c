@@ -4,6 +4,8 @@
 #include "array.h"
 #include "string.h"
 
+#include <stdio.h>
+
 Type *new_type(Kind kind)
 {
 	static Type *primtypebuf[_PRIMKIND_COUNT] = {0};
@@ -48,16 +50,19 @@ Type *new_ptr_type(Type *subtype)
 Type *new_array_type(int64_t length, Type *itemtype)
 {
 	static Type *primarraytypebuf[_PRIMKIND_COUNT] = {0};
-	Kind itemkind = itemtype->kind;
 	
-	if(length == -1 && itemkind < _PRIMKIND_COUNT) {
-		if(primarraytypebuf[itemkind] == 0) {
-			primarraytypebuf[itemkind] = new_type(ARRAY);
-			primarraytypebuf[itemkind]->itemtype = new_type(itemkind);
-			primarraytypebuf[itemkind]->length = -1;
-		}
+	if(itemtype) {
+		Kind itemkind = itemtype->kind;
 		
-		return primarraytypebuf[itemkind];
+		if(length == -1 && itemkind < _PRIMKIND_COUNT) {
+			if(primarraytypebuf[itemkind] == 0) {
+				primarraytypebuf[itemkind] = new_type(ARRAY);
+				primarraytypebuf[itemkind]->itemtype = new_type(itemkind);
+				primarraytypebuf[itemkind]->length = -1;
+			}
+			
+			return primarraytypebuf[itemkind];
+		}
 	}
 	
 	Type *type = new_type(ARRAY);
@@ -234,9 +239,15 @@ Expr *new_var_expr(Token *start, Decl *decl)
 Expr *new_array_expr(Token *start, Expr **items, int isconst)
 {
 	Expr *expr = new_expr(
+		ARRAY, start, new_array_type(array_length(items), 0),
+		isconst, 0
+	);
+	/*
+	Expr *expr = new_expr(
 		ARRAY, start, new_array_type(array_length(items), items[0]->type),
 		isconst, 0
 	);
+	*/
 	
 	expr->items = items;
 	return expr;

@@ -128,6 +128,25 @@ static void a_deref(Expr *expr)
 	expr->type = ptr->type->subtype;
 }
 
+static void a_array(Expr *expr)
+{
+	Expr **items = expr->items;
+	Type *itemtype = 0;
+	
+	array_for(items, i) {
+		a_expr(items[i]);
+		
+		if(i == 0) {
+			itemtype = items[i]->type;
+		}
+		else {
+			items[i] = adjust_expr_to_type(items[i], itemtype);
+		}
+	}
+	
+	expr->type->itemtype = itemtype;
+}
+
 static void a_call(Expr *expr)
 {
 	a_expr(expr->callee);
@@ -144,6 +163,9 @@ static void a_expr(Expr *expr)
 			break;
 		case DEREF:
 			a_deref(expr);
+			break;
+		case ARRAY:
+			a_array(expr);
 			break;
 		case CALL:
 			a_call(expr);

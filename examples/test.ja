@@ -1,10 +1,6 @@
+var a = 9;
+var b = true;
+var x : [3]int = [a, false, b];
+var y = [a];
 
-var x = >foo;
-
-x();
-
-function foo()
-{
-	print "Hello";
-}
-
+x = [1,2,3];
