@@ -40,6 +40,11 @@ void gen_type_postfix(Type *type)
 		case ARRAY:
 			write("[%u]%z", type->length, type->itemtype);
 			break;
+		case FUNC:
+			write(")");
+			// TODO: gen param part
+			write("()");
+			break;
 	}
 }
 
@@ -101,6 +106,10 @@ void gen_type(Type *type)
 			break;
 		case ARRAY:
 			gen_type(type->itemtype);
+			break;
+		case FUNC:
+			gen_type(type->returntype);
+			write("(");
 			break;
 	}
 }

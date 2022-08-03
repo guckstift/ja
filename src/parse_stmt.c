@@ -682,8 +682,6 @@ static Stmt *p_assign()
 	
 	if(!expr)
 		fatal_at(last, "expected right side after =");
-		
-	//expr = cast_expr(expr, target->type, 0);
 	
 	if(!eat(TK_SEMICOLON))
 		error_after(last, "expected semicolon after assignment");

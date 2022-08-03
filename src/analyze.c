@@ -156,6 +156,9 @@ static void a_vardecl(Decl *decl)
 	if(decl->init) {
 		a_expr(decl->init);
 		
+		if(decl->init->type->kind == FUNC)
+			fatal_at(decl->init->start, "can not use a function as value");
+		
 		if(decl->type == 0)
 			decl->type = decl->init->type;
 		else
