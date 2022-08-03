@@ -106,7 +106,7 @@ static Expr *p_var()
 		fatal_at(last, "%t is the name of a structure", ident);
 	*/
 	
-	return new_var_expr(ident);
+	return new_var_expr(ident, 0);
 }
 
 static Expr *p_new()
@@ -127,7 +127,7 @@ static Expr *p_array()
 	
 	Token *start = last;
 	Expr **items = 0;
-	Type *itemtype = 0;
+	//Type *itemtype = 0;
 	uint64_t length = 0;
 	int isconst = 1;
 	
@@ -137,12 +137,14 @@ static Expr *p_array()
 		
 		isconst = isconst && item->isconst;
 		
+		/*
 		if(!itemtype) {
 			itemtype = item->type;
 		}
 		else if(!type_equ(itemtype, item->type)) {
 			item = cast_expr(item, itemtype, 0);
 		}
+		*/
 		
 		array_push(items, item);
 		length ++;
@@ -238,21 +240,28 @@ static Expr *p_subscript_x(Expr *expr)
 {
 	if(!eat(TK_LBRACK)) return 0;
 	
+	/*
 	while(expr->type->kind == PTR) {
 		expr = new_deref_expr(expr->start, expr);
 	}
+	*/
 	
+	/*
 	if(expr->type->kind != ARRAY && expr->type->kind != STRING) {
 		fatal_after(last, "need array or string to subscript");
 	}
+	*/
 	
 	Expr *index = p_expr();
 	if(!index)
 		fatal_after(last, "expected index expression after [");
 	
+	/*
 	if(!is_integral_type(index->type))
 		fatal_at(index->start, "index is not integral");
+	*/
 	
+	/*
 	if(
 		expr->type->kind == ARRAY &&
 		expr->type->length >= 0 &&
@@ -265,35 +274,45 @@ static Expr *p_subscript_x(Expr *expr)
 				expr->type->length - 1
 			);
 	}
+	*/
 	
 	if(!eat(TK_RBRACK))
 		fatal_after(last, "expected ] after index expression");
 	
-	return eval_subscript(expr, index);
+	return new_subscript_expr(expr, index);
+	//return eval_subscript(expr, index);
 }
 
 static Expr *p_member_x(Expr *expr)
 {
 	if(!eat(TK_PERIOD)) return 0;
 	
+	/*
 	while(expr->type->kind == PTR) {
 		expr = new_deref_expr(expr->start, expr);
 	}
+	*/
 	
 	Token *ident = eat(TK_IDENT);
 	if(!ident) fatal_at(last, "expected id of member to access");
-		
+	
 	Type *type = expr->type;
 	
+	/*
 	if(
 		(type->kind == ARRAY || type->kind == STRING) &&
 		tokequ_str(ident, "length")
 	) {
 		return new_length_expr(expr);
 	}
+	*/
 	
+	/*
 	if(type->kind != STRUCT && type->kind != ENUM && type->kind != UNION)
 		fatal_at(expr->start, "no instance or enum to get member from");
+	*/
+	
+	// TODO: postpone type checking
 	
 	if(type->kind == STRUCT || type->kind == UNION) {
 		Decl **members = type->decl->members;
@@ -374,9 +393,6 @@ static Expr *p_deref()
 	
 	if(!ptr)
 		fatal_at(last, "expected expression to dereference");
-		
-	if(ptr->type->kind != PTR)
-		fatal_at(ptr->start, "expected pointer to dereference");
 	
 	if(ptr->kind == PTR)
 		return ptr->subexpr;
@@ -393,9 +409,11 @@ static Expr *p_negation()
 	
 	if(!subexpr)
 		fatal_at(last, "expected expression to negate");
-		
+	
+	/*
 	if(!is_integral_type(subexpr->type))
 		fatal_at(subexpr->start, "expected integral type to negate");
+	*/
 	
 	if(subexpr->kind == NEGATION)
 		return subexpr->subexpr;
@@ -414,9 +432,11 @@ static Expr *p_complement()
 	
 	if(!subexpr)
 		fatal_at(last, "expected expression to complement");
-		
+	
+	/*
 	if(!is_integral_type(subexpr->type))
 		fatal_at(subexpr->start, "expected integral type to complement");
+	*/
 	
 	if(subexpr->kind == COMPLEMENT)
 		return subexpr->subexpr;
@@ -498,34 +518,41 @@ static Expr *p_binop(int level)
 		Expr *right = p_binop(level + 1);
 		if(!right) fatal_after(last, "expected right side after %t", operator);
 		
+		/*
 		Type *ltype = left->type;
 		Type *rtype = right->type;
 		Type *type = 0;
+		*/
 		
 		int found = 0;
 		
 		if(level == OL_OR || level == OL_AND) {
+			/*
 			if(!type_equ(ltype, rtype)) {
 				fatal_at(operator,
 					"types must be the same for operator %t", operator
 				);
 			}
 			type = ltype;
+			*/
+			
 			found = 1;
 		}
+		/*
 		else if(is_integral_type(ltype) && is_integral_type(rtype)) {
 			if(level == OL_CMP) {
-				type = new_type(BOOL);
-				right = cast_expr(right, ltype, 0);
+				//type = new_type(BOOL);
+				//right = cast_expr(right, ltype, 0);
 				found = 1;
 			}
 			else if(level == OL_ADD || level == OL_MUL) {
-				type = new_type(INT64);
-				left = cast_expr(left, type, 0);
-				right = cast_expr(right, type, 0);
+				//type = new_type(INT64);
+				//left = cast_expr(left, type, 0);
+				//right = cast_expr(right, type, 0);
 				found = 1;
 			}
 		}
+		* /
 		else if(
 			ltype->kind == STRING && rtype->kind == STRING &&
 			operator->kind == TK_EQUALS
@@ -541,8 +568,10 @@ static Expr *p_binop(int level)
 				ltype, rtype, operator
 			);
 		}
+		*/
 		
-		Expr *binop = new_binop_expr(left, right, operator, type);
+		//Expr *binop = new_binop_expr(left, right, operator, type);
+		Expr *binop = new_binop_expr(left, right, operator, 0);
 		binop = eval_binop(binop);
 		left = binop;
 	}

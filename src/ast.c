@@ -222,10 +222,11 @@ Expr *new_cstring_expr(Token *start, char *string)
 	return expr;
 }
 
-Expr *new_var_expr(Token *start)
+Expr *new_var_expr(Token *start, Decl *decl)
 {
-	Expr *expr = new_expr(VAR, start, 0, 0, 1);
-	expr->decl = 0;
+	Type *type = decl ? decl->type : 0;
+	Expr *expr = new_expr(VAR, start, type, 0, decl ? decl->kind != FUNC : 1);
+	expr->decl = decl;
 	expr->id = start->id;
 	return expr;
 }
@@ -290,7 +291,10 @@ Expr *new_member_expr(Expr *object, Decl *member)
 
 Expr *new_deref_expr(Token *start, Expr *ptr)
 {
-	Expr *expr = new_expr(DEREF, start, ptr->type->subtype, 0, 1);
+	Expr *expr = new_expr(
+		DEREF, start, ptr->type ? ptr->type->subtype : 0, 0, 1
+	);
+	
 	expr->ptr = ptr;
 	return expr;
 }

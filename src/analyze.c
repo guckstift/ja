@@ -110,6 +110,24 @@ static void a_var(Expr *expr)
 	expr->type = decl->type;
 }
 
+static void a_ptr(Expr *expr)
+{
+	Expr *subexpr = expr->subexpr;
+	a_expr(subexpr);
+	expr->type->subtype = subexpr->type;
+}
+
+static void a_deref(Expr *expr)
+{
+	Expr *ptr = expr->ptr;
+	a_expr(ptr);
+	
+	if(ptr->type->kind != PTR)
+		fatal_at(ptr->start, "expected pointer to dereference");
+	
+	expr->type = ptr->type->subtype;
+}
+
 static void a_call(Expr *expr)
 {
 	a_expr(expr->callee);
@@ -120,6 +138,12 @@ static void a_expr(Expr *expr)
 	switch(expr->kind) {
 		case VAR:
 			a_var(expr);
+			break;
+		case PTR:
+			a_ptr(expr);
+			break;
+		case DEREF:
+			a_deref(expr);
 			break;
 		case CALL:
 			a_call(expr);

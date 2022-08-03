@@ -174,7 +174,7 @@ Expr *new_int_expr(Token *start, int64_t value);
 Expr *new_bool_expr(Token *start, int64_t value);
 Expr *new_string_expr(Token *start, char *string, int64_t length);
 Expr *new_cstring_expr(Token *start, char *string);
-Expr *new_var_expr(Token *start);
+Expr *new_var_expr(Token *start, Decl *decl);
 Expr *new_array_expr(Token *start, Expr **items, int isconst);
 Expr *new_subscript_expr(Expr *array, Expr *index);
 Expr *new_length_expr(Expr *array);
