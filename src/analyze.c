@@ -209,7 +209,13 @@ static void a_array(Expr *expr)
 
 static void a_call(Expr *expr)
 {
-	a_expr(expr->callee);
+	Expr *callee = expr->callee;
+	a_expr(callee);
+	
+	if(callee->type->kind != FUNC)
+		fatal_at(callee->start, "not a function you are calling");
+	
+	Expr **args = expr->args;
 }
 
 static void a_expr(Expr *expr)
@@ -306,6 +312,7 @@ static void a_block(Block *block)
 {
 	scope = block->scope;
 	a_stmts(block->stmts);
+	scope = scope->parent;
 }
 
 void analyze(Unit *unit)
@@ -315,6 +322,7 @@ void analyze(Unit *unit)
 	
 	if(repeat_analyze) {
 		repeat_analyze = false;
+		printf("repeat analyze\n");
 		analyze(unit);
 	}
 }

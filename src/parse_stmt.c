@@ -37,7 +37,10 @@ static void declare_builtins()
 {
 	Token *argv_id = create_id("argv", 0);
 	Type *string_dynarray_type = new_dynarray_type(new_type(STRING));
-	Decl *argv = new_var(argv_id, scope, argv_id, 0, string_dynarray_type, 0);
+	
+	Decl *argv = new_var(
+		argv_id, scope, argv_id, 0, 0, string_dynarray_type, 0
+	);
 	
 	argv->builtin = 1;
 	
@@ -152,7 +155,7 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 		make_type_exportable(type);
 	}
 	
-	Decl *decl = new_var(start, scope, ident->id, exported, type, init);
+	Decl *decl = new_var(start, scope, ident->id, exported, param, type, init);
 	
 	if(!declare(decl))
 		fatal_at(ident, "name %t already declared", ident);
@@ -283,9 +286,7 @@ static Stmt *p_funcdecl(int exported, int dll)
 	}
 	
 	if(decl->isproto == 0) {
-		reenter(func_scope);
-		decl->body = p_block(0);
-		leave();
+		decl->body = p_block(func_scope);
 		
 		if(!eat(TK_RCURLY))
 			fatal_after(last, "expected } after function body");
@@ -530,9 +531,11 @@ static Stmt *p_returnstmt()
 	else if(!result) {
 		fatal_after(start, "expected expression to return");
 	}
+	/*
 	else {
 		result = cast_expr(result, returntype, 0);
 	}
+	*/
 	
 	return (Stmt*)new_return(start, scope, result);
 }
@@ -771,7 +774,7 @@ static Stmt *p_for()
 		error_at(cur, "expected 'in' or '=' after iterator");
 	}
 	
-	Decl *iter = new_var(iter_name, scope, iter_name->id, 0, itemtype, 0);
+	Decl *iter = new_var(iter_name, scope, iter_name->id, 0, 0, itemtype, 0);
 	
 	if(!eat(TK_LCURLY))
 		fatal_after(last, "expected { after for-in-head");

@@ -20,7 +20,7 @@ static Type *p_type()
 /*
 	Might modify expr and type
 */
-Expr *cast_expr(Expr *expr, Type *type, int explicit)
+Expr *_cast_expr(Expr *expr, Type *type, int explicit)
 {
 	Type *stype = expr->type;
 	
@@ -61,7 +61,7 @@ Expr *cast_expr(Expr *expr, Type *type, int explicit)
 		// array literal => cast each item to itemtype
 		if(expr->kind == ARRAY) {
 			array_for(expr->items, i) {
-				expr->items[i] = cast_expr(
+				expr->items[i] = _cast_expr(
 					expr->items[i], type->itemtype, explicit
 				);
 			}
@@ -75,7 +75,7 @@ Expr *cast_expr(Expr *expr, Type *type, int explicit)
 			for(int64_t i=0; i < stype->length; i++) {
 				Expr *index = new_int_expr(expr->start, i);
 				Expr *subscript = new_subscript_expr(expr, index);
-				Expr *item = cast_expr(subscript, type->itemtype, explicit);
+				Expr *item = _cast_expr(subscript, type->itemtype, explicit);
 				array_push(new_items, item);
 			}
 			
@@ -176,11 +176,6 @@ static Expr *p_atom()
 static Expr *p_call_x(Expr *expr)
 {
 	if(!eat(TK_LPAREN)) return 0;
-	
-	/*
-	if(expr->type->kind != FUNC)
-		fatal_at(expr->start, "not a function you are calling");
-	*/
 	
 	Type *type = expr->type;
 	//Type **paramtypes = type->paramtypes;

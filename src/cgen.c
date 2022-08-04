@@ -508,14 +508,17 @@ static void gen_array_param_decls(Decl **params)
 	array_for(params, i) {
 		Decl *param = params[i];
 		Type *type = param->type;
-		write("%>%y %s%z = {", type, param->private_id, type);
 		
-		for(int64_t j=0; j < type->length; j++) {
-			if(j > 0) write(", ");
-			write("ap%i_%t", j, param->id);
+		if(type->kind == ARRAY) {
+			write("%>%y %s%z = {", type, param->private_id, type);
+			
+			for(int64_t j=0; j < type->length; j++) {
+				if(j > 0) write(", ");
+				write("ap%i_%t", j, param->id);
+			}
+			
+			write("};\n");
 		}
-		
-		write("};\n");
 	}
 	
 	level --;

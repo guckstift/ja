@@ -1,4 +1,7 @@
-var x = [1,2,3];
-var y = >x;
-var z = >y;
-print z[0];
+function foo(x : int)
+{
+}
+
+x();
+#var x = 9;
+

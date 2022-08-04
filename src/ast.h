@@ -231,6 +231,7 @@ struct Decl {
 		Decl **members; // struct
 		Decl **params; // func
 		EnumItem **items; // enum
+		uint8_t isparam; // var
 	};
 };
 
@@ -240,8 +241,8 @@ Decl *new_decl(
 );
 
 Decl *new_var(
-	Token *start, Scope *scope, Token *id, int exported, Type *type,
-	Expr *init
+	Token *start, Scope *scope, Token *id, int exported, int isparam,
+	Type *type, Expr *init
 );
 
 Decl *new_func(

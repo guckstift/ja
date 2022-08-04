@@ -392,11 +392,12 @@ Decl *new_decl(
 }
 
 Decl *new_var(
-	Token *start, Scope *scope, Token *id, int exported, Type *type,
-	Expr *init
+	Token *start, Scope *scope, Token *id, int exported, int isparam,
+	Type *type, Expr *init
 ) {
 	Decl *decl = new_decl(VAR, start, scope, id, exported, type);
 	decl->init = init;
+	decl->isparam = isparam;
 	return decl;
 }
 
