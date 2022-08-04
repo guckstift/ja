@@ -210,12 +210,31 @@ static void a_array(Expr *expr)
 static void a_call(Expr *expr)
 {
 	Expr *callee = expr->callee;
+	Expr **args = expr->args;
 	a_expr(callee);
 	
 	if(callee->type->kind != FUNC)
-		fatal_at(callee->start, "not a function you are calling");
+		fatal_at(callee->start, "expression is not callable");
 	
-	Expr **args = expr->args;
+	Type *type = callee->type;
+	Type **paramtypes = type->paramtypes;
+	
+	if(array_length(args) < array_length(paramtypes)) {
+		fatal_at(
+			expr->start, "not enough arguments, %i needed",
+			array_length(paramtypes)
+		);
+	}
+	else if(array_length(args) > array_length(paramtypes)) {
+		fatal_at(
+			expr->start, "too many arguments, %i needed",
+			array_length(paramtypes)
+		);
+	}
+	
+	array_for(paramtypes, i) {
+		args[i] = adjust_expr_to_type(args[i], paramtypes[i], false);
+	}
 }
 
 static void a_expr(Expr *expr)

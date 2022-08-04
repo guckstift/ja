@@ -178,27 +178,7 @@ static Expr *p_call_x(Expr *expr)
 	if(!eat(TK_LPAREN)) return 0;
 	
 	Type *type = expr->type;
-	//Type **paramtypes = type->paramtypes;
 	Expr **args = p_exprs();
-	
-	/*
-	if(array_length(args) < array_length(paramtypes)) {
-		fatal_at(
-			last, "not enough arguments, %i needed", array_length(paramtypes)
-		);
-	}
-	else if(array_length(args) > array_length(paramtypes)) {
-		fatal_at(
-			last, "too many arguments, %i needed", array_length(paramtypes)
-		);
-	}
-	*/
-	
-	/*
-	array_for(args, i) {
-		args[i] = cast_expr(args[i], paramtypes[i], 0);
-	}
-	*/
 	
 	if(!eat(TK_RPAREN))
 		fatal_after(last, "expected ) after argument list");
