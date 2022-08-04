@@ -215,12 +215,6 @@ static Expr *p_subscript_x(Expr *expr)
 {
 	if(!eat(TK_LBRACK)) return 0;
 	
-	/*
-	while(expr->type->kind == PTR) {
-		expr = new_deref_expr(expr->start, expr);
-	}
-	*/
-	
 	Expr *index = p_expr();
 	if(!index)
 		fatal_after(last, "expected index expression after [");

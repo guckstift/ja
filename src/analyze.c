@@ -159,6 +159,13 @@ static void a_subscript(Expr *expr)
 	Expr *index = expr->index;
 	a_expr(array);
 	a_expr(index);
+
+	a_expr(expr->subexpr);
+	
+	while(expr->array->type->kind == PTR) {
+		expr->array = new_deref_expr(expr->array->start, expr->array);
+		array = expr->array;
+	}
 	
 	if(array->type->kind != ARRAY && array->type->kind != STRING)
 		fatal_at(array->start, "need array or string to subscript");

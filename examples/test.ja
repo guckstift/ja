@@ -1,2 +1,4 @@
-var x = 9;
-var y = >x as >bool;
+var x = [1,2,3];
+var y = >x;
+var z = >y;
+print z[0];
