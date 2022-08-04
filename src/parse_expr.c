@@ -173,17 +173,6 @@ static Expr *p_atom()
 	return expr;
 }
 
-static Expr *p_cast_x(Expr *expr)
-{
-	if(!eat(TK_as)) return 0;
-	
-	Type *type = p_type();
-	if(!type)
-		fatal_after(last, "expected type after as");
-	
-	return cast_expr(expr, type, 1);
-}
-
 static Expr *p_call_x(Expr *expr)
 {
 	if(!eat(TK_LPAREN)) return 0;
@@ -314,7 +303,6 @@ static Expr *p_postfix()
 	
 	while(1) {
 		Expr *new_expr = 0;
-		(new_expr = p_cast_x(expr)) ||
 		(new_expr = p_call_x(expr)) ||
 		(new_expr = p_subscript_x(expr)) ||
 		(new_expr = p_member_x(expr)) ;
@@ -420,6 +408,18 @@ static Expr *p_prefix()
 	return expr;
 }
 
+static Expr *p_cast()
+{
+	Expr *expr = p_prefix();
+	if(!eat(TK_as)) return expr;
+	
+	Type *type = p_type();
+	if(!type)
+		fatal_after(last, "expected type after as");
+	
+	return new_cast_expr(expr, type);
+}
+
 typedef enum {
 	OL_OR,
 	OL_AND,
@@ -466,7 +466,7 @@ static Token *p_operator(int level)
 
 static Expr *p_binop(int level)
 {
-	if(level == _OPLEVEL_COUNT) return p_prefix();
+	if(level == _OPLEVEL_COUNT) return p_cast();
 	
 	Expr *left = p_binop(level + 1);
 	if(!left) return 0;

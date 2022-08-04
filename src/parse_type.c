@@ -25,7 +25,7 @@ static Type *p_primtype()
 	if(eat(TK_bool)) return new_type(BOOL);
 	if(eat(TK_string)) return new_type(STRING);
 	if(eat(TK_cstring)) return new_type(CSTRING);
-	if(eat(TK_ptr)) return new_ptr_type(0);
+	if(eat(TK_ptr)) return new_ptr_type(new_type(NONE));
 	return 0;
 }
 
@@ -116,7 +116,7 @@ void make_type_exportable(Type *type)
 	}
 }
 
-Type *complete_type(Type *type, Expr *expr)
+void complete_type(Type *type, Expr *expr)
 {
 	// automatic array length completion from expr
 	for(

@@ -29,17 +29,18 @@ Type *new_ptr_type(Type *subtype)
 {
 	static Type *primptrtypebuf[_PRIMKIND_COUNT] = {0};
 	
-	if(!subtype) subtype = new_type(NONE);
-	Kind subkind = subtype->kind;
-	
-	if(subkind < _PRIMKIND_COUNT) {
-		if(primptrtypebuf[subkind] == 0) {
-			Type *type = new_type(PTR);
-			type->subtype = new_type(subkind);
-			primptrtypebuf[subkind] = type;
-		}
+	if(subtype) {
+		Kind subkind = subtype->kind;
 		
-		return primptrtypebuf[subkind];
+		if(subkind < _PRIMKIND_COUNT) {
+			if(primptrtypebuf[subkind] == 0) {
+				Type *type = new_type(PTR);
+				type->subtype = new_type(subkind);
+				primptrtypebuf[subkind] = type;
+			}
+			
+			return primptrtypebuf[subkind];
+		}
 	}
 	
 	Type *type = new_type(PTR);

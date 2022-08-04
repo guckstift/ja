@@ -1,3 +1,2 @@
-var x = [[1,2,3]];
-var f = 9;
-var y : [3]int = x[f];
+var x = 9;
+var y : >bool = >x as >bool;
