@@ -46,7 +46,7 @@ static Expr *eval_integral_cast(Expr *expr, Type *type)
 /*
 	Might modify expr
 */
-static Expr *adjust_expr_to_type(Expr *expr, Type *type)
+static Expr *adjust_expr_to_type(Expr *expr, Type *type, bool explicit)
 {
 	Type *expr_type = expr->type;
 	
@@ -63,6 +63,10 @@ static Expr *adjust_expr_to_type(Expr *expr, Type *type)
 		return new_cast_expr(expr, type);
 	}
 	
+	// one pointer to some other by explicit cast always ok
+	if(explicit && expr_type->kind == PTR && type->kind == PTR)
+		return expr; // no change needed, expr is the subexpr of a cast expr
+	
 	// array literal with matching length
 	if(
 		expr->kind == ARRAY && type->kind == ARRAY &&
@@ -70,7 +74,7 @@ static Expr *adjust_expr_to_type(Expr *expr, Type *type)
 	) {
 		array_for(expr->items, i) {
 			expr->items[i] = adjust_expr_to_type(
-				expr->items[i], type->itemtype
+				expr->items[i], type->itemtype, false
 			);
 		}
 		
@@ -143,6 +147,12 @@ static void a_deref(Expr *expr)
 	expr->type = ptr->type->subtype;
 }
 
+static void a_cast(Expr *expr)
+{
+	a_expr(expr->subexpr);
+	expr->subexpr = adjust_expr_to_type(expr->subexpr, expr->type, true);
+}
+
 static void a_subscript(Expr *expr)
 {
 	Expr *array = expr->array;
@@ -183,7 +193,7 @@ static void a_array(Expr *expr)
 			itemtype = items[i]->type;
 		}
 		else {
-			items[i] = adjust_expr_to_type(items[i], itemtype);
+			items[i] = adjust_expr_to_type(items[i], itemtype, false);
 		}
 	}
 	
@@ -206,6 +216,9 @@ static void a_expr(Expr *expr)
 			break;
 		case DEREF:
 			a_deref(expr);
+			break;
+		case CAST:
+			a_cast(expr);
 			break;
 		case SUBSCRIPT:
 			a_subscript(expr);
@@ -230,7 +243,7 @@ static void a_vardecl(Decl *decl)
 		if(decl->type == 0)
 			decl->type = decl->init->type;
 		else
-			decl->init = adjust_expr_to_type(decl->init, decl->type);
+			decl->init = adjust_expr_to_type(decl->init, decl->type, false);
 	}
 }
 
@@ -248,7 +261,10 @@ static void a_assign(Assign *assign)
 {
 	a_expr(assign->target);
 	a_expr(assign->expr);
-	assign->expr = adjust_expr_to_type(assign->expr, assign->target->type);
+	
+	assign->expr = adjust_expr_to_type(
+		assign->expr, assign->target->type, false
+	);
 }
 
 static void a_stmt(Stmt *stmt)
