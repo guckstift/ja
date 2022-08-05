@@ -73,16 +73,6 @@ static Stmt *p_print()
 	Expr *expr = p_expr();
 	if(!expr) fatal_after(last, "expected expression to print");
 	
-	/*
-	if(
-		!is_integral_type(expr->type) &&
-		expr->type->kind != PTR && expr->type->kind != STRING &&
-		expr->type->kind != ARRAY
-	) {
-		fatal_at(expr->start, "can only print numbers, strings or pointers");
-	}
-	*/
-	
 	if(!eat(TK_SEMICOLON))
 		error_after(last, "expected semicolon after print statement");
 	
@@ -115,11 +105,6 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 		
 		Token *init_start = init->start;
 		
-		/*
-		if(init->type->kind == NONE)
-			fatal_at(init_start, "expression has no value");
-		*/
-		
 		if(scope->structhost && !init->isconst)
 			fatal_at(
 				init_start,
@@ -127,11 +112,7 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 				"with constant values"
 			);
 		
-		//if(type == 0)
-		//	type = init->type;
-		
 		//complete_type(type, init);
-		//init = cast_expr(init, type, 0);
 	}
 	
 	if(type == 0 && init == 0)

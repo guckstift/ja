@@ -405,34 +405,32 @@ static void print_expr(Expr *expr)
 			print_ident(expr->id);
 			break;
 		case PTR:
-			printf("(>");
+			printf(">(");
 			print_expr(expr->subexpr);
 			printf(")");
 			break;
 		case DEREF:
-			printf("(<");
+			printf("<(");
 			print_expr(expr->subexpr);
 			printf(")");
 			break;
 		case CAST:
 			printf("(");
 			print_expr(expr->subexpr);
-			print_keyword_cstr(" as ");
+			print_keyword_cstr(") as ");
 			print_type(expr->type);
-			printf(")");
 			break;
 		case SUBSCRIPT:
 			printf("(");
 			print_expr(expr->subexpr);
-			printf("[");
+			printf(")[");
 			print_expr(expr->index);
 			printf("]");
-			printf(")");
 			break;
 		case BINOP:
 			printf("(");
 			print_expr(expr->left);
-			printf(" %s ", expr->operator->punct);
+			printf(") %s (", expr->operator->punct);
 			print_expr(expr->right);
 			printf(")");
 			break;
@@ -447,23 +445,25 @@ static void print_expr(Expr *expr)
 		case CALL:
 			printf("(");
 			print_expr(expr->callee);
-			printf("(");
+			printf(")(");
 			
 			array_for(expr->args, i) {
 				if(i > 0) printf(", ");
 				print_expr(expr->args[i]);
 			}
 			
-			printf("))");
+			printf(")");
 			break;
 		case MEMBER:
+			printf("(");
 			print_expr(expr->object);
-			printf(".");
+			printf(").");
 			print_ident(expr->member->id);
 			break;
 		case LENGTH:
+			printf("(");
 			print_expr(expr->array);
-			printf(".length");
+			printf(").length");
 			break;
 		case NEW:
 			print_keyword_cstr("new ");
@@ -475,12 +475,12 @@ static void print_expr(Expr *expr)
 			print_ident(expr->item->id);
 			break;
 		case NEGATION:
-			printf("(-");
+			printf("-(");
 			print_expr(expr->subexpr);
 			printf(")");
 			break;
 		case COMPLEMENT:
-			printf("(~");
+			printf("~(");
 			print_expr(expr->subexpr);
 			printf(")");
 			break;

@@ -393,6 +393,40 @@ static void a_call(Expr *expr)
 	expr->type = callee->type->returntype;
 }
 
+static void a_negation(Expr *expr)
+{
+	a_expr(expr->subexpr);
+	Expr *subexpr = expr->subexpr;
+	
+	if(!is_integral_type(subexpr->type))
+		fatal_at(subexpr->start, "expected integral type to negate");
+	
+	if(subexpr->kind == NEGATION) {
+		*expr = *(subexpr->subexpr);
+	}
+	else if(expr->isconst) {
+		expr->value = -subexpr->value;
+		expr->kind = INT;
+	}
+}
+
+static void a_complement(Expr *expr)
+{
+	a_expr(expr->subexpr);
+	Expr *subexpr = expr->subexpr;
+	
+	if(!is_integral_type(subexpr->type))
+		fatal_at(subexpr->start, "expected integral type to complement");
+	
+	if(subexpr->kind == COMPLEMENT) {
+		*expr = *(subexpr->subexpr);
+	}
+	else if(expr->isconst) {
+		expr->value = ~expr->subexpr->value;
+		expr->kind = INT;
+	}
+}
+
 static void a_expr(Expr *expr)
 {
 	switch(expr->kind) {
@@ -420,6 +454,26 @@ static void a_expr(Expr *expr)
 		case CALL:
 			a_call(expr);
 			break;
+		case NEGATION:
+			a_negation(expr);
+			break;
+		case COMPLEMENT:
+			a_complement(expr);
+			break;
+	}
+}
+
+static void a_print(Print *print)
+{
+	a_expr(print->expr);
+	Expr *expr = print->expr;
+	
+	if(
+		!is_integral_type(expr->type) &&
+		expr->type->kind != PTR && expr->type->kind != STRING &&
+		expr->type->kind != ARRAY
+	) {
+		fatal_at(expr->start, "can only print numbers, strings or pointers");
 	}
 }
 
@@ -432,9 +486,11 @@ static void a_vardecl(Decl *decl)
 			fatal_at(
 				decl->init->start,
 				"can not use a function as value, "
-				"use >func_name to make a function pointer"
+				"make a function pointer with >func_name"
 			);
 		}
+		else if(decl->init->type->kind == NONE)
+			fatal_at(decl->init->start, "expression has no value");
 		
 		if(decl->type == 0)
 			decl->type = decl->init->type;
@@ -478,7 +534,7 @@ static void a_stmt(Stmt *stmt)
 {
 	switch(stmt->kind) {
 		case PRINT:
-			a_expr(stmt->as_print.expr);
+			a_print(&stmt->as_print);
 			break;
 		case VAR:
 			a_vardecl(&stmt->as_decl);

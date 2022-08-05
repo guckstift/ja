@@ -4,7 +4,6 @@
 #include <string.h>
 #include "parse.h"
 #include "parse_internal.h"
-#include "eval.h"
 #include "build.h"
 #include "array.h"
 
