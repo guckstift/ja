@@ -116,9 +116,6 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 		Token *init_start = init->start;
 		
 		/*
-		if(init->type->kind == FUNC)
-			fatal_at(init_start, "can not use function as value");
-		
 		if(init->type->kind == NONE)
 			fatal_at(init_start, "expression has no value");
 		*/

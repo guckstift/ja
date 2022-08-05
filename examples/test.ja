@@ -1,6 +1,7 @@
-#var x = [1,2,3][0];
+var a = 90;
+var b = foo;
+var x = [foo,2,3][0];
 
-function foo() : int
+function foo()
 {
-	return true;
 }

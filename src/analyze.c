@@ -185,11 +185,9 @@ static void a_subscript(Expr *expr)
 			);
 	}
 	
-	/*
 	if(array->kind == ARRAY && index->isconst) {
-		replace_expr(expr, array->items[index->value]);
+		*expr = *array->items[index->value];
 	}
-	*/
 	
 	expr->type = array->type->itemtype;
 }
@@ -275,8 +273,13 @@ static void a_vardecl(Decl *decl)
 	if(decl->init) {
 		a_expr(decl->init);
 		
-		if(decl->init->type->kind == FUNC)
-			fatal_at(decl->init->start, "can not use a function as value");
+		if(decl->init->type->kind == FUNC) {
+			fatal_at(
+				decl->init->start,
+				"can not use a function as value, "
+				"use >func_name to make a function pointer"
+			);
+		}
 		
 		if(decl->type == 0)
 			decl->type = decl->init->type;
