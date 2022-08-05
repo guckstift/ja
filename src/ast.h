@@ -136,6 +136,16 @@ int is_dynarray_ptr_type(Type *type);
 	centralized struct for any expression
 */
 
+typedef enum {
+	OL_OR,
+	OL_AND,
+	OL_CMP,
+	OL_ADD,
+	OL_MUL,
+	
+	_OPLEVEL_COUNT,
+} OpLevel;
+
 struct Expr {
 	Kind kind;
 	Token *start;
@@ -167,6 +177,7 @@ struct Expr {
 	};
 	
 	Token *operator; // binop
+	OpLevel oplevel; // binop
 };
 
 Expr *new_expr(Kind kind, Token *start, Type *type, int isconst, int islvalue);
@@ -183,7 +194,7 @@ Expr *new_member_expr(Expr *object, Decl *member);
 Expr *new_deref_expr(Token *start, Expr *ptr);
 Expr *new_ptr_expr(Token *start, Expr *subexpr);
 Expr *new_call_expr(Expr *callee, Expr **args);
-Expr *new_binop_expr(Expr *left, Expr *right, Token *operator, Type *type);
+Expr *new_binop_expr(Expr *left, Expr *right, Token *operator, OpLevel oplevel);
 Expr *new_new_expr(Token *start, Type *obj_type);
 Expr *new_enum_item_expr(Token *start, Decl *enumdecl, EnumItem *item);
 

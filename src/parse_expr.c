@@ -390,17 +390,7 @@ static Expr *p_cast()
 	return new_cast_expr(expr, type);
 }
 
-typedef enum {
-	OL_OR,
-	OL_AND,
-	OL_CMP,
-	OL_ADD,
-	OL_MUL,
-	
-	_OPLEVEL_COUNT,
-} OpLevel;
-
-static Token *p_operator(int level)
+static Token *p_operator(OpLevel level)
 {
 	Token *op = 0;
 	switch(level) {
@@ -448,61 +438,7 @@ static Expr *p_binop(int level)
 		Expr *right = p_binop(level + 1);
 		if(!right) fatal_after(last, "expected right side after %t", operator);
 		
-		/*
-		Type *ltype = left->type;
-		Type *rtype = right->type;
-		Type *type = 0;
-		*/
-		
-		int found = 0;
-		
-		if(level == OL_OR || level == OL_AND) {
-			/*
-			if(!type_equ(ltype, rtype)) {
-				fatal_at(operator,
-					"types must be the same for operator %t", operator
-				);
-			}
-			type = ltype;
-			*/
-			
-			found = 1;
-		}
-		/*
-		else if(is_integral_type(ltype) && is_integral_type(rtype)) {
-			if(level == OL_CMP) {
-				//type = new_type(BOOL);
-				//right = cast_expr(right, ltype, 0);
-				found = 1;
-			}
-			else if(level == OL_ADD || level == OL_MUL) {
-				//type = new_type(INT64);
-				//left = cast_expr(left, type, 0);
-				//right = cast_expr(right, type, 0);
-				found = 1;
-			}
-		}
-		* /
-		else if(
-			ltype->kind == STRING && rtype->kind == STRING &&
-			operator->kind == TK_EQUALS
-		) {
-			type = new_type(BOOL);
-			found = 1;
-		}
-		
-		if(found == 0) {
-			fatal_at(
-				operator,
-				"can not use types  %y  and  %y  with operator %t",
-				ltype, rtype, operator
-			);
-		}
-		*/
-		
-		//Expr *binop = new_binop_expr(left, right, operator, type);
-		Expr *binop = new_binop_expr(left, right, operator, 0);
-		binop = eval_binop(binop);
+		Expr *binop = new_binop_expr(left, right, operator, level);
 		left = binop;
 	}
 	

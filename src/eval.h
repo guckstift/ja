@@ -4,6 +4,5 @@
 #include "parse.h"
 
 Expr *eval_unary(Expr *expr);
-Expr *eval_binop(Expr *expr);
 
 #endif

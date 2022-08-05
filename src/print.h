@@ -16,6 +16,8 @@
 #define COL_YELLOW_BG "\x1b[43m"
 
 void ja_vfprintf(FILE *fs, char *msg, va_list args);
+void ja_fprintf(FILE *fs, char *msg, ...);
+void ja_printf(char *msg, ...);
 
 void vprint_error(
 	int64_t line, char *linep, char *src_end, char *err_pos, char *msg,

@@ -10,7 +10,7 @@ static bool repeat_analyze = false;
 static void a_block(Block *block);
 static void a_expr(Expr *expr);
 
-static Expr *eval_integral_cast(Expr *expr, Type *type)
+static void eval_integral_cast(Expr *expr, Type *type)
 {
 	expr->type = type;
 	expr->kind = INT;
@@ -39,8 +39,102 @@ static Expr *eval_integral_cast(Expr *expr, Type *type)
 			expr->value = (uint32_t)expr->value;
 			break;
 	}
+}
+
+static void eval_binop(Expr *expr)
+{
+	Expr *left = expr->left;
+	Expr *right = expr->right;
 	
-	return expr;
+	switch(expr->operator->kind) {
+		#define INT_BINOP(name, op) \
+			case TK_ ## name: { \
+				if(is_integral_type(expr->type)) { \
+					expr->kind = INT; \
+					expr->value = expr->left->value op \
+						expr->right->value; \
+				} \
+				break; \
+			}
+		
+		#define CMP_BINOP(name, op) \
+			case TK_ ## name: { \
+				if(is_integral_type(expr->left->type)) { \
+					expr->kind = BOOL; \
+					expr->value = expr->left->value op \
+						expr->right->value; \
+				} \
+				break; \
+			}
+		
+		INT_BINOP(PLUS, +)
+		INT_BINOP(MINUS, -)
+		INT_BINOP(MUL, *)
+		INT_BINOP(DSLASH, /)
+		INT_BINOP(MOD, %)
+		INT_BINOP(AMP, &)
+		INT_BINOP(PIPE, |)
+		INT_BINOP(XOR, ^)
+		
+		CMP_BINOP(LOWER, <)
+		CMP_BINOP(GREATER, >)
+		CMP_BINOP(EQUALS, ==)
+		CMP_BINOP(NEQUALS, !=)
+		CMP_BINOP(LEQUALS, <=)
+		CMP_BINOP(GEQUALS, >=)
+		
+		case TK_AND:
+			if(expr->type->kind == STRING) {
+				expr->kind = STRING;
+				
+				if(left->length == 0) {
+					expr->string = left->string;
+					expr->length = left->length;
+				}
+				else {
+					expr->string = right->string;
+					expr->length = right->length;
+				}
+			}
+			else if(is_integral_type(expr->type)) {
+				expr->kind = left->kind;
+				
+				if(left->value == 0) {
+					expr->value = left->value;
+				}
+				else {
+					expr->value = right->value;
+				}
+			}
+			
+			break;
+		
+		case TK_OR:
+			if(expr->type->kind == STRING) {
+				expr->kind = STRING;
+				
+				if(left->length != 0) {
+					expr->string = left->string;
+					expr->length = left->length;
+				}
+				else {
+					expr->string = right->string;
+					expr->length = right->length;
+				}
+			}
+			else if(is_integral_type(expr->type)) {
+				expr->kind = left->kind;
+				
+				if(left->value != 0) {
+					expr->value = left->value;
+				}
+				else {
+					expr->value = right->value;
+				}
+			}
+			
+			break;
+	}
 }
 
 /*
@@ -57,7 +151,8 @@ static Expr *adjust_expr_to_type(Expr *expr, Type *type, bool explicit)
 	// integral types are castable amongst themselves
 	if(is_integral_type(expr_type) && is_integral_type(type)) {
 		if(expr->isconst) {
-			return eval_integral_cast(expr, type);
+			eval_integral_cast(expr, type);
+			return expr;
 		}
 		
 		return new_cast_expr(expr, type);
@@ -192,6 +287,60 @@ static void a_subscript(Expr *expr)
 	expr->type = array->type->itemtype;
 }
 
+static void a_binop(Expr *expr)
+{
+	Expr *left = expr->left;
+	Expr *right = expr->right;
+	a_expr(left);
+	a_expr(right);
+	Type *ltype = left->type;
+	Type *rtype = right->type;
+	Token *operator = expr->operator;
+	OpLevel level = expr->oplevel;
+	bool found_match = false;
+	
+	if(level == OL_OR || level == OL_AND) {
+		if(!type_equ(ltype, rtype)) {
+			fatal_at(
+				operator, "types must be the same for operator %t", operator
+			);
+		}
+		
+		expr->type = ltype;
+		found_match = true;
+	}
+	else if(is_integral_type(ltype) && is_integral_type(rtype)) {
+		if(level == OL_CMP) {
+			expr->type = new_type(BOOL);
+			expr->right = adjust_expr_to_type(right, ltype, false);
+			found_match = true;
+		}
+		else if(level == OL_ADD || level == OL_MUL) {
+			expr->type = new_type(INT64);
+			expr->left = adjust_expr_to_type(left, expr->type, false);
+			expr->right = adjust_expr_to_type(right, expr->type, false);
+			found_match = true;
+		}
+	}
+	else if(
+		ltype->kind == STRING && rtype->kind == STRING &&
+		operator->kind == TK_EQUALS
+	) {
+		expr->type = new_type(BOOL);
+		found_match = true;
+	}
+	
+	if(!found_match) {
+		fatal_at(
+			operator, "can not use types  %y  and  %y  with operator %t",
+			ltype, rtype, operator
+		);
+	}
+	
+	if(expr->isconst)
+		eval_binop(expr);
+}
+
 static void a_array(Expr *expr)
 {
 	Expr **items = expr->items;
@@ -237,8 +386,11 @@ static void a_call(Expr *expr)
 	}
 	
 	array_for(paramtypes, i) {
+		a_expr(args[i]);
 		args[i] = adjust_expr_to_type(args[i], paramtypes[i], false);
 	}
+	
+	expr->type = callee->type->returntype;
 }
 
 static void a_expr(Expr *expr)
@@ -258,6 +410,9 @@ static void a_expr(Expr *expr)
 			break;
 		case SUBSCRIPT:
 			a_subscript(expr);
+			break;
+		case BINOP:
+			a_binop(expr);
 			break;
 		case ARRAY:
 			a_array(expr);
@@ -331,6 +486,11 @@ static void a_stmt(Stmt *stmt)
 		case FUNC:
 			a_funcdecl(&stmt->as_decl);
 			break;
+		case IF:
+			a_expr(stmt->as_if.cond);
+			a_block(stmt->as_if.if_body);
+			if(stmt->as_if.else_body) a_block(stmt->as_if.else_body);
+			break;
 		case ASSIGN:
 			a_assign(&stmt->as_assign);
 			break;
@@ -364,7 +524,11 @@ void analyze(Unit *unit)
 	
 	if(repeat_analyze) {
 		repeat_analyze = false;
-		printf("repeat analyze\n");
+		
+		#ifdef JA_DEBUG
+		printf(COL_YELLOW "repeat analyze\n" COL_RESET);
+		#endif
+		
 		analyze(unit);
 	}
 }

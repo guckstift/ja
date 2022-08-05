@@ -16,9 +16,6 @@
 #include "../build/runtime.h.res"
 #include "../build/runtime.c.res"
 
-#define COL_YELLOW  "\x1b[38;2;255;255;0m"
-#define COL_RESET   "\x1b[0m"
-
 #define lo_nibble(x) ((x) & 0xf)
 #define hi_nibble(x) ((x) >> 4 & 0xf)
 

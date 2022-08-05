@@ -334,15 +334,16 @@ Expr *new_call_expr(Expr *callee, Expr **args)
 	return call;
 }
 
-Expr *new_binop_expr(Expr *left, Expr *right, Token *operator, Type *type)
+Expr *new_binop_expr(Expr *left, Expr *right, Token *operator, OpLevel oplevel)
 {
 	Expr *expr = new_expr(
-		BINOP, left->start, type, left->isconst && right->isconst, 0
+		BINOP, left->start, 0, left->isconst && right->isconst, 0
 	);
 	
 	expr->left = left;
 	expr->right = right;
 	expr->operator = operator;
+	expr->oplevel = oplevel;
 	return expr;
 }
 

@@ -12,6 +12,7 @@ static int64_t level;
 static void print_stmts(Stmt **stmts);
 static void fprint_type(FILE *fs, Type *type);
 static void print_block(Block *block);
+static void fprint_ident(FILE *fs, Token *token);
 
 /*
 	format specifiers:
@@ -44,7 +45,13 @@ void ja_vfprintf(FILE *fs, char *msg, va_list args)
 			else if(*msg == 't') {
 				msg++;
 				Token *token = va_arg(args, Token*);
-				fwrite(token->start, 1, token->length, fs);
+				
+				if(token->kind == TK_IDENT) {
+					fprint_ident(fs, token);
+				}
+				else {
+					fwrite(token->start, 1, token->length, fs);
+				}
 			}
 			else if(*msg == 'y') {
 				msg++;
@@ -65,6 +72,22 @@ void ja_vfprintf(FILE *fs, char *msg, va_list args)
 			msg++;
 		}
 	}
+}
+
+void ja_fprintf(FILE *fs, char *msg, ...)
+{
+	va_list args;
+	va_start(args, msg);
+	ja_vfprintf(fs, msg, args);
+	va_end(args);
+}
+
+void ja_printf(char *msg, ...)
+{
+	va_list args;
+	va_start(args, msg);
+	ja_vfprintf(stdout, msg, args);
+	va_end(args);
 }
 
 void fprint_marked_src_line(

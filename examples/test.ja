@@ -1,1 +1,7 @@
-var a : >[8]int = "hh";
+var s = 9;
+var u : uint = 9;
+
+print s + s;
+print s + u;
+print u + s;
+print u + u;
