@@ -1,7 +1,1 @@
-var a = 90;
-var b = foo;
-var x = [foo,2,3][0];
-
-function foo()
-{
-}
+var a : >[8]int = "hh";

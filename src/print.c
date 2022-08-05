@@ -7,75 +7,72 @@
 #include "array.h"
 #include "build.h"
 
-#define COL_RESET   "\x1b[0m"
-#define COL_GREY    "\x1b[38;2;170;170;170m"
-#define COL_BLUE    "\x1b[38;2;64;128;255m"
-#define COL_MAGENTA "\x1b[38;2;255;64;255m"
-#define COL_AQUA    "\x1b[38;2;64;255;255m"
-#define COL_YELLOW  "\x1b[38;2;255;255;0m"
-#define COL_RED     "\x1b[1;31m"
-
-#define COL_YELLOW_BG "\x1b[43m"
-
 static int64_t level;
 
 static void print_stmts(Stmt **stmts);
 static void fprint_type(FILE *fs, Type *type);
 static void print_block(Block *block);
 
-void vprint_error(
-	int64_t line, char *linep, char *src_end, char *err_pos, char *msg,
-	va_list args
-) {
-	fprintf(stderr, COL_RED "error: " COL_RESET);
-	
+/*
+	format specifiers:
+		%b - two digit hex byte
+		%c - byte character
+		%s - null terminated string
+		%t - Token*
+		%y - Type*
+		%u - unsigned 64 bit integer
+		%i - signed 64 bit integer
+*/
+
+void ja_vfprintf(FILE *fs, char *msg, va_list args)
+{
 	while(*msg) {
 		if(*msg == '%') {
 			msg++;
 			if(*msg == 'b') {
 				msg++;
-				fprintf(stderr, "%02x", va_arg(args, int));
+				fprintf(fs, "%02x", va_arg(args, int));
 			}
 			else if(*msg == 'c') {
 				msg++;
-				fprintf(stderr, "%c", va_arg(args, int));
+				fprintf(fs, "%c", va_arg(args, int));
 			}
 			else if(*msg == 's') {
 				msg++;
-				fprintf(stderr, "%s", va_arg(args, char*));
+				fprintf(fs, "%s", va_arg(args, char*));
 			}
 			else if(*msg == 't') {
 				msg++;
 				Token *token = va_arg(args, Token*);
-				fwrite(token->start, 1, token->length, stderr);
+				fwrite(token->start, 1, token->length, fs);
 			}
 			else if(*msg == 'y') {
 				msg++;
 				Type *type = va_arg(args, Type*);
-				fprint_type(stderr, type);
+				fprint_type(fs, type);
 			}
 			else if(*msg == 'u') {
 				msg++;
-				fprintf(stderr, "%" PRIu64, va_arg(args, uint64_t));
+				fprintf(fs, "%" PRIu64, va_arg(args, uint64_t));
 			}
 			else if(*msg == 'i') {
 				msg++;
-				fprintf(stderr, "%" PRIi64, va_arg(args, int64_t));
+				fprintf(fs, "%" PRIi64, va_arg(args, int64_t));
 			}
 		}
 		else {
-			fprintf(stderr, "%c", *msg);
+			fprintf(fs, "%c", *msg);
 			msg++;
 		}
 	}
-	
-	fprintf(stderr, "\n");
-	
-	if(linep == 0) return;
-	
-	fprintf(stderr, COL_GREY);
-	int64_t white_len = fprintf(stderr, "%" PRId64 ": ", line);
-	fprintf(stderr, COL_RESET);
+}
+
+void fprint_marked_src_line(
+	FILE *fs, int64_t line, char *linep, char *src_end, char *err_pos
+) {
+	fprintf(fs, COL_GREY);
+	int64_t white_len = fprintf(fs, "%" PRId64 ": ", line);
+	fprintf(fs, COL_RESET);
 	int64_t col = 0;
 	
 	for(char *p = linep; p < src_end; p++) {
@@ -83,28 +80,38 @@ void vprint_error(
 			break;
 		}
 		else if(isprint(*p)) {
-			fprintf(stderr, "%c", *p);
+			fprintf(fs, "%c", *p);
 			col ++;
 			if(p < err_pos) white_len ++;
 		}
 		else if(*p == '\t') {
 			do {
-				fprintf(stderr, " ");
+				fprintf(fs, " ");
 				col ++;
 				if(p < err_pos) white_len ++;
 			} while(col % 4 != 0);
 		}
 		else {
-			fprintf(stderr, COL_YELLOW_BG " " COL_RESET);
+			fprintf(fs, COL_YELLOW_BG " " COL_RESET);
 			col ++;
 			if(p < err_pos) white_len ++;
 		}
 	}
 	
+	fprintf(fs, "\n");
+	for(int64_t i = 0; i < white_len; i++) fprintf(fs, " ");
+	fprintf(fs, COL_RED "^" COL_RESET "\n");
+}
+
+void vprint_error(
+	int64_t line, char *linep, char *src_end, char *err_pos, char *msg,
+	va_list args
+) {
+	fprintf(stderr, COL_RED "error: " COL_RESET);
+	ja_vfprintf(stderr, msg, args);
 	fprintf(stderr, "\n");
-	for(int64_t i = 0; i < white_len; i++) fprintf(stderr, " ");
-	fprintf(stderr, COL_RED "^" COL_RESET);
-	fprintf(stderr, "\n");
+	if(linep == 0) return;
+	fprint_marked_src_line(stderr, line, linep, src_end, err_pos);
 }
 
 void print_error(
