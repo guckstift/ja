@@ -531,11 +531,6 @@ static Stmt *p_returnstmt()
 	else if(!result) {
 		fatal_after(start, "expected expression to return");
 	}
-	/*
-	else {
-		result = cast_expr(result, returntype, 0);
-	}
-	*/
 	
 	return (Stmt*)new_return(start, scope, result);
 }

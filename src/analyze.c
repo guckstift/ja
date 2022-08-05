@@ -185,6 +185,12 @@ static void a_subscript(Expr *expr)
 			);
 	}
 	
+	/*
+	if(array->kind == ARRAY && index->isconst) {
+		replace_expr(expr, array->items[index->value]);
+	}
+	*/
+	
 	expr->type = array->type->itemtype;
 }
 
@@ -299,6 +305,17 @@ static void a_assign(Assign *assign)
 	);
 }
 
+static void a_return(Return *returnstmt)
+{
+	if(returnstmt->expr) {
+		Decl *funchost = returnstmt->scope->funchost;
+		Type *returntype = funchost->type->returntype;
+		Expr *returnexpr = returnstmt->expr;
+		a_expr(returnexpr);
+		returnstmt->expr = adjust_expr_to_type(returnexpr, returntype, false);
+	}
+}
+
 static void a_stmt(Stmt *stmt)
 {
 	switch(stmt->kind) {
@@ -316,6 +333,9 @@ static void a_stmt(Stmt *stmt)
 			break;
 		case CALL:
 			a_call(stmt->as_call.call);
+			break;
+		case RETURN:
+			a_return(&stmt->as_return);
 			break;
 	}
 }

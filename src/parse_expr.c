@@ -32,9 +32,11 @@ Expr *_cast_expr(Expr *expr, Type *type, int explicit)
 	if(type_equ(stype, type))
 		return expr;
 	
+	/*
 	// integral types are castable into other integral types
 	if(is_integral_type(stype) && is_integral_type(type))
 		return eval_integral_cast(expr, type);
+	*/
 	
 	// one pointer to some other by explicit cast always ok
 	if(explicit && stype->kind == PTR && type->kind == PTR)
@@ -198,7 +200,6 @@ static Expr *p_subscript_x(Expr *expr)
 		fatal_after(last, "expected ] after index expression");
 	
 	return new_subscript_expr(expr, index);
-	//return eval_subscript(expr, index);
 }
 
 static Expr *p_member_x(Expr *expr)

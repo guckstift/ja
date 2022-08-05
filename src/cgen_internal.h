@@ -1,3 +1,7 @@
+#ifndef CGEN_INTERNAL_H
+#define CGEN_INTERNAL_H
+
+#include "cgen.h"
 
 void write(char *msg, ...);
 int is_in_header();
@@ -6,3 +10,5 @@ void gen_type_postfix(Type *dtype);
 void gen_type(Type *dtype);
 void gen_init_expr(Expr *expr);
 void gen_expr(Expr *expr);
+
+#endif

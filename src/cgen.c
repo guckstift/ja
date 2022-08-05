@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <inttypes.h>
-#include "cgen.h"
-#include "cgen_utils.h"
+#include "cgen_internal.h"
 #include "array.h"
 
 #define INDENT      "    "

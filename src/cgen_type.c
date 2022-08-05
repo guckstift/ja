@@ -1,5 +1,4 @@
-#include "cgen.h"
-#include "cgen_utils.h"
+#include "cgen_internal.h"
 
 static void gen_struct_or_enum_type(Type *type)
 {
