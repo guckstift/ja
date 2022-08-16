@@ -702,8 +702,6 @@ static Stmt *p_for()
 	if(!iter_name)
 		error_after(last, "expected identifier as iterator");
 	
-	int flavour = 0;
-	Type *itemtype = 0;
 	Expr *array = 0;
 	Expr *from = 0;
 	Expr *to = 0;
@@ -713,19 +711,8 @@ static Stmt *p_for()
 		
 		if(!array)
 			fatal_after(last, "expected iterable");
-		
-		while(array->type->kind == PTR) {
-			array = new_deref_expr(array->start, array);
-		}
-		
-		Type *type = array->type;
-		if(type->kind != ARRAY)
-			fatal_at(array->start, "expected iterable of type array");
-		
-		itemtype = array->type->itemtype;
 	}
 	else if(eat(TK_ASSIGN)) {
-		flavour = 1;
 		from = p_expr();
 		if(!from) fatal_at(last, "expected start value after =");
 		
@@ -734,14 +721,12 @@ static Stmt *p_for()
 		
 		to = p_expr();
 		if(!to) fatal_at(last, "expected end value after ..");
-		
-		itemtype = from->type;
 	}
 	else {
 		error_at(cur, "expected 'in' or '=' after iterator");
 	}
 	
-	Decl *iter = new_var(iter_name, scope, iter_name->id, 0, 0, itemtype, 0);
+	Decl *iter = new_var(iter_name, scope, iter_name->id, 0, 0, 0, 0);
 	
 	if(!eat(TK_LCURLY))
 		fatal_after(last, "expected { after for-in-head");
@@ -750,7 +735,7 @@ static Stmt *p_for()
 	declare(iter);
 	Scope *blockscope = leave();
 	
-	if(flavour == 0) {
+	if(array) {
 		ForEach *foreach = new_foreach(start, blockscope, array, iter, 0);
 		blockscope->loophost = (Stmt*)foreach;
 		foreach->body = p_block(blockscope);

@@ -1,4 +1,11 @@
-var x = 10;
+var a = 0;
+var b = 10;
 
-for i = 0 .. x {
+for i = a .. b {
+}
+
+var x = [1,2,3];
+var y = >x;
+
+for i in y {
 }

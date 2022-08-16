@@ -526,7 +526,25 @@ static void a_for(For *forstmt)
 		);
 	}
 	
+	forstmt->iter->type = forstmt->from->type;
 	a_block(forstmt->body);
+}
+
+static void a_foreach(ForEach *foreach)
+{
+	Expr *array = foreach->array;
+	a_expr(foreach->array);
+	
+	while(foreach->array->type->kind == PTR) {
+		foreach->array = new_deref_expr(foreach->array->start, foreach->array);
+	}
+	
+	if(foreach->array->type->kind != ARRAY) {
+		fatal_at(foreach->array->start, "expected iterable of type array");
+	}
+	
+	foreach->iter->type = array->type->itemtype;
+	a_block(foreach->body);
 }
 
 static void a_assign(Assign *assign)
@@ -573,6 +591,9 @@ static void a_stmt(Stmt *stmt)
 			break;
 		case FOR:
 			a_for(&stmt->as_for);
+			break;
+		case FOREACH:
+			a_foreach(&stmt->as_foreach);
 			break;
 		case ASSIGN:
 			a_assign(&stmt->as_assign);
