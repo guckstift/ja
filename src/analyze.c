@@ -509,6 +509,26 @@ static void a_funcdecl(Decl *decl)
 	}
 }
 
+static void a_for(For *forstmt)
+{
+	a_expr(forstmt->from);
+	a_expr(forstmt->to);
+	
+	if(!is_integral_type(forstmt->from->type)) {
+		fatal_at(
+			forstmt->from->start, "start expression must be of integral type"
+		);
+	}
+	
+	if(!is_integral_type(forstmt->to->type)) {
+		fatal_at(
+			forstmt->to->start, "end expression must be of integral type"
+		);
+	}
+	
+	a_block(forstmt->body);
+}
+
 static void a_assign(Assign *assign)
 {
 	a_expr(assign->target);
@@ -546,6 +566,13 @@ static void a_stmt(Stmt *stmt)
 			a_expr(stmt->as_if.cond);
 			a_block(stmt->as_if.if_body);
 			if(stmt->as_if.else_body) a_block(stmt->as_if.else_body);
+			break;
+		case WHILE:
+			a_expr(stmt->as_while.cond);
+			a_block(stmt->as_while.body);
+			break;
+		case FOR:
+			a_for(&stmt->as_for);
 			break;
 		case ASSIGN:
 			a_assign(&stmt->as_assign);

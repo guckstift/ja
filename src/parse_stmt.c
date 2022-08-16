@@ -729,17 +729,11 @@ static Stmt *p_for()
 		from = p_expr();
 		if(!from) fatal_at(last, "expected start value after =");
 		
-		if(!is_integral_type(from->type))
-			fatal_at(last, "start expression must be of integral type");
-		
 		if(!eat(TK_DOTDOT))
 			fatal_after(last, "expected .. after start expression");
 		
 		to = p_expr();
 		if(!to) fatal_at(last, "expected end value after ..");
-		
-		if(!is_integral_type(to->type))
-			fatal_at(last, "end expression must be of integral type");
 		
 		itemtype = from->type;
 	}

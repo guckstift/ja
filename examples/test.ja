@@ -1,4 +1,4 @@
-var x = 5;
-var y = -x;
-var z = -(9 + 1);
-print - - x;
+var x = 10;
+
+for i = 0 .. x {
+}
