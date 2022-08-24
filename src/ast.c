@@ -3,6 +3,7 @@
 #include "ast.h"
 #include "array.h"
 #include "string.h"
+#include "print.h"
 
 #include <stdio.h>
 

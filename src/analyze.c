@@ -532,7 +532,6 @@ static void a_for(For *forstmt)
 
 static void a_foreach(ForEach *foreach)
 {
-	Expr *array = foreach->array;
 	a_expr(foreach->array);
 	
 	while(foreach->array->type->kind == PTR) {
@@ -543,7 +542,7 @@ static void a_foreach(ForEach *foreach)
 		fatal_at(foreach->array->start, "expected iterable of type array");
 	}
 	
-	foreach->iter->type = array->type->itemtype;
+	foreach->iter->type = foreach->array->type->itemtype;
 	a_block(foreach->body);
 }
 

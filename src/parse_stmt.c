@@ -726,12 +726,11 @@ static Stmt *p_for()
 		error_at(cur, "expected 'in' or '=' after iterator");
 	}
 	
-	Decl *iter = new_var(iter_name, scope, iter_name->id, 0, 0, 0, 0);
-	
 	if(!eat(TK_LCURLY))
 		fatal_after(last, "expected { after for-in-head");
 	
 	enter();
+	Decl *iter = new_var(iter_name, scope, iter_name->id, 0, 0, 0, 0);
 	declare(iter);
 	Scope *blockscope = leave();
 	

@@ -42,6 +42,10 @@ void ja_vfprintf(FILE *fs, char *msg, va_list args)
 				msg++;
 				fprintf(fs, "%s", va_arg(args, char*));
 			}
+			else if(*msg == 'p') {
+				msg++;
+				fprintf(fs, "%p", va_arg(args, void*));
+			}
 			else if(*msg == 't') {
 				msg++;
 				Token *token = va_arg(args, Token*);
