@@ -32,16 +32,7 @@ static Type *p_nametype()
 {
 	Token *ident = eat(TK_IDENT);
 	if(!ident) return 0;
-	
-	Decl *decl = lookup(ident->id);
-	
-	if(!decl)
-		fatal_at(ident, "name %t not declared", ident);
-	
-	if(decl->kind != STRUCT && decl->kind != ENUM && decl->kind != UNION)
-		fatal_at(ident, "%t is not a structure, union or enum", ident);
-	
-	return decl->type;
+	return new_named_type(ident->id);
 }
 
 static Type *p_ptrtype()

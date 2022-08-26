@@ -10,6 +10,22 @@ static bool repeat_analyze = false;
 static void a_block(Block *block);
 static void a_expr(Expr *expr);
 
+static Type *a_type(Type *type)
+{
+	if(type->kind == NAMED) {
+		Token *id = type->id;
+		Decl *decl = lookup(id);
+		
+		if(!decl)
+			fatal_at(id, "type name %t not declared", id);
+		
+		if(decl->kind != STRUCT && decl->kind != ENUM && decl->kind != UNION)
+			fatal_at(id, "%t is not a structure, union or enum", id);
+		
+		return decl->type;
+	}
+}
+
 static void eval_integral_cast(Expr *expr, Type *type)
 {
 	expr->type = type;
@@ -497,6 +513,8 @@ static void a_vardecl(Decl *decl)
 		else
 			decl->init = adjust_expr_to_type(decl->init, decl->type, false);
 	}
+	
+	decl->type = a_type(decl->type);
 }
 
 static void a_funcdecl(Decl *decl)

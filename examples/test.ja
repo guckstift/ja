@@ -1,4 +1,7 @@
+var x : Foo;
+
 struct Foo {
 	x : int;
-	#y = 9;
 }
+
+var y : Foo;

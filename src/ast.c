@@ -107,6 +107,13 @@ Type *new_union_type(Decl *decl)
 	return type;
 }
 
+Type *new_named_type(Token *id)
+{
+	Type *type = new_type(NAMED);
+	type->id = id;
+	return type;
+}
+
 int type_equ(Type *left, Type *right)
 {
 	if(left->kind == PTR && right->kind == PTR) {

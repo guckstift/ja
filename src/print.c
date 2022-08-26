@@ -380,6 +380,10 @@ static void fprint_type(FILE *fs, Type *type)
 		case UNION:
 			fprint_ident(fs, type->decl->id);
 			break;
+		case NAMED:
+			fprint_ident(fs, type->id);
+			fprintf(fs, "?");
+			break;
 	}
 }
 

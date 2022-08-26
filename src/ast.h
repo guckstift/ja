@@ -58,6 +58,7 @@ typedef enum {
 	STRUCT,
 	ENUM,
 	UNION,
+	NAMED,
 	
 	// expressions
 	VAR,
@@ -106,6 +107,7 @@ struct Type {
 		Type *subtype; // ptr target type
 		Type *itemtype; // array item type
 		Type *returntype; // func return type
+		Token *id; // named type
 	};
 	
 	union {
@@ -123,6 +125,7 @@ Type *new_func_type(Type *returntype, Type **paramtypes);
 Type *new_struct_type(Decl *decl);
 Type *new_enum_type(Decl *decl);
 Type *new_union_type(Decl *decl);
+Type *new_named_type(Token *id);
 
 int type_equ(Type *left, Type *right);
 int is_integer_type(Type *type);
