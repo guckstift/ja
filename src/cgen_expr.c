@@ -127,22 +127,10 @@ static void gen_args(Expr **exprs)
 		Type *type = expr->type;
 		
 		if(type->kind == ARRAY) {
-			if(expr->kind == ARRAY) {
-				array_for(expr->items, j) {
-					Expr *item = expr->items[j];
-					if(j > 0) write(", ");
-					write("%e", item);
-				}
-			}
-			else {
-				for(int64_t j=0; j < type->length; j++) {
-					if(j > 0) write(", ");
-					write("%e[%i]", expr, j);
-				}
-			}
+			write("(&%e)", expr);
 		}
 		else {
-			gen_expr(exprs[i]);
+			gen_expr(expr);
 		}
 	}
 }

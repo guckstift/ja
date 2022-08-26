@@ -1,20 +1,10 @@
-var y = [1,2,3];
-
-for i in y {
-	print i;
-}
-
-/*
-var a = 0;
-var b = 10;
-
-for i = a .. b {
+function foo(x : [3]int, y : >[3]int)
+{
+	x[0] = x[0] * 2;
+	print x;
 }
 
 var x = [1,2,3];
-var y = >x;
-
-for i in y {
-	print i;
-}
-*/
+foo([2,4,7], >x);
+foo(x, >x);
+print x;

@@ -483,16 +483,7 @@ static void gen_params(Decl **params)
 		if(i > 0) write(", ");
 		
 		if(type->kind == ARRAY) {
-			Type *itemtype = type->itemtype;
-			
-			for(int64_t j=0; j < type->length; j++) {
-				if(j > 0) write(", ");
-				
-				write(
-					"%y ap%i_%t%z",
-					itemtype, j, param->id, itemtype
-				);
-			}
+			write("%y (*ap_%t)%z", type, param->id, type);
 		}
 		else {
 			write("%y %s%z", type, param->private_id, type);
@@ -509,14 +500,12 @@ static void gen_array_param_decls(Decl **params)
 		Type *type = param->type;
 		
 		if(type->kind == ARRAY) {
-			write("%>%y %s%z = {", type, param->private_id, type);
+			write("%>%y %s%z;\n", type, param->private_id, type);
 			
-			for(int64_t j=0; j < type->length; j++) {
-				if(j > 0) write(", ");
-				write("ap%i_%t", j, param->id);
-			}
-			
-			write("};\n");
+			write(
+				"%>memcpy(%s, ap_%t, sizeof(%Y) * %i);\n",
+				param->private_id, param->id, type->itemtype, type->length
+			);
 		}
 	}
 	
