@@ -300,13 +300,25 @@ static void gen_return(Return *returnstmt)
 	if(returnstmt->expr) {
 		Expr *result = returnstmt->expr;
 		Type *type = result->type;
+		
 		if(type->kind == ARRAY) {
+			Token *funcid = returnstmt->scope->funchost->id;
+			
 			if(result->kind == ARRAY) {
+				write("%>return (rt_%I){.a = %E};\n", funcid, result);
+			}
+			else {
+				write("%>{\n");
+				level++;
+				write("%>rt_%I result;\n", funcid);
+				
 				write(
-					"%>return (rt%I){%E};\n",
-					returnstmt->scope->funchost->id,
-					result
+					"%>memcpy(&result, %E, sizeof(rt_%I));\n", result, funcid
 				);
+				
+				write("%>return result;\n");
+				level--;
+				write("%>}\n");
 			}
 		}
 		else {

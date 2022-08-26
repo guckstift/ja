@@ -36,7 +36,7 @@ static void error(char *msg, ...)
 static char *idfy(char *input)
 {
 	uint64_t len = strlen(input);
-	uint64_t olen = len * 4 + 1 + 2;
+	uint64_t olen = len * 4 + 2 + 1;
 	char *output = malloc(olen);
 	char *ip = input;
 	char *op = output;
