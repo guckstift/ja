@@ -1,6 +1,4 @@
-function foo() : [2][2]int
-{
-	return [[1,2], [3,4]];
+struct Foo {
+	x : int;
+	#y = 9;
 }
-
-print foo();

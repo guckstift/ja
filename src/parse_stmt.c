@@ -292,8 +292,12 @@ static Stmt *p_structdecl(int exported)
 	enter();
 	
 	while(1) {
-		Decl *member = &p_vardecl(0, 0)->as_decl;
+		Decl *member = &p_vardecl_core(0, 0, 0, 0)->as_decl;
 		if(!member) break;
+		
+		if(!eat(TK_SEMICOLON))
+			error_after(last, "expected semicolon after struct member");
+		
 		array_push(members, member);
 		// if(exported) make_type_exportable(member->type);
 	}
