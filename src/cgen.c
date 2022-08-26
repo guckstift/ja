@@ -4,6 +4,7 @@
 #include "ast.h"
 #include "cgen_internal.h"
 #include "array.h"
+#include "string.h"
 
 #define INDENT      "    "
 #define COL_YELLOW  "\x1b[38;2;255;255;0m"
@@ -37,8 +38,12 @@ static Decl *gen_temp_var(Scope *scope, Type *type, Expr *init)
 	char buf[256] = {0};
 	int64_t len = sprintf(buf, "tmp%lu", counter);
 	counter++;
-	Token *id = create_id(buf, len);
+	char *start = malloc(len + 1);
+	strcpy(start, buf);
+	Token *id = create_id(start, len);
 	Decl *decl = new_var(id, scope, id, 0, 0, type, init);
+	decl->private_id = 0;
+	string_append_token(decl->private_id, id);
 	return decl;
 }
 
@@ -240,31 +245,18 @@ static void gen_print(Scope *scope, Expr *expr, int repr)
 			}
 		}
 		else if(expr->type->length >= 0) {
-			write("%>{\n");
-			level++;
+			Type *type = expr->type;
+			Decl *val_tmp = gen_temp_var(scope, type, expr);
+			Expr *val_tmp_var = new_var_expr(val_tmp->start, val_tmp);
+			write("%>%y %s%z;\n", type, val_tmp->private_id, type);
+			gen_assign(val_tmp_var, expr);
 			
-			/*
-			Decl *print_val = gen_temp_var(scope, expr->type, expr);
-			// gen_var_decl
-			gen_vardecl_stmt(print_val);
-			
-			/*
-			write(
-				"%>memcpy(&print_val, %e, sizeof(%Y));\n", expr, expr->type
-			);
-			
-			for(int64_t i=0; i < expr->type->length; i++) {
+			for(int64_t i=0; i < type->length; i++) {
 				if(i > 0) write("%>printf(\", \");\n");
-				// TODO: print the items of the array expression
-				/*gen_print(
-					new_subscript_expr(expr, new_int_expr(expr->start, i)),
-					1
-				);
+				Expr *index = new_int_expr(val_tmp_var->start, i);
+				Expr *item = new_subscript_expr(val_tmp_var, index);
+				gen_print(scope, item, 1);
 			}
-			*/
-			
-			level--;
-			write("%>}\n");
 		}
 		
 		write("%>printf(\"]\");\n");

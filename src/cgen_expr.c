@@ -238,7 +238,7 @@ void gen_expr(Expr *expr)
 			gen_string(expr);
 			break;
 		case VAR:
-			write("%I", expr->decl->id);
+			write("%s", expr->decl->private_id);
 			break;
 		case PTR:
 			write("(&%e)", expr->subexpr);

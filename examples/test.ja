@@ -6,8 +6,10 @@ function foo() : [3]int
 	return <y;
 }
 
-function test()
-{
+print [1,2,3];
+print foo();
+
+if 1 {
 	print [1,2,3];
 	print foo();
 }
