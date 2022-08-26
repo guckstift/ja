@@ -369,14 +369,10 @@ Decl *new_decl(
 	Kind kind, Token *start, Scope *scope, Token *id, int exported,
 	Type *type
 ) {
-	char *private_id = 0;
-	string_append(private_id, "ja_");
+	char *private_id = string_clone("ja_");
 	string_append_token(private_id, id);
 	
-	char *public_id = 0;
-	string_append(public_id, "_");
-	string_append(public_id, scope->unit_id);
-	string_append(public_id, "_");
+	char *public_id = string_concat("_", scope->unit_id, "_", 0);
 	string_append_token(public_id, id);
 		
 	Decl *decl = &new_stmt(kind, start, scope)->as_decl;

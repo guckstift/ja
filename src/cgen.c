@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <inttypes.h>
+#include "ast.h"
 #include "cgen_internal.h"
 #include "array.h"
 
@@ -17,6 +18,7 @@ static void gen_block(Block *block);
 static void gen_stmts(Stmt **stmts);
 static void gen_vardecls(Decl **decls);
 static void gen_vardecl(Decl *decl);
+static void gen_vardecl_stmt(Decl *decl);
 static void gen_stmt(Stmt *stmt, int noindent);
 
 int is_in_header()
@@ -27,6 +29,17 @@ int is_in_header()
 Unit *get_cur_unit()
 {
 	return cur_unit;
+}
+
+static Decl *gen_temp_var(Scope *scope, Type *type, Expr *init)
+{
+	static int64_t counter = 0;
+	char buf[256] = {0};
+	int64_t len = sprintf(buf, "tmp%lu", counter);
+	counter++;
+	Token *id = create_id(buf, len);
+	Decl *decl = new_var(id, scope, id, 0, 0, type, init);
+	return decl;
 }
 
 static void gen_mainfuncname(Unit *unit)
@@ -41,6 +54,24 @@ static void gen_mainfunchead(Unit *unit)
 	write("(int argc, char **argv)");
 }
 
+/*
+	format specifiers:
+		%% - literal %
+		%> - indentation of the current level
+		%c - byte character
+		%s - null terminated char*
+		%t - Token*
+		%y - prefix of a Type*
+		%z - postfix of a Type*
+		%Y - complete Type*
+		%e - Expr*
+		%E - init Expr*
+		%S - a char* string followed by a int64_t length
+		%I - ja_ identifier Token*
+		%X - _<unit-id>_ prefixed Token*
+		%i - signed 64 bit integer
+		%u - unsigned 64 bit integer
+*/
 void write(char *msg, ...)
 {
 	va_list args;
@@ -152,7 +183,7 @@ static void gen_assign(Expr *target, Expr *expr)
 	}
 }
 
-static void gen_print(Expr *expr, int repr)
+static void gen_print(Scope *scope, Expr *expr, int repr)
 {
 	if(expr->type->kind == PTR) {
 		if(is_dynarray_ptr_type(expr->type)) {
@@ -167,7 +198,7 @@ static void gen_print(Expr *expr, int repr)
 		);
 		
 		level ++;
-		gen_print(new_deref_expr(expr->start, expr), 1);
+		gen_print(scope, new_deref_expr(expr->start, expr), 1);
 		level --;
 		
 		write(
@@ -205,17 +236,35 @@ static void gen_print(Expr *expr, int repr)
 			array_for(expr->items, i) {
 				if(i > 0) write("%>printf(\", \");\n");
 				Expr *item = expr->items[i];
-				gen_print(item, 1);
+				gen_print(scope, item, 1);
 			}
 		}
 		else if(expr->type->length >= 0) {
+			write("%>{\n");
+			level++;
+			
+			/*
+			Decl *print_val = gen_temp_var(scope, expr->type, expr);
+			// gen_var_decl
+			gen_vardecl_stmt(print_val);
+			
+			/*
+			write(
+				"%>memcpy(&print_val, %e, sizeof(%Y));\n", expr, expr->type
+			);
+			
 			for(int64_t i=0; i < expr->type->length; i++) {
 				if(i > 0) write("%>printf(\", \");\n");
-				gen_print(
+				// TODO: print the items of the array expression
+				/*gen_print(
 					new_subscript_expr(expr, new_int_expr(expr->start, i)),
 					1
 				);
 			}
+			*/
+			
+			level--;
+			write("%>}\n");
 		}
 		
 		write("%>printf(\"]\");\n");
@@ -313,7 +362,7 @@ static void gen_return(Return *returnstmt)
 				write("%>rt_%I result;\n", funcid);
 				
 				write(
-					"%>memcpy(&result, %E, sizeof(rt_%I));\n", result, funcid
+					"%>memcpy(&result, %e, sizeof(rt_%I));\n", result, funcid
 				);
 				
 				write("%>return result;\n");
@@ -335,6 +384,11 @@ static void gen_vardecl_stmt(Decl *decl)
 	if(decl->scope->parent) {
 		// local var
 		gen_vardecl(decl);
+		Expr *init = decl->init;
+
+		if(init && init->isconst == 0 && init->type->kind == ARRAY) {
+			gen_assign(new_var_expr(decl->start, decl), init);
+		}
 	}
 	else {
 		// global var
@@ -417,7 +471,7 @@ static void gen_stmt(Stmt *stmt, int noindent)
 {
 	switch(stmt->kind) {
 		case PRINT:
-			gen_print(stmt->as_print.expr, 0);
+			gen_print(stmt->scope, stmt->as_print.expr, 0);
 			write("%>printf(\"\\n\");\n");
 			break;
 		case VAR:
@@ -575,7 +629,10 @@ void gen_vardecl_init(Decl *decl, int struct_inst_member)
 		return;
 	
 	if(decl->init) {
-		if(decl->init->isconst || decl->scope->parent) {
+		if(
+			decl->init->isconst ||
+			(decl->scope->parent && decl->init->type->kind != ARRAY)
+		) {
 			write(" = ");
 			gen_init_expr(decl->init);
 		}

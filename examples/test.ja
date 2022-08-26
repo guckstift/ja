@@ -6,4 +6,18 @@ function foo() : [3]int
 	return <y;
 }
 
-print foo();
+function test()
+{
+	print [1,2,3];
+	print foo();
+}
+
+/*
+var a = [1,2,3];
+var x = a;
+
+if 1 {
+	var a = [1,2,3];
+	var x = a;
+}
+*/
