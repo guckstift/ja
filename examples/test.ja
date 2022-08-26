@@ -1,3 +1,7 @@
+function foo(x : Foo)
+{
+}
+
 var x : Foo;
 
 struct Foo {

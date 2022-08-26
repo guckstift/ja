@@ -12,17 +12,24 @@ static void a_expr(Expr *expr);
 
 static Type *a_type(Type *type)
 {
-	if(type->kind == NAMED) {
-		Token *id = type->id;
-		Decl *decl = lookup(id);
-		
-		if(!decl)
-			fatal_at(id, "type name %t not declared", id);
-		
-		if(decl->kind != STRUCT && decl->kind != ENUM && decl->kind != UNION)
-			fatal_at(id, "%t is not a structure, union or enum", id);
-		
-		return decl->type;
+	switch(type->kind) {
+		case NAMED:
+			Token *id = type->id;
+			Decl *decl = lookup(id);
+			
+			if(!decl)
+				fatal_at(id, "type name %t not declared", id);
+			
+			if(
+				decl->kind != STRUCT && decl->kind != ENUM &&
+				decl->kind != UNION
+			) {
+				fatal_at(id, "%t is not a structure, union or enum", id);
+			}
+			
+			return decl->type;
+		default:
+			return type;
 	}
 }
 
@@ -519,6 +526,11 @@ static void a_vardecl(Decl *decl)
 
 static void a_funcdecl(Decl *decl)
 {
+	array_for(decl->params, i) {
+		Decl *param = decl->params[i];
+		param->type = a_type(param->type);
+	}
+	
 	a_block(decl->body);
 	
 	if(decl->deps_scanned == 0) {
