@@ -1,4 +1,4 @@
-function foo(x : Foo)
+function foo(x : Foo) : Foo
 {
 }
 

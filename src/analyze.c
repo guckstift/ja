@@ -13,7 +13,7 @@ static void a_expr(Expr *expr);
 static Type *a_type(Type *type)
 {
 	switch(type->kind) {
-		case NAMED:
+		case NAMED: {
 			Token *id = type->id;
 			Decl *decl = lookup(id);
 			
@@ -28,6 +28,7 @@ static Type *a_type(Type *type)
 			}
 			
 			return decl->type;
+		}
 		default:
 			return type;
 	}
@@ -531,6 +532,7 @@ static void a_funcdecl(Decl *decl)
 		param->type = a_type(param->type);
 	}
 	
+	decl->type->returntype = a_type(decl->type->returntype);
 	a_block(decl->body);
 	
 	if(decl->deps_scanned == 0) {
