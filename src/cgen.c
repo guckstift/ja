@@ -694,7 +694,7 @@ static void gen_enumdecl(Decl *decl)
 		write("%>} %s;\n", decl->private_id);
 }
 
-static void gen_structdecl(Decl *decl)
+static void gen_structdecl_typedef(Decl *decl)
 {
 	if(decl->imported)
 		return;
@@ -708,18 +708,43 @@ static void gen_structdecl(Decl *decl)
 		return;
 	
 	if(decl->kind == STRUCT)
-		write("%>typedef struct {\n");
+		write("%>typedef struct ");
 	else if(decl->kind == UNION)
-		write("%>typedef union {\n");
+		write("%>typedef union ");
+	
+	if(in_header)
+		write("%s %s;\n", decl->public_id, decl->public_id);
+	else
+		write("%s %s;\n", decl->private_id, decl->private_id);
+}
+
+static void gen_structdecl(Decl *decl)
+{
+	if(decl->imported)
+		return;
+	
+	if(!in_header && decl->exported) {
+		return;
+	}
+	
+	if(in_header && !decl->exported)
+		return;
+	
+	if(decl->kind == STRUCT)
+		write("%>struct ");
+	else if(decl->kind == UNION)
+		write("%>union ");
+	
+	if(in_header)
+		write("%s {\n", decl->public_id);
+	else
+		write("%s {\n", decl->private_id);
 	
 	level ++;
 	gen_vardecls(decl->members);
 	level --;
 	
-	if(in_header)
-		write("%>} %s;\n", decl->public_id);
-	else
-		write("%>} %s;\n", decl->private_id);
+	write("%>};\n");
 }
 
 static void gen_funcproto(Decl *decl)
@@ -799,6 +824,12 @@ static void gen_enumdecls(Decl **decls)
 
 static void gen_structdecls(Decl **decls)
 {
+	array_for(decls, i) {
+		if(decls[i]->kind == STRUCT || decls[i]->kind == UNION) {
+			gen_structdecl_typedef(decls[i]);
+		}
+	}
+
 	array_for(decls, i) {
 		if(decls[i]->kind == STRUCT || decls[i]->kind == UNION) {
 			gen_structdecl(decls[i]);

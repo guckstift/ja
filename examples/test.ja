@@ -1,7 +1,11 @@
-struct Foo {
-	x : Bar;
+function foo(x : Foo) : Bar
+{
 }
 
 struct Bar {
-	y = 0;
+	y : >Foo;
+}
+
+struct Foo {
+	x : >Bar;
 }
