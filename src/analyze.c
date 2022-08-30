@@ -237,15 +237,20 @@ static void a_var(Expr *expr)
 		}
 	}
 	
-	if(decl->kind == FUNC && decl->deps_scanned) {
-		array_for(decl->deps, i) {
-			Decl *dep = decl->deps[i];
-			
-			if(dep->start > expr->start) {
-				fatal_at(
-					expr->start, "%t uses %t which is declared later",
-					expr->id, dep->id
-				);
+	if(decl->kind == FUNC) {
+		if(decl->deps_scanned == 0) {
+			repeat_analyze = true;
+		}
+		else {
+			array_for(decl->deps, i) {
+				Decl *dep = decl->deps[i];
+				
+				if(dep->start > expr->start) {
+					fatal_at(
+						expr->start, "%t uses %t which is declared later",
+						expr->id, dep->id
+					);
+				}
 			}
 		}
 	}
@@ -540,11 +545,7 @@ static void a_funcdecl(Decl *decl)
 	
 	decl->type->returntype = a_type(decl->type->returntype);
 	a_block(decl->body);
-	
-	if(decl->deps_scanned == 0) {
-		decl->deps_scanned = 1;
-		repeat_analyze = true;
-	}
+	decl->deps_scanned = 1;
 }
 
 static void a_structdecl(Decl *decl)

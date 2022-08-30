@@ -1,11 +1,11 @@
-function foo(x : Foo) : Bar
+
+
+var x = 0;
+
+function foo()
 {
+	print x;
 }
 
-struct Bar {
-	y : >Foo;
-}
+foo();
 
-struct Foo {
-	x : >Bar;
-}
