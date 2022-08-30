@@ -2,7 +2,8 @@ function foo(x : Foo) : Foo
 {
 }
 
-var x : Foo;
+var x : >Foo;
+var z : [2]Foo;
 
 struct Foo {
 	x : int;

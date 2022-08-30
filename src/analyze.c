@@ -29,9 +29,14 @@ static Type *a_type(Type *type)
 			
 			return decl->type;
 		}
-		default:
-			return type;
+		case PTR:
+			type->subtype = a_type(type->subtype);
+			break;
+		case ARRAY:
+			type->itemtype = a_type(type->itemtype);
 	}
+	
+	return type;
 }
 
 static void eval_integral_cast(Expr *expr, Type *type)
