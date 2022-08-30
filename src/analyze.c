@@ -34,6 +34,7 @@ static Type *a_type(Type *type)
 			break;
 		case ARRAY:
 			type->itemtype = a_type(type->itemtype);
+			break;
 	}
 	
 	return type;
@@ -546,6 +547,14 @@ static void a_funcdecl(Decl *decl)
 	}
 }
 
+static void a_structdecl(Decl *decl)
+{
+	array_for(decl->members, i) {
+		Decl *member = decl->members[i];
+		a_vardecl(member);
+	}
+}
+
 static void a_for(For *forstmt)
 {
 	a_expr(forstmt->from);
@@ -615,6 +624,9 @@ static void a_stmt(Stmt *stmt)
 			break;
 		case FUNC:
 			a_funcdecl(&stmt->as_decl);
+			break;
+		case STRUCT:
+			a_structdecl(&stmt->as_decl);
 			break;
 		case IF:
 			a_expr(stmt->as_if.cond);
