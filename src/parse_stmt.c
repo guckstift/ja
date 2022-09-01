@@ -271,6 +271,7 @@ static Stmt *p_funcdecl(int exported, int dll)
 			fatal_after(last, "expected } after function body");
 	}
 	
+	decl->end = cur;
 	return (Stmt*)decl;
 }
 
@@ -316,6 +317,7 @@ static Stmt *p_structdecl(int exported)
 		fatal_at(ident, "name %t already declared", ident);
 	
 	struct_scope->structhost = decl;
+	decl->end = cur;
 	return (Stmt*)decl;
 }
 
@@ -382,6 +384,7 @@ static Stmt *p_enumdecl(int exported)
 	if(!declare(decl))
 		fatal_at(ident, "name %t already declared", ident);
 	
+	decl->end = cur;
 	return (Stmt*)decl;
 }
 
@@ -423,6 +426,7 @@ static Stmt *p_uniondecl(int exported)
 		fatal_at(ident, "name %t already declared", ident);
 	
 	struct_scope->structhost = decl;
+	decl->end = cur;
 	return (Stmt*)decl;
 }
 

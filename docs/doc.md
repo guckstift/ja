@@ -5,8 +5,8 @@
 	  declaration
 	* when a function uses a variable from an outer scope, all occurrences of
 	  the function name must appear after the variable declaration
-	* a named type can be used before its declaration, but only as the target
-	  type of a pointer type
+	* a named type can be used before or inside its own declaration, but only
+	  as the target type of a pointer type
 */
 
 var y = x; # error: x is declared later

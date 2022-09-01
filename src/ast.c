@@ -58,9 +58,10 @@ Type *new_array_type(int64_t length, Type *itemtype)
 		
 		if(length == -1 && itemkind < _PRIMKIND_COUNT) {
 			if(primarraytypebuf[itemkind] == 0) {
-				primarraytypebuf[itemkind] = new_type(ARRAY);
-				primarraytypebuf[itemkind]->itemtype = new_type(itemkind);
-				primarraytypebuf[itemkind]->length = -1;
+				Type *type = new_type(ARRAY);
+				type->itemtype = new_type(itemkind);
+				type->length = -1;
+				primarraytypebuf[itemkind] = type;
 			}
 			
 			return primarraytypebuf[itemkind];

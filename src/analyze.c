@@ -10,34 +10,38 @@ static bool repeat_analyze = false;
 static void a_block(Block *block);
 static void a_expr(Expr *expr);
 
-static Type *a_named_type(Type *type)
+static Type *a_named_type(Type *type, Token *start, int is_subtype_of_ptr)
 {
 	Token *id = type->id;
 	Decl *decl = lookup(id);
 	
 	if(!decl)
-		fatal_at(id, "type name %t not declared", id);
+		fatal_at(start, "type name %t not declared", id);
 	
 	if(
 		decl->kind != STRUCT && decl->kind != ENUM &&
 		decl->kind != UNION
 	) {
-		fatal_at(id, "%t is not a structure, union or enum", id);
+		fatal_at(start, "%t is not a structure, union or enum", id);
+	}
+	
+	if(is_subtype_of_ptr == 0 && decl->end > start) {
+		fatal_at(start, "type %t not declared yet", id);
 	}
 	
 	return decl->type;
 }
 
-static Type *a_type(Type *type)
+static Type *a_type(Type *type, Token *start, int is_subtype_of_ptr)
 {
 	switch(type->kind) {
 		case NAMED:
-			return a_named_type(type);
+			return a_named_type(type, start, is_subtype_of_ptr);
 		case PTR:
-			type->subtype = a_type(type->subtype);
+			type->subtype = a_type(type->subtype, start, 1);
 			break;
 		case ARRAY:
-			type->itemtype = a_type(type->itemtype);
+			type->itemtype = a_type(type->itemtype, start, 0);
 			break;
 	}
 	
@@ -293,8 +297,6 @@ static void a_subscript(Expr *expr)
 	Expr *index = expr->index;
 	a_expr(array);
 	a_expr(index);
-
-	a_expr(expr->subexpr);
 	
 	while(expr->array->type->kind == PTR) {
 		expr->array = new_deref_expr(expr->array->start, expr->array);
@@ -537,17 +539,17 @@ static void a_vardecl(Decl *decl)
 			decl->init = adjust_expr_to_type(decl->init, decl->type, false);
 	}
 	
-	decl->type = a_type(decl->type);
+	decl->type = a_type(decl->type, decl->start, 0);
 }
 
 static void a_funcdecl(Decl *decl)
 {
 	array_for(decl->params, i) {
 		Decl *param = decl->params[i];
-		param->type = a_type(param->type);
+		param->type = a_type(param->type, param->start, 0);
 	}
 	
-	decl->type->returntype = a_type(decl->type->returntype);
+	decl->type->returntype = a_type(decl->type->returntype, decl->start, 0);
 	a_block(decl->body);
 	decl->deps_scanned = 1;
 }

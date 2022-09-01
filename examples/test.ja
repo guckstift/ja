@@ -1,12 +1,7 @@
-
-var x = x;
-
-/*
 struct Bar {
-	y : >[2]Foo;
+	y : >Foo;
 }
 
 struct Foo {
-	x : >[2]Bar;
+	x : >Foo;
 }
-*/
