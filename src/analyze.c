@@ -253,9 +253,9 @@ static void a_var(Expr *expr)
 			array_for(decl->deps, i) {
 				Decl *dep = decl->deps[i];
 				
-				if(dep->start > expr->start) {
+				if(dep->end > expr->start) {
 					fatal_at(
-						expr->start, "%t uses %t which is declared later",
+						expr->start, "%t uses %t which is not declared yet",
 						expr->id, dep->id
 					);
 				}

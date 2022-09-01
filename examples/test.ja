@@ -1,7 +1,7 @@
-struct Bar {
-	y : >Foo;
-}
+var x = foo();
 
-struct Foo {
-	x : >Foo;
+function foo() : int
+{
+	print x;
+	return x + 1;
 }
