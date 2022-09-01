@@ -138,6 +138,7 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 	if(!declare(decl))
 		fatal_at(ident, "name %t already declared", ident);
 	
+	decl->end = cur;
 	return (Stmt*)decl;
 }
 

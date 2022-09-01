@@ -208,6 +208,7 @@ Expr *new_enum_item_expr(Token *start, Decl *enumdecl, EnumItem *item);
 #define STMT_HEAD \
 	Kind kind; \
 	Token *start; \
+	Token *end; \
 	Scope *scope; \
 
 /*

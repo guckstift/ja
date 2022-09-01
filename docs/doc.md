@@ -1,9 +1,12 @@
 /*
-	* a variable's name must not be used before its declaration
+	* a variable's name must not be used before or in the initializer of its
+	  own declaration
 	* a function name or a type name however is allowed to be used before its
 	  declaration
 	* when a function uses a variable from an outer scope, all occurrences of
 	  the function name must appear after the variable declaration
+	* a named type can be used before its declaration, but only as the target
+	  type of a pointer type
 */
 
 var y = x; # error: x is declared later

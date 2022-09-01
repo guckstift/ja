@@ -462,6 +462,7 @@ Stmt *new_stmt(Kind kind, Token *start, Scope *scope)
 	Stmt *stmt = malloc(sizeof(Stmt));
 	stmt->kind = kind;
 	stmt->start = start;
+	stmt->end = start;
 	stmt->scope = scope;
 	return stmt;
 }

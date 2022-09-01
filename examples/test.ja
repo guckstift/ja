@@ -1,11 +1,12 @@
 
+var x = x;
 
-var x = 0;
-
-function foo()
-{
-	print x;
+/*
+struct Bar {
+	y : >[2]Foo;
 }
 
-foo();
-
+struct Foo {
+	x : >[2]Bar;
+}
+*/

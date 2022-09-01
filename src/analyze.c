@@ -10,25 +10,29 @@ static bool repeat_analyze = false;
 static void a_block(Block *block);
 static void a_expr(Expr *expr);
 
+static Type *a_named_type(Type *type)
+{
+	Token *id = type->id;
+	Decl *decl = lookup(id);
+	
+	if(!decl)
+		fatal_at(id, "type name %t not declared", id);
+	
+	if(
+		decl->kind != STRUCT && decl->kind != ENUM &&
+		decl->kind != UNION
+	) {
+		fatal_at(id, "%t is not a structure, union or enum", id);
+	}
+	
+	return decl->type;
+}
+
 static Type *a_type(Type *type)
 {
 	switch(type->kind) {
-		case NAMED: {
-			Token *id = type->id;
-			Decl *decl = lookup(id);
-			
-			if(!decl)
-				fatal_at(id, "type name %t not declared", id);
-			
-			if(
-				decl->kind != STRUCT && decl->kind != ENUM &&
-				decl->kind != UNION
-			) {
-				fatal_at(id, "%t is not a structure, union or enum", id);
-			}
-			
-			return decl->type;
-		}
+		case NAMED:
+			return a_named_type(type);
 		case PTR:
 			type->subtype = a_type(type->subtype);
 			break;
@@ -221,8 +225,8 @@ static void a_var(Expr *expr)
 	if(!decl)
 		fatal_at(expr->start, "name %t not declared", expr->id);
 	
-	if(decl->kind == VAR && decl->start > expr->start)
-		fatal_at(expr->start, "variable %t declared later", expr->id);
+	if(decl->kind == VAR && decl->end > expr->start)
+		fatal_at(expr->start, "variable %t not declared yet", expr->id);
 	
 	if(decl->kind == VAR && scope->funchost) {
 		Decl *func = scope->funchost;
