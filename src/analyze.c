@@ -676,6 +676,10 @@ static void a_foreach(ForEach *foreach)
 static void a_assign(Assign *assign)
 {
 	a_expr(assign->target);
+	
+	if(!assign->target->islvalue)
+		fatal_at(assign->target->start, "left side is not assignable");
+	
 	a_expr(assign->expr);
 	
 	assign->expr = adjust_expr_to_type(

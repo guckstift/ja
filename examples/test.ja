@@ -1,2 +1,2 @@
 var x = [1,2,3];#"Hello";
-print x.length;
+x.length = 9;

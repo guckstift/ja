@@ -657,9 +657,6 @@ static Stmt *p_assign()
 		return (Stmt*)new_call(scope, target);
 	}
 	
-	if(!target->islvalue)
-		fatal_at(target->start, "left side is not assignable");
-	
 	if(!eat(TK_ASSIGN))
 		fatal_after(last, "expected = after left side");
 	
