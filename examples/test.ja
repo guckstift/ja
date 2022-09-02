@@ -3,5 +3,6 @@ enum Foo {
 	BAR
 }
 
-var x = Foo.FOO;
-x = Foo.BAR;
+var f = Foo.FOO;
+
+print f == Foo.FOO;

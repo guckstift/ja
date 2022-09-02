@@ -354,9 +354,10 @@ static void a_binop(Expr *expr)
 	Token *operator = expr->operator;
 	OpLevel level = expr->oplevel;
 	bool found_match = false;
+	bool types_equal = type_equ(ltype, rtype);
 	
 	if(level == OL_OR || level == OL_AND) {
-		if(!type_equ(ltype, rtype)) {
+		if(!types_equal) {
 			fatal_at(
 				operator, "types must be the same for operator %t", operator
 			);
@@ -385,12 +386,27 @@ static void a_binop(Expr *expr)
 		expr->type = new_type(BOOL);
 		found_match = true;
 	}
+	else if(
+		ltype->kind == ENUM && rtype->kind == ENUM && types_equal &&
+		operator->kind == TK_EQUALS
+	) {
+		expr->type = new_type(BOOL);
+		found_match = true;
+	}
 	
 	if(!found_match) {
-		fatal_at(
-			operator, "can not use types  %y  and  %y  with operator %t",
-			ltype, rtype, operator
-		);
+		if(types_equal) {
+			fatal_at(
+				operator, "can not use type  %y  with operator %t",
+				ltype, operator
+			);
+		}
+		else {
+			fatal_at(
+				operator, "can not use types  %y  and  %y  with operator %t",
+				ltype, rtype, operator
+			);
+		}
 	}
 	
 	if(expr->isconst)
