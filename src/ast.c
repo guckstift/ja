@@ -307,13 +307,12 @@ Expr *new_cast_expr(Expr *subexpr, Type *type)
 	return expr;
 }
 
-Expr *new_member_expr(Expr *object, Decl *member)
+Expr *new_member_expr(Expr *object, Token *member_id)
 {
-	assert(member);
-	
-	Expr *expr = new_expr(MEMBER, object->start, member->type, 0, 1);
+	Expr *expr = new_expr(MEMBER, object->start, 0, 0, 1);
 	expr->object = object;
-	expr->member = member;
+	expr->member = 0;
+	expr->member_id = member_id;
 	return expr;
 }
 

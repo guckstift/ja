@@ -194,7 +194,7 @@ static Expr *p_subscript_x(Expr *expr)
 	return new_subscript_expr(expr, index);
 }
 
-static Expr *p_member_x(Expr *expr)
+static Expr *p_member_x(Expr *object)
 {
 	if(!eat(TK_PERIOD)) return 0;
 	
@@ -206,10 +206,11 @@ static Expr *p_member_x(Expr *expr)
 	
 	Token *ident = eat(TK_IDENT);
 	if(!ident) fatal_at(last, "expected id of member to access");
-	
-	Type *type = expr->type;
+	return new_member_expr(object, ident->id);
 	
 	/*
+	Type *type = expr->type;
+	
 	if(
 		(type->kind == ARRAY || type->kind == STRING) &&
 		tokequ_str(ident, "length")
@@ -219,26 +220,6 @@ static Expr *p_member_x(Expr *expr)
 	*/
 	
 	/*
-	if(type->kind != STRUCT && type->kind != ENUM && type->kind != UNION)
-		fatal_at(expr->start, "no instance or enum to get member from");
-	*/
-	
-	// TODO: postpone type checking
-	
-	if(type->kind == STRUCT || type->kind == UNION) {
-		Decl **members = type->decl->members;
-		Decl *member = 0;
-		
-		array_for(members, i) {
-			if(members[i]->id == ident->id) {
-				member = members[i];
-				break;
-			}
-		}
-		
-		if(!member) fatal_at(ident, "name %t not declared in struct", ident);
-		return new_member_expr(expr, member);
-	}
 	else if(type->kind == ENUM) {
 		Decl *enumdecl = type->decl;
 		EnumItem **items = enumdecl->items;
@@ -256,6 +237,7 @@ static Expr *p_member_x(Expr *expr)
 	}
 	
 	return 0;
+	*/
 }
 
 static Expr *p_postfix()

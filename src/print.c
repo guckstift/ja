@@ -467,7 +467,7 @@ static void print_expr(Expr *expr)
 			printf("(");
 			print_expr(expr->object);
 			printf(").");
-			print_ident(expr->member->id);
+			print_ident(expr->member_id);
 			break;
 		case LENGTH:
 			printf("(");

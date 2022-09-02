@@ -179,7 +179,11 @@ struct Expr {
 		EnumItem *item; // enum
 	};
 	
-	Token *operator; // binop
+	union {
+		Token *operator; // binop
+		Token *member_id; // member (before analyze)
+	};
+	
 	OpLevel oplevel; // binop
 };
 
@@ -193,7 +197,7 @@ Expr *new_array_expr(Token *start, Expr **items, int isconst);
 Expr *new_subscript_expr(Expr *array, Expr *index);
 Expr *new_length_expr(Expr *array);
 Expr *new_cast_expr(Expr *subexpr, Type *type);
-Expr *new_member_expr(Expr *object, Decl *member);
+Expr *new_member_expr(Expr *object, Token *member_id);
 Expr *new_deref_expr(Token *start, Expr *ptr);
 Expr *new_ptr_expr(Token *start, Expr *subexpr);
 Expr *new_call_expr(Expr *callee, Expr **args);

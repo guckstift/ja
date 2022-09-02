@@ -442,6 +442,61 @@ static void a_call(Expr *expr)
 	expr->type = callee->type->returntype;
 }
 
+static void a_member(Expr *expr)
+{
+	Expr *object = expr->object;
+	Token *member_id = expr->member_id;
+	a_expr(object);
+	Type *object_type = object->type;
+	
+	if(
+		object_type->kind != STRUCT && object_type->kind != ENUM &&
+		object_type->kind != UNION
+	) {
+		fatal_at(object->start, "no instance or enum to get member from");
+	}
+	
+	if(object_type->kind == STRUCT || object_type->kind == UNION) {
+		Decl **members = object_type->decl->members;
+		Decl *member = 0;
+		
+		array_for(members, i) {
+			if(members[i]->id == member_id) {
+				member = members[i];
+				break;
+			}
+		}
+		
+		if(!member) {
+			fatal_at(
+				expr->start, "name %t not declared in struct/union", member_id
+			);
+		}
+		
+		expr->member = member;
+		expr->type = member->type;
+	}
+	else if(object_type->kind == ENUM) {
+		Decl *enumdecl = object_type->decl;
+		EnumItem **items = enumdecl->items;
+		EnumItem *item = 0;
+		
+		array_for(items, i) {
+			if(items[i]->id == member_id) {
+				item = items[i];
+				break;
+			}
+		}
+		
+		if(!item) {
+			fatal_at(expr->start, "name %t not declared in enum", member_id);
+		}
+		
+		// TODO: turn this expr into an...
+		*expr = *new_enum_item_expr(expr->start, enumdecl, item);
+	}
+}
+
 static void a_negation(Expr *expr)
 {
 	a_expr(expr->subexpr);
@@ -502,6 +557,9 @@ static void a_expr(Expr *expr)
 			break;
 		case CALL:
 			a_call(expr);
+			break;
+		case MEMBER:
+			a_member(expr);
 			break;
 		case NEGATION:
 			a_negation(expr);
