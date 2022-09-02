@@ -230,6 +230,13 @@ static void a_var(Expr *expr)
 	if(!decl)
 		fatal_at(expr->start, "name %t not declared", expr->id);
 	
+	if(decl->kind != VAR && decl->kind != FUNC) {
+		fatal_at(
+			expr->start, "%t is not the name of a variable or function",
+			expr->id
+		);
+	}
+	
 	if(decl->kind == VAR && decl->end > expr->start)
 		fatal_at(expr->start, "variable %t not declared yet", expr->id);
 	

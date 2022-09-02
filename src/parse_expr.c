@@ -97,13 +97,6 @@ static Expr *p_var()
 {
 	if(!eat(TK_IDENT)) return 0;
 	Token *ident = last;
-	//Decl *decl = lookup(ident->id);
-	
-	/*
-	if(decl->kind == STRUCT)
-		fatal_at(last, "%t is the name of a structure", ident);
-	*/
-	
 	return new_var_expr(ident, 0);
 }
 

@@ -1,8 +1,7 @@
-foo(58, 1);
-
-function foo(x : int, y : int8) : int
-{
-	return x + y;
+struct Foo {
+	x : int;
 }
 
-var x = 9; var y = >x as >bool;
+var foo : Foo;
+var x = Foo;
+#print foo.x;
