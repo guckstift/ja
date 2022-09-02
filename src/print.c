@@ -425,7 +425,8 @@ static void print_expr(Expr *expr)
 		case CAST:
 			printf("(");
 			print_expr(expr->subexpr);
-			print_keyword_cstr(") as ");
+			printf(")");
+			print_keyword_cstr(" as ");
 			print_type(expr->type);
 			break;
 		case SUBSCRIPT:

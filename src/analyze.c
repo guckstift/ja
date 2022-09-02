@@ -197,8 +197,9 @@ static Expr *adjust_expr_to_type(Expr *expr, Type *type, bool explicit)
 	}
 	
 	// one pointer to some other by explicit cast always ok
-	if(explicit && expr_type->kind == PTR && type->kind == PTR)
-		return expr; // no change needed, expr is the subexpr of a cast expr
+	if(explicit && expr_type->kind == PTR && type->kind == PTR) {
+		return new_cast_expr(expr, type);
+	}
 	
 	// array literal with matching length
 	if(
@@ -288,7 +289,7 @@ static void a_deref(Expr *expr)
 static void a_cast(Expr *expr)
 {
 	a_expr(expr->subexpr);
-	expr->subexpr = adjust_expr_to_type(expr->subexpr, expr->type, true);
+	*expr = *adjust_expr_to_type(expr->subexpr, expr->type, true);
 }
 
 static void a_subscript(Expr *expr)
