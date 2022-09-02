@@ -230,6 +230,13 @@ static void a_var(Expr *expr)
 	if(!decl)
 		fatal_at(expr->start, "name %t not declared", expr->id);
 	
+	if(decl->kind == ENUM) {
+		fatal_at(
+			expr->start, "%t is an enum that is not declared yet",
+			expr->id
+		);
+	}
+	
 	if(decl->kind != VAR && decl->kind != FUNC) {
 		fatal_at(
 			expr->start, "%t is not the name of a variable or function",
