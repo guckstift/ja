@@ -3,7 +3,8 @@ struct Foo {
 }
 
 var foo : Foo;
-var y = 0;
-foo.x = 9;
-var foox = foo.x;
-print foox;
+var foop = >foo;
+
+foop.x = 9;
+
+print foop.x;

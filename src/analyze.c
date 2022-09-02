@@ -444,9 +444,14 @@ static void a_call(Expr *expr)
 
 static void a_member(Expr *expr)
 {
-	Expr *object = expr->object;
 	Token *member_id = expr->member_id;
-	a_expr(object);
+	a_expr(expr->object);
+	
+	while(expr->object->type->kind == PTR) {
+		expr->object = new_deref_expr(expr->object->start, expr->object);
+	}
+	
+	Expr *object = expr->object;
 	Type *object_type = object->type;
 	
 	if(

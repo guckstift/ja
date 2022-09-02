@@ -197,13 +197,6 @@ static Expr *p_subscript_x(Expr *expr)
 static Expr *p_member_x(Expr *object)
 {
 	if(!eat(TK_PERIOD)) return 0;
-	
-	/*
-	while(expr->type->kind == PTR) {
-		expr = new_deref_expr(expr->start, expr);
-	}
-	*/
-	
 	Token *ident = eat(TK_IDENT);
 	if(!ident) fatal_at(last, "expected id of member to access");
 	return new_member_expr(object, ident->id);
