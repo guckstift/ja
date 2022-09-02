@@ -1,10 +1,2 @@
-struct Foo {
-	x : int;
-}
-
-var foo : Foo;
-var foop = >foo;
-
-foop.x = 9;
-
-print foop.x;
+var x = [1,2,3];#"Hello";
+print x.length;

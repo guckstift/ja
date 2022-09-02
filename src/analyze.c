@@ -455,13 +455,12 @@ static void a_member(Expr *expr)
 	Type *object_type = object->type;
 	
 	if(
-		object_type->kind != STRUCT && object_type->kind != ENUM &&
-		object_type->kind != UNION
+		(object_type->kind == ARRAY || object_type->kind == STRING) &&
+		tokequ_str(member_id, "length")
 	) {
-		fatal_at(object->start, "no instance or enum to get member from");
+		*expr = *new_length_expr(object);
 	}
-	
-	if(object_type->kind == STRUCT || object_type->kind == UNION) {
+	else if(object_type->kind == STRUCT || object_type->kind == UNION) {
 		Decl **members = object_type->decl->members;
 		Decl *member = 0;
 		
@@ -481,6 +480,10 @@ static void a_member(Expr *expr)
 		expr->member = member;
 		expr->type = member->type;
 	}
+	else {
+		fatal_at(object->start, "no value to get a member from");
+	}
+	/*
 	else if(object_type->kind == ENUM) {
 		Decl *enumdecl = object_type->decl;
 		EnumItem **items = enumdecl->items;
@@ -497,9 +500,9 @@ static void a_member(Expr *expr)
 			fatal_at(expr->start, "name %t not declared in enum", member_id);
 		}
 		
-		// TODO: turn this expr into an...
 		*expr = *new_enum_item_expr(expr->start, enumdecl, item);
 	}
+	*/
 }
 
 static void a_negation(Expr *expr)

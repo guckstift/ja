@@ -200,37 +200,6 @@ static Expr *p_member_x(Expr *object)
 	Token *ident = eat(TK_IDENT);
 	if(!ident) fatal_at(last, "expected id of member to access");
 	return new_member_expr(object, ident->id);
-	
-	/*
-	Type *type = expr->type;
-	
-	if(
-		(type->kind == ARRAY || type->kind == STRING) &&
-		tokequ_str(ident, "length")
-	) {
-		return new_length_expr(expr);
-	}
-	*/
-	
-	/*
-	else if(type->kind == ENUM) {
-		Decl *enumdecl = type->decl;
-		EnumItem **items = enumdecl->items;
-		EnumItem *item = 0;
-		
-		array_for(items, i) {
-			if(items[i]->id == ident->id) {
-				item = items[i];
-				break;
-			}
-		}
-		
-		if(!item) fatal_at(ident, "name %t not declared in enum", ident);
-		return new_enum_item_expr(expr->start, enumdecl, item);
-	}
-	
-	return 0;
-	*/
 }
 
 static Expr *p_postfix()
