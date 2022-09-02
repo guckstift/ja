@@ -66,7 +66,10 @@ static Type *p_arraytype()
 	if(!itemtype)
 		fatal_at(last, "expected item type");
 	
-	return new_array_type(length ? length->ival : -1, itemtype);
+	if(length)
+		return new_array_type(length->ival, itemtype);
+	else
+		return new_slice_type(itemtype);
 }
 
 static Type *p_type()

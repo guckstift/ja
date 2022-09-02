@@ -54,6 +54,7 @@ typedef enum {
 	// types
 	PTR,
 	ARRAY,
+	SLICE,
 	FUNC,
 	STRUCT,
 	ENUM,
@@ -105,7 +106,7 @@ struct Type {
 	
 	union {
 		Type *subtype; // ptr target type
-		Type *itemtype; // array item type
+		Type *itemtype; // array/slice item type
 		Type *returntype; // func return type
 		Token *id; // named type
 	};
@@ -120,6 +121,7 @@ struct Type {
 Type *new_type(Kind kind);
 Type *new_ptr_type(Type *subtype);
 Type *new_array_type(int64_t length, Type *itemtype);
+Type *new_slice_type(Type *itemtype);
 Type *new_dynarray_type(Type *itemtype);
 Type *new_func_type(Type *returntype, Type **paramtypes);
 Type *new_struct_type(Decl *decl);

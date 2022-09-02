@@ -74,6 +74,29 @@ Type *new_array_type(int64_t length, Type *itemtype)
 	return type;
 }
 
+Type *new_slice_type(Type *itemtype)
+{
+	static Type *primslicetypebuf[_PRIMKIND_COUNT] = {0};
+	
+	if(itemtype) {
+		Kind itemkind = itemtype->kind;
+		
+		if(itemkind < _PRIMKIND_COUNT) {
+			if(primslicetypebuf[itemkind] == 0) {
+				Type *type = new_type(SLICE);
+				type->itemtype = new_type(itemkind);
+				primslicetypebuf[itemkind] = type;
+			}
+			
+			return primslicetypebuf[itemkind];
+		}
+	}
+	
+	Type *type = new_type(SLICE);
+	type->itemtype = itemtype;
+	return type;
+}
+
 Type *new_dynarray_type(Type *itemtype)
 {
 	return new_ptr_type(new_array_type(-1, itemtype));

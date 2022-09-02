@@ -1,7 +1,1 @@
-var f = 9;
-
-struct Foo {
-	x = f;
-}
-
-var x : Foo;
+var x : []int;

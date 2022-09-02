@@ -91,6 +91,9 @@ void gen_type(Type *type)
 		case CSTRING:
 			write("char*");
 			break;
+		case SLICE:
+			write("jaslice");
+			break;
 		case STRUCT:
 			gen_struct_or_enum_type(type);
 			break;

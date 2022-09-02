@@ -358,8 +358,12 @@ static void fprint_type(FILE *fs, Type *type)
 			break;
 		case ARRAY:
 			fprintf(fs, "[");
-			if(type->length >= 0) fprint_int(fs, type->length);
+			fprint_int(fs, type->length);
 			fprintf(fs, "]");
+			fprint_type(fs, type->itemtype);
+			break;
+		case SLICE:
+			fprintf(fs, "[]");
 			fprint_type(fs, type->itemtype);
 			break;
 		case FUNC:

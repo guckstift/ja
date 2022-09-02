@@ -20,6 +20,11 @@ typedef struct {
 
 typedef struct {
 	int64_t length;
+	void *items;
+} jaslice;
+
+typedef struct {
+	int64_t length;
 	char *string;
 } jastring;
 

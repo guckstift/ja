@@ -645,7 +645,8 @@ void gen_vardecl_init(Decl *decl, int struct_inst_member)
 	}
 	else if(
 		decl->type->kind == ARRAY || decl->type->kind == UNION ||
-		decl->type->kind == STRING || is_dynarray_ptr_type(decl->type)
+		decl->type->kind == STRING || decl->type->kind == SLICE ||
+		is_dynarray_ptr_type(decl->type)
 	) {
 		write(" = {0}");
 	}
