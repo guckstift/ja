@@ -410,6 +410,13 @@ static Stmt *p_uniondecl(int exported)
 		Decl *member = &p_vardecl_core(0, 0, 0, 0)->as_decl;
 		if(!member) break;
 		
+		if(member->init) {
+			fatal_at(
+				member->init->start,
+				"union members can not have default values"
+			);
+		}
+		
 		if(!eat(TK_SEMICOLON))
 			error_after(last, "expected semicolon after union member");
 		
