@@ -297,6 +297,13 @@ static Stmt *p_structdecl(int exported)
 		Decl *member = &p_vardecl_core(0, 0, 0, 0)->as_decl;
 		if(!member) break;
 		
+		if(member->init && !member->init->isconst) {
+			fatal_at(
+				member->init->start,
+				"struct members must be constant"
+			);
+		}
+		
 		if(!eat(TK_SEMICOLON))
 			error_after(last, "expected semicolon after struct member");
 		

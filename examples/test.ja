@@ -1,8 +1,7 @@
-enum Foo {
-	FOO,
-	BAR
+var f = 9;
+
+struct Foo {
+	x = f;
 }
 
-var f = Foo.FOO;
-
-print f == Foo.FOO;
+var x : Foo;
