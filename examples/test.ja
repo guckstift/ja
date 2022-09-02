@@ -1,2 +1,8 @@
-var x = [1,2,3];#"Hello";
-x.length = 9;
+union Foo {
+	x : int;
+	y : string;
+}
+
+var foo : Foo;
+foo.y = "Hello World";
+print foo.x;
