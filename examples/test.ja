@@ -1,8 +1,7 @@
-union Foo {
-	x : int;
-	y : string;
+enum Foo {
+	FOO,
+	BAR
 }
 
-var foo : Foo;
-foo.y = "Hello World";
-print foo.x;
+var x = Foo.FOO;
+x = Foo.BAR;

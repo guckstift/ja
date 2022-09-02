@@ -199,6 +199,27 @@ static Expr *p_member_x(Expr *object)
 	if(!eat(TK_PERIOD)) return 0;
 	Token *ident = eat(TK_IDENT);
 	if(!ident) fatal_at(last, "expected id of member to access");
+	
+	if(object->kind == VAR) {
+		Token *object_id = object->id;
+		Decl *decl = lookup(object_id);
+		
+		if(decl && decl->kind == ENUM) {
+			EnumItem **items = decl->items;
+			EnumItem *item = 0;
+			
+			array_for(items, i) {
+				if(items[i]->id == ident->id) {
+					item = items[i];
+					break;
+				}
+			}
+			
+			if(!item) fatal_at(ident, "name %t not declared in enum", ident);
+			return new_enum_item_expr(object->start, decl, item);
+		}
+	}
+	
 	return new_member_expr(object, ident->id);
 }
 
