@@ -667,6 +667,12 @@ static void a_structdecl(Decl *decl)
 	}
 }
 
+static void a_enumdecl(Decl *decl)
+{
+	array_for(decl->items, i) {
+	}
+}
+
 static void a_for(For *forstmt)
 {
 	a_expr(forstmt->from);
@@ -743,6 +749,12 @@ static void a_stmt(Stmt *stmt)
 			break;
 		case STRUCT:
 			a_structdecl(&stmt->as_decl);
+			break;
+		case UNION:
+			a_structdecl(&stmt->as_decl);
+			break;
+		case ENUM:
+			a_enumdecl(&stmt->as_decl);
 			break;
 		case IF:
 			a_expr(stmt->as_if.cond);

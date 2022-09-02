@@ -1,2 +1,16 @@
-var a = [1,2,3];
-var x : []int = >a;
+/*
+var x = 78;
+
+enum Foo {
+	FOO = "h1"
+}
+*/
+
+union Foo {
+	x : int;
+	y : Bar;
+}
+
+struct Bar {
+	a : int8;
+}
