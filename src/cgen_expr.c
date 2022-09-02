@@ -35,6 +35,12 @@ static void gen_cast(Expr *expr)
 			write("(%e.string)", srcexpr);
 		}
 	}
+	else if(type->kind == SLICE && is_array_ptr_type(srctype)) {
+		write(
+			"((jaslice){.length = %i, .items = %e})",
+			srctype->subtype->length, srcexpr
+		);
+	}
 	else {
 		write("((%Y)%e)", type, srcexpr);
 	}

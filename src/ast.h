@@ -133,6 +133,7 @@ int type_equ(Type *left, Type *right);
 int is_integer_type(Type *type);
 int is_integral_type(Type *type);
 int is_complete_type(Type *type);
+bool is_array_ptr_type(Type *type);
 int is_dynarray_ptr_type(Type *type);
 
 /*

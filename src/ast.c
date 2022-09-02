@@ -212,6 +212,11 @@ int is_complete_type(Type *type)
 	return 1;
 }
 
+bool is_array_ptr_type(Type *type)
+{
+	return type->kind == PTR && type->subtype->kind == ARRAY;
+}
+
 int is_dynarray_ptr_type(Type *type)
 {
 	return
