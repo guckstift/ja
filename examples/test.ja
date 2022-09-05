@@ -1,16 +1,10 @@
-/*
 var x = 78;
 
 enum Foo {
-	FOO = "h1"
-}
-*/
-
-union Foo {
-	x : int;
-	y : Bar;
+	FOO = 1 + 2,
+	BAR,
+	BAZ,
+	GOO = 0,
+	TOKEN
 }
 
-struct Bar {
-	a : int8;
-}

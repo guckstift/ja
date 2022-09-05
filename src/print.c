@@ -558,7 +558,13 @@ static void print_enumitems(EnumItem **items)
 	array_for(items, i) {
 		print_indent();
 		print_ident(items[i]->id);
-		printf(" = %li,\n", items[i]->num);
+		
+		if(items[i]->val) {
+			printf(" = ");
+			print_expr(items[i]->val);
+		}
+		
+		printf(",\n");
 	}
 }
 

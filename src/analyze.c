@@ -669,7 +669,23 @@ static void a_structdecl(Decl *decl)
 
 static void a_enumdecl(Decl *decl)
 {
+	int64_t last_val = 0;
+	
 	array_for(decl->items, i) {
+		Expr *val = decl->items[i]->val;
+		
+		if(val) {
+			a_expr(val);
+			
+			if(!is_integer_type(val->type))
+				fatal_at(val->start, "expression must be integer");
+			
+			last_val = val->value;
+		}
+		else {
+			last_val ++;
+			decl->items[i]->val = new_int_expr(0, last_val);
+		}
 	}
 }
 

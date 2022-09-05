@@ -677,13 +677,13 @@ static void gen_enumdecl(Decl *decl)
 	array_for(items, i) {
 		if(in_header)
 			write(
-				"%>_%s_ja_%t = %i,\n",
-				decl->public_id, items[i]->id, items[i]->num
+				"%>_%s_ja_%t = %e,\n",
+				decl->public_id, items[i]->id, items[i]->val
 			);
 		else
 			write(
-				"%>_%s_ja_%t = %i,\n",
-				decl->private_id, items[i]->id, items[i]->num
+				"%>_%s_ja_%t = %e,\n",
+				decl->private_id, items[i]->id, items[i]->val
 			);
 	}
 	

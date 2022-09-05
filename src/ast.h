@@ -224,7 +224,7 @@ Expr *new_enum_item_expr(Token *start, Decl *enumdecl, EnumItem *item);
 
 struct EnumItem {
 	Token *id;
-	int64_t num;
+	Expr *val;
 	Decl *enumdecl;
 };
 
