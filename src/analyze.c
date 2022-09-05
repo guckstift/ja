@@ -490,7 +490,8 @@ static void a_member(Expr *expr)
 	Type *object_type = object->type;
 	
 	if(
-		(object_type->kind == ARRAY || object_type->kind == STRING) &&
+		(object_type->kind == ARRAY || object_type->kind == SLICE ||
+			object_type->kind == STRING) &&
 		tokequ_str(member_id, "length")
 	) {
 		*expr = *new_length_expr(object);

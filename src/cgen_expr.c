@@ -211,8 +211,8 @@ void gen_length(Expr *expr)
 			write("%i", type->length);
 		}
 	}
-	else if(type->kind == STRING) {
-		write("(%e.length)", array);
+	else if(type->kind == SLICE || type->kind == STRING) {
+		write("(%e).length", array);
 	}
 }
 

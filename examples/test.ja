@@ -1,5 +1,5 @@
 var x = [1,2,3];
 var s : []int = >x;
 
-s[2] = 93;
-print s[2];
+print x.length;
+print s.length;
