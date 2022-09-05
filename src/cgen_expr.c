@@ -77,6 +77,16 @@ static void gen_subscript(Expr *expr)
 			string, index
 		);
 	}
+	else if(expr->subexpr->type->kind == SLICE) {
+		Expr *slice = expr->array;
+		Type *itemtype = slice->type->itemtype;
+		Expr *index = expr->index;
+		
+		write(
+			"((%y(*)%z)(%e).items)[%e]",
+			itemtype, itemtype, slice, index
+		);
+	}
 	else {
 		write("(%e[%e])", expr->subexpr, expr->index);
 	}

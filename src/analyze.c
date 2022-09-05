@@ -326,8 +326,12 @@ static void a_subscript(Expr *expr)
 		array = expr->array;
 	}
 	
-	if(array->type->kind != ARRAY && array->type->kind != STRING)
-		fatal_at(array->start, "need array or string to subscript");
+	if(
+		array->type->kind != ARRAY && array->type->kind != SLICE &&
+		array->type->kind != STRING
+	) {
+		fatal_at(array->start, "need array, slice or string to subscript");
+	}
 	
 	if(!is_integral_type(index->type))
 		fatal_at(index->start, "index is not an integer or a boolean");
@@ -619,7 +623,9 @@ static void a_print(Print *print)
 		expr->type->kind != PTR && expr->type->kind != STRING &&
 		expr->type->kind != ARRAY
 	) {
-		fatal_at(expr->start, "can only print numbers, strings or pointers");
+		fatal_at(
+			expr->start, "can not print value of type  %y", expr->type
+		);
 	}
 }
 

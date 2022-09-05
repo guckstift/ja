@@ -1,10 +1,5 @@
-var x = 78;
+var x = [1,2,3];
+var s : []int = >x;
 
-enum Foo {
-	FOO = 1 + 2,
-	BAR,
-	BAZ,
-	GOO = 0,
-	TOKEN
-}
-
+s[2] = 93;
+print s[2];
