@@ -13,20 +13,6 @@ static void gen_cast(Expr *expr)
 	if(type->kind == BOOL) {
 		write("(%e ? jatrue : jafalse)", srcexpr);
 	}
-	else if(is_dynarray_ptr_type(type)) {
-		write("((%Y){.length = ", type);
-		
-		if(srctype->subtype->kind == ARRAY) {
-			// from static array
-			write("%i", srctype->subtype->length);
-		}
-		else {
-			// other
-			write("0");
-		}
-		
-		write(", .items = %e})", srcexpr);
-	}
 	else if(srctype->kind == STRING && type->kind == CSTRING) {
 		if(srcexpr->kind == STRING) {
 			write("(\"%S\")", srcexpr->string, srcexpr->length);
@@ -55,20 +41,7 @@ static void gen_string(Expr *expr)
 
 static void gen_subscript(Expr *expr)
 {
-	if(
-		expr->subexpr->kind == DEREF &&
-		is_dynarray_ptr_type(expr->subexpr->subexpr->type)
-	) {
-		Expr *dynarray = expr->subexpr->subexpr;
-		Expr *index = expr->index;
-		Type *itemtype = expr->type;
-		
-		write(
-			"(((%y(*)%z)%e.items)[%e])",
-			itemtype, itemtype, dynarray, index
-		);
-	}
-	else if(expr->subexpr->type->kind == STRING) {
+	if(expr->subexpr->type->kind == STRING) {
 		Expr *string = expr->subexpr;
 		Expr *index = expr->index;
 		

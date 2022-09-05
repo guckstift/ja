@@ -97,11 +97,6 @@ Type *new_slice_type(Type *itemtype)
 	return type;
 }
 
-Type *new_dynarray_type(Type *itemtype)
-{
-	return new_ptr_type(new_array_type(-1, itemtype));
-}
-
 Type *new_func_type(Type *returntype, Type **paramtypes)
 {
 	Type *type = new_type(FUNC);
@@ -195,34 +190,9 @@ int is_integral_type(Type *type)
 	return is_integer_type(type) || type->kind == BOOL;
 }
 
-int is_complete_type(Type *type)
-{
-	if(type->kind == ARRAY) {
-		return type->length >= 0 && is_complete_type(type->itemtype);
-	}
-	
-	if(type->kind == PTR) {
-		if(type->subtype->kind == ARRAY) {
-			return is_complete_type(type->subtype->itemtype);
-		}
-		
-		return is_complete_type(type->subtype);
-	}
-	
-	return 1;
-}
-
 bool is_array_ptr_type(Type *type)
 {
 	return type->kind == PTR && type->subtype->kind == ARRAY;
-}
-
-int is_dynarray_ptr_type(Type *type)
-{
-	return
-		type->kind == PTR &&
-		type->subtype->kind == ARRAY &&
-		type->subtype->length == -1 ;
 }
 
 Expr *new_expr(Kind kind, Token *start, Type *type, int isconst, int islvalue)

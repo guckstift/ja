@@ -112,7 +112,7 @@ struct Type {
 	};
 	
 	union {
-		int64_t length; // array length (-1 = incomplete)
+		int64_t length; // array length
 		Decl *decl; // struct, enum, union
 		Type **paramtypes; // func
 	};
@@ -122,7 +122,6 @@ Type *new_type(Kind kind);
 Type *new_ptr_type(Type *subtype);
 Type *new_array_type(int64_t length, Type *itemtype);
 Type *new_slice_type(Type *itemtype);
-Type *new_dynarray_type(Type *itemtype);
 Type *new_func_type(Type *returntype, Type **paramtypes);
 Type *new_struct_type(Decl *decl);
 Type *new_enum_type(Decl *decl);
@@ -132,9 +131,7 @@ Type *new_named_type(Token *id);
 int type_equ(Type *left, Type *right);
 int is_integer_type(Type *type);
 int is_integral_type(Type *type);
-int is_complete_type(Type *type);
 bool is_array_ptr_type(Type *type);
-int is_dynarray_ptr_type(Type *type);
 
 /*
 	Expr

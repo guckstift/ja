@@ -36,10 +36,10 @@ static int redeclare(Decl *decl)
 static void declare_builtins()
 {
 	Token *argv_id = create_id("argv", 0);
-	Type *string_dynarray_type = new_dynarray_type(new_type(STRING));
+	Type *string_slice_type = new_slice_type(new_type(STRING));
 	
 	Decl *argv = new_var(
-		argv_id, scope, argv_id, 0, 0, string_dynarray_type, 0
+		argv_id, scope, argv_id, 0, 0, string_slice_type, 0
 	);
 	
 	argv->builtin = 1;
@@ -111,8 +111,6 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 				"structure members can only be initialized "
 				"with constant values"
 			);
-		
-		//complete_type(type, init);
 	}
 	
 	if(type == 0 && init == 0)
@@ -120,14 +118,6 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 			ident, "%s without type declared",
 			param ? "parameter" : "variable"
 		);
-	
-	/*
-	if(!is_complete_type(type))
-		fatal_at(
-			ident, "%s with incomplete type  %y  declared",
-			param ? "parameter" : "variable", type
-		);
-	*/
 	
 	if(exported) {
 		make_type_exportable(type);
@@ -193,14 +183,6 @@ static Stmt *p_funcdecl(int exported, int dll)
 		returntype = p_type();
 		if(!returntype)
 			fatal_after(last, "expected return type after colon");
-		
-		/*
-		if(!is_complete_type(returntype))
-			fatal_at(
-				ident, "function with incomplete type  %y  declared",
-				returntype
-			);
-		*/
 		
 		/*
 		if(exported) {

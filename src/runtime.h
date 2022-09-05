@@ -16,11 +16,6 @@ typedef uint8_t jabool;
 typedef struct {
 	int64_t length;
 	void *items;
-} jadynarray;
-
-typedef struct {
-	int64_t length;
-	void *items;
 } jaslice;
 
 typedef struct {

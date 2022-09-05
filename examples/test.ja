@@ -1,5 +1,6 @@
-var x = [1,2,3];
-var s : []int = >x;
+var x : ptr;
+var y = foo(1);
 
-print x.length;
-print s.length;
+function foo(a : int)
+{
+}

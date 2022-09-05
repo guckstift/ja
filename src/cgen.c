@@ -191,11 +191,6 @@ static void gen_assign(Expr *target, Expr *expr)
 static void gen_print(Scope *scope, Expr *expr, int repr)
 {
 	if(expr->type->kind == PTR) {
-		if(is_dynarray_ptr_type(expr->type)) {
-			write("%>printf(\"dynarray\");\n");
-			return;
-		}
-		
 		write(
 			"%>if(%e) {\n"
 			INDENT "%>printf(\">\");\n"
@@ -304,10 +299,6 @@ static void gen_print(Scope *scope, Expr *expr, int repr)
 		write("(void*)");
 	
 	gen_expr(expr);
-	
-	if(is_dynarray_ptr_type(expr->type)) {
-		write(".items");
-	}
 	
 	if(expr->type->kind == BOOL)
 		write(" ? \"true\" : \"false\"");
@@ -451,12 +442,7 @@ static void gen_foreach(ForEach *foreach)
 
 static void gen_delete(Delete *stmt)
 {
-	if(is_dynarray_ptr_type(stmt->expr->type)) {
-		write("%>free(%e.items);\n", stmt->expr);
-	}
-	else {
-		write("%>free(%e);\n", stmt->expr);
-	}
+	write("%>free(%e);\n", stmt->expr);
 }
 
 static void gen_stmt(Stmt *stmt, int noindent)
@@ -645,8 +631,7 @@ void gen_vardecl_init(Decl *decl, int struct_inst_member)
 	}
 	else if(
 		decl->type->kind == ARRAY || decl->type->kind == UNION ||
-		decl->type->kind == STRING || decl->type->kind == SLICE ||
-		is_dynarray_ptr_type(decl->type)
+		decl->type->kind == STRING || decl->type->kind == SLICE
 	) {
 		write(" = {0}");
 	}
@@ -1016,7 +1001,6 @@ static void gen_c()
 	
 	write(
 		"\n// control variables\n"
-		"static jadynarray ja_argv;\n"
 		"static int main_was_called;\n\n"
 		"// main function\n"
 	);

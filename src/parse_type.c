@@ -109,20 +109,6 @@ void make_type_exportable(Type *type)
 	}
 }
 
-void complete_type(Type *type, Expr *expr)
-{
-	// automatic array length completion from expr
-	for(
-		Type *dt = type, *st = expr->type;
-		dt->kind == ARRAY && st->kind == ARRAY;
-		dt = dt->itemtype, st = st->itemtype
-	) {
-		if(dt->length == -1) {
-			dt->length = st->length;
-		}
-	}
-}
-
 Type *p_type_pub(ParseState *state)
 {
 	unpack_state(state);

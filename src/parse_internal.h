@@ -53,7 +53,6 @@ Expr *p_expr_pub(ParseState *state);
 Block *p_block_pub(ParseState *state, Scope *scope);
 
 void make_type_exportable(Type *type);
-void complete_type(Type *type, Expr *expr);
 Type *p_type_pub(ParseState *state);
 
 static Decl *lookup_flat(Token *id)

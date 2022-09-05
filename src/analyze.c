@@ -182,6 +182,10 @@ static Expr *adjust_expr_to_type(Expr *expr, Type *type, bool explicit)
 {
 	Type *expr_type = expr->type;
 	
+	// can not cast from none type
+	if(expr_type->kind == NONE)
+		fatal_at(expr->start, "expression has no value");
+	
 	// types equal => no adjustment needed
 	if(type_equ(expr_type, type))
 		return expr;
@@ -519,26 +523,6 @@ static void a_member(Expr *expr)
 	else {
 		fatal_at(object->start, "no value to get a member from");
 	}
-	/*
-	else if(object_type->kind == ENUM) {
-		Decl *enumdecl = object_type->decl;
-		EnumItem **items = enumdecl->items;
-		EnumItem *item = 0;
-		
-		array_for(items, i) {
-			if(items[i]->id == member_id) {
-				item = items[i];
-				break;
-			}
-		}
-		
-		if(!item) {
-			fatal_at(expr->start, "name %t not declared in enum", member_id);
-		}
-		
-		*expr = *new_enum_item_expr(expr->start, enumdecl, item);
-	}
-	*/
 }
 
 static void a_negation(Expr *expr)

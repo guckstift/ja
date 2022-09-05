@@ -18,21 +18,15 @@ static void gen_struct_or_enum_type(Type *type)
 
 static void gen_ptr_type(Type *type)
 {
-	if(is_dynarray_ptr_type(type)) {
-		write("jadynarray");
-	}
-	else {
-		gen_type(type->subtype);
-		if(type->subtype->kind == ARRAY) write("(");
-		write("*");
-	}
+	gen_type(type->subtype);
+	if(type->subtype->kind == ARRAY) write("(");
+	write("*");
 }
 
 void gen_type_postfix(Type *type)
 {
 	switch(type->kind) {
 		case PTR:
-			if(is_dynarray_ptr_type(type)) break;
 			if(type->subtype->kind == ARRAY) write(")");
 			gen_type_postfix(type->subtype);
 			break;
