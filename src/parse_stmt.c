@@ -410,11 +410,13 @@ static Stmt *p_ifstmt()
 	
 	Block *else_body = 0;
 	if(eat(TK_else)) {
-		if(match(TK_if)){
+		if(match(TK_if)) {
+			enter();
 			Stmt *else_if = p_ifstmt();
 			Stmt **stmts = 0;
 			array_push(stmts, else_if);
-			else_body = new_block(stmts, scope);
+			Scope *block_scope = leave();
+			else_body = new_block(stmts, block_scope);
 		}
 		else {
 			if(!eat(TK_LCURLY))
