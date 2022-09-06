@@ -35,6 +35,8 @@
 * for range (for x = 0..1 {})
 * print arrays
 * print ptrs contents
+* self refering members to structures and unions
+* refer to struct before definition (if ptr to)
 
 # wip
 
@@ -60,7 +62,6 @@
 
 # todo
 
-* self refering members to structures and unions
 * refer to enum items without enum.prefix
 * runtime: array bounds check
 * bit shift operators
@@ -72,7 +73,6 @@
 	import * from "./myfile.ja"; # all exported symbols
 	import "./file.ja" as unit; # import in namespace
 	)
-* refer to struct before definition (if ptr to)
 * auto pointer unpacking/packing
 * print structs
 * print multiple arguments

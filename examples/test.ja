@@ -1,3 +1,7 @@
-if 0 {
-} else if 2 {
+union Foo {
+	x : >Foo;
 }
+
+var x : Foo;
+var f : >Foo;
+f = >x;
