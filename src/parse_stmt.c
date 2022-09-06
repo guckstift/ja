@@ -143,7 +143,7 @@ static Stmt *p_vardecl(int exported, int dll)
 	return core;
 }
 
-static Stmt *p_funcdecl(int exported, int dll)
+static Decl *p_funchead(int exported)
 {
 	if(!eat(TK_function)) return 0;
 	Token *start = last;
@@ -181,66 +181,44 @@ static Stmt *p_funcdecl(int exported, int dll)
 	}
 	
 	Decl *decl = new_func(
-		start, scope, ident->id, exported, returntype, params
+		start, scope, ident->id, exported, returntype, params, func_scope
 	);
-	
-	if(dll) decl->imported = 1;
 	
 	func_scope->funchost = decl;
 	
-	if(eat(TK_SEMICOLON)) {
-		decl->isproto = 1;
-	}
-	else if(eat(TK_LCURLY)) {
-		decl->isproto = 0;
-	}
-	else {
-		fatal_after(last, "expected { or ; after function head");
-	}
+	if(!declare(decl))
+		fatal_at(ident, "name %t already declared", ident);
 	
-	if(dll && decl->isproto == 0) {
-		fatal_after(last, "foreign functions can not have implementations");
-	}
+	return decl;
+}
+
+static Stmt *p_foreign_func(int exported)
+{
+	Decl *decl = p_funchead(exported);
+	if(!decl) return 0;
 	
-	Decl *existing = lookup(decl->id);
+	decl->imported = 1;
+	decl->isproto = 1;
 	
-	if(existing) {
-		if(existing->kind != FUNC)
-			fatal_at(ident, "name %t already declared", ident);
-		
-		if(existing->isproto == 0)
-			fatal_at(ident, "function %t already implemented", ident);
-		
-		/*
-		if(!type_equ(existing->type, decl->type)) {
-			fatal_at(start,
-				"function prototype had a different signature  %y "
-				", now it is  %y",
-				existing->type, decl->type
-			);
-		}
-		*/
-		
-		if(decl->exported != existing->exported)
-			fatal_at(
-				ident, "function %t was already declared as %s now it %s",
-				ident,
-				existing->exported ? "exported" : "not exported",
-				decl->exported ? "is" : "is not"
-			);
-		
-		redeclare(decl);
-	}
-	else {
-		declare(decl);
-	}
+	if(!eat(TK_SEMICOLON))
+		fatal_after(last, "expected ; after function head");
 	
-	if(decl->isproto == 0) {
-		decl->body = p_block(func_scope);
-		
-		if(!eat(TK_RCURLY))
-			fatal_after(last, "expected } after function body");
-	}
+	decl->end = cur;
+	return (Stmt*)decl;
+}
+
+static Stmt *p_funcdecl(int exported)
+{
+	Decl *decl = p_funchead(exported);
+	if(!decl) return 0;
+	
+	if(!eat(TK_LCURLY))
+		fatal_after(last, "expected { after function head");
+	
+	decl->body = p_block(decl->func_scope);
+	
+	if(!eat(TK_RCURLY))
+		fatal_after(last, "expected } after function body");
 	
 	decl->end = cur;
 	return (Stmt*)decl;
@@ -591,7 +569,7 @@ static Stmt *p_dllimport()
 	
 	while(1) {
 		Decl *decl = 0;
-		(decl = &p_funcdecl(0, 1)->as_decl) ||
+		//(decl = &p_funcdecl(0, 1)->as_decl) ||
 		(decl = &p_vardecl(0, 1)->as_decl) ;
 		if(!decl) break;
 		array_push(decls, decl);
@@ -615,7 +593,7 @@ static Stmt *p_export()
 	
 	Stmt *stmt = 0;
 	(stmt = p_vardecl(1, 0)) ||
-	(stmt = p_funcdecl(1, 0)) ||
+	(stmt = p_funcdecl(1)) ||
 	(stmt = p_structdecl(1)) ||
 	(stmt = p_enumdecl(1)) ;
 	
@@ -766,7 +744,7 @@ static Stmt *p_stmt()
 	Stmt *stmt = 0;
 	(stmt = p_print()) ||
 	(stmt = p_vardecl(0, 0)) ||
-	(stmt = p_funcdecl(0, 0)) ||
+	(stmt = p_funcdecl(0)) ||
 	(stmt = p_structdecl(0)) ||
 	(stmt = p_enumdecl(0)) ||
 	(stmt = p_uniondecl(0)) ||

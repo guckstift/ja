@@ -1,12 +1,1 @@
-export struct Bar {
-	x : >Foo;
-}
-
-struct Foo {
-	bar : >Baz;
-}
-
-struct Baz {
-	msg : string;
-}
-
+function foo() {}

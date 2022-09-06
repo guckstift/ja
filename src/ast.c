@@ -406,7 +406,7 @@ Decl *new_var(
 
 Decl *new_func(
 	Token *start, Scope *scope, Token *id, int exported, Type *returntype,
-	Decl **params
+	Decl **params, Scope *func_scope
 ) {
 	Type **paramtypes = 0;
 	
@@ -418,6 +418,7 @@ Decl *new_func(
 	decl->deps = 0;
 	decl->type = new_func_type(returntype, paramtypes);
 	decl->params = params;
+	decl->func_scope = func_scope;
 	return decl;
 }
 

@@ -240,6 +240,7 @@ struct Decl {
 	uint8_t deps_scanned;
 	
 	Decl **deps; // func: variables used from outer scope
+	Scope *func_scope; // func
 	
 	union {
 		Expr *init; // var
@@ -266,7 +267,7 @@ Decl *new_var(
 
 Decl *new_func(
 	Token *start, Scope *scope, Token *id, int exported, Type *returntype,
-	Decl **params
+	Decl **params, Scope *func_scope
 );
 
 Decl *new_struct(
