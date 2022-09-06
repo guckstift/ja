@@ -9,6 +9,7 @@ static bool repeat_analyze = false;
 
 static void a_block(Block *block);
 static void a_expr(Expr *expr);
+static void a_stmts(Stmt **stmts);
 
 static void make_type_exportable(Type *type)
 {
@@ -682,7 +683,10 @@ static void a_funcdecl(Decl *decl)
 	}
 	
 	decl->type->returntype = a_type(decl->type->returntype, decl->start, 0);
-	a_block(decl->body);
+	
+	if(decl->body)
+		a_block(decl->body);
+	
 	decl->deps_scanned = 1;
 	
 	if(decl->exported) {
@@ -786,6 +790,11 @@ static void a_return(Return *returnstmt)
 	}
 }
 
+static void a_foreign(Foreign *foreign)
+{
+	a_stmts((Stmt**)foreign->decls);
+}
+
 static void a_stmt(Stmt *stmt)
 {
 	switch(stmt->kind) {
@@ -830,6 +839,9 @@ static void a_stmt(Stmt *stmt)
 			break;
 		case RETURN:
 			a_return(&stmt->as_return);
+			break;
+		case FOREIGN:
+			a_foreign(&stmt->as_foreign);
 			break;
 	}
 }

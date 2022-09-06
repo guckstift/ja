@@ -200,6 +200,7 @@ static Stmt *p_foreign_func(int exported)
 	
 	decl->imported = 1;
 	decl->isproto = 1;
+	decl->deps_scanned = 1;
 	
 	if(!eat(TK_SEMICOLON))
 		fatal_after(last, "expected ; after function head");
