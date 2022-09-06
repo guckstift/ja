@@ -95,10 +95,13 @@ static int run_cmd(char *cmd)
 	return system(cmd);
 }
 
-static void compile_c(char *cfile, char *ofile)
+static void compile_c(char *cfile, char *ofile, int ismain)
 {
 	char *cmd = string_concat(
-		"gcc -c -std=c17 -pedantic-errors -o ", ofile, " ", cfile, 0
+		ismain
+			? "gcc -D JA_ISMAIN -c -std=c17 -pedantic-errors -o "
+			: "gcc -c -std=c17 -pedantic-errors -o ",
+		ofile, " ", cfile, 0
 	);
 	
 	int res = run_cmd(cmd);
@@ -197,14 +200,9 @@ static Unit *build_unit(char *filename, int ismain)
 	#endif
 	
 	unit->obj_filename = string_concat(cache_dir, "/", unit->unit_id, 0);
-	unit->obj_main_filename = string_concat(unit->obj_filename, ".main.o", 0);
 	string_append(unit->obj_filename, ".o");
 	
-	compile_c(unit->c_filename, unit->obj_filename);
-	
-	if(unit->ismain) {
-		compile_c(unit->c_main_filename, unit->obj_main_filename);
-	}
+	compile_c(unit->c_filename, unit->obj_filename, ismain);
 	
 	#ifdef JA_DEBUG
 	printf(COL_YELLOW "=== compiled unit %s ===" COL_RESET "\n", filename);
@@ -271,11 +269,6 @@ Project *build(BuildOptions _options)
 		Unit *unit = project->units[i];
 		string_append(cmd, " ");
 		string_append(cmd, unit->obj_filename);
-		
-		if(unit->ismain) {
-			string_append(cmd, " ");
-			string_append(cmd, unit->obj_main_filename);
-		}
 	}
 	
 	string_append(cmd, " -ldl");

@@ -205,6 +205,10 @@ static Expr *adjust_expr_to_type(Expr *expr, Type *type, bool explicit)
 		return new_cast_expr(expr, type);
 	}
 	
+	// string to cstring is also okay
+	if(expr_type->kind == STRING && type->kind == CSTRING)
+		return new_cast_expr(expr, type);
+	
 	// array pointer to slice is allowed when itemtypes match
 	if(
 		type->kind == SLICE && is_array_ptr_type(expr_type) &&

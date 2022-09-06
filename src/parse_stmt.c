@@ -119,9 +119,11 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 			param ? "parameter" : "variable"
 		);
 	
+	/*
 	if(exported) {
 		make_type_exportable(type);
 	}
+	*/
 	
 	Decl *decl = new_var(start, scope, ident->id, exported, param, type, init);
 	

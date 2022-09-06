@@ -1,7 +1,7 @@
 
 struct SDL_QuitEvent {
-	var type : uint32;
-	var timestamp : uint32;
+	type : uint32;
+	timestamp : uint32;
 }
 
 enum SDL_Scancode {
@@ -14,34 +14,34 @@ var SDLK_DOWN = 0x40000000 | 81;
 var SDLK_UP = 0x40000000 | 82;
  
 struct SDL_Keysym {
-    var scancode : SDL_Scancode;
-    var sym : int32;
-    var mod : uint16;
-    var unused : uint32;
+    scancode : SDL_Scancode;
+    sym : int32;
+    mod : uint16;
+    unused : uint32;
 }
 
 struct SDL_KeyboardEvent {
-    var type : uint32;
-    var timestamp : uint32;
-    var windowID : uint32;
-    var state : uint8;
-    var repeat : uint8;
-    var padding2 : uint8;
-    var padding3 : uint8;
-    var keysym : SDL_Keysym;
+    type : uint32;
+    timestamp : uint32;
+    windowID : uint32;
+    state : uint8;
+    repeat : uint8;
+    padding2 : uint8;
+    padding3 : uint8;
+    keysym : SDL_Keysym;
 }
 
 union SDL_Event {
-	var type : uint32;
-	var key : SDL_KeyboardEvent;
-    var padding : [56]uint8;
+	type : uint32;
+	key : SDL_KeyboardEvent;
+	padding : [56]uint8;
 }
 
 struct SDL_Rect {
-	var x : int32;
-	var y : int32;
-	var w : int32;
-	var h : int32;
+	x : int32;
+	y : int32;
+	w : int32;
+	h : int32;
 }
 
 dllimport "libc.so.6" {
@@ -81,14 +81,14 @@ var SDL_QUIT = 0x100;
 var SDL_KEYDOWN = 0x300;
 
 struct Point {
-	var x : int;
-	var y : int;
+	x : int;
+	y : int;
 }
 
 struct Snake {
-	var segments : [256]Point;
-	var start = 0;
-	var length = 1;
+	segments : [256]Point;
+	start = 0;
+	length = 1;
 }
 
 var dir : Point;

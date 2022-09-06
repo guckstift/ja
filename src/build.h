@@ -17,7 +17,6 @@ typedef struct Unit {
 	Token *tokens;
 	Block *block;
 	char *obj_filename;
-	char *obj_main_filename;
 } Unit;
 
 typedef struct {

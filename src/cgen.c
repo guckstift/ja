@@ -1031,28 +1031,22 @@ static void gen_c()
 		"}\n"
 	);
 	
-	fclose(ofs);
-}
-
-static void gen_c_main()
-{
-	ofs = fopen(cur_unit->c_main_filename, "wb");
-	level = 0;
-	in_header = 0;
-	
-	write(
-		"#include \"%s\"\n"
-		"int main(int argc, char **argv) {\n"
-		INDENT "return ",
-		cur_unit->h_filename
-	);
-	
-	gen_mainfuncname(cur_unit);
-	
-	write(
-		"(argc, argv);\n"
-		"}\n"
-	);
+	if(cur_unit->ismain) {
+		write(
+			"\n#ifdef JA_ISMAIN\n"
+			"int main(int argc, char **argv) {\n"
+			INDENT "return ",
+			cur_unit->h_filename
+		);
+		
+		gen_mainfuncname(cur_unit);
+		
+		write(
+			"(argc, argv);\n"
+			"}\n"
+			"#endif\n"
+		);
+	}
 	
 	fclose(ofs);
 }
@@ -1064,5 +1058,4 @@ void gen(Unit *unit)
 	cur_unit = unit;
 	gen_h();
 	gen_c();
-	if(cur_unit->ismain) gen_c_main();
 }
