@@ -9,7 +9,7 @@ typedef struct Type Type;
 typedef struct Expr Expr;
 typedef struct StmtHead StmtHead;
 typedef struct Import Import;
-typedef struct DllImport DllImport;
+typedef struct Foreign Foreign;
 typedef struct EnumItem EnumItem;
 typedef struct DeclFlags DeclFlags;
 typedef struct Decl Decl;
@@ -81,7 +81,7 @@ typedef enum {
 	ASSIGN,
 	RETURN,
 	IMPORT,
-	DLLIMPORT,
+	FOREIGN,
 	BREAK,
 	CONTINUE,
 	FOR,
@@ -294,9 +294,9 @@ struct Import {
 	Decl **decls;
 };
 
-struct DllImport {
+struct Foreign {
 	STMT_HEAD
-	char *dll_name;
+	char *filename;
 	Decl **decls;
 };
 
@@ -359,7 +359,7 @@ struct Stmt {
 		struct { STMT_HEAD };
 		Decl as_decl;
 		Import as_import;
-		DllImport as_dll_import;
+		Foreign as_foreign;
 		If as_if;
 		While as_while;
 		Assign as_assign;
@@ -374,7 +374,7 @@ struct Stmt {
 
 Stmt *new_stmt(Kind kind, Token *start, Scope *scope);
 Import *new_import(Token *start, Scope *scope, Unit *unit, Decl **decls);
-DllImport *new_dll_import(Token *start, Scope *scope, char *name, Decl **decls);
+Foreign *new_foreign(Token *start, Scope *scope, char *name, Decl **decls);
 If *new_if(Token *start, Expr *cond, Block *if_body, Block *else_body);
 While *new_while(Token *start, Scope *scope, Expr *cond, Block *body);
 Assign *new_assign(Scope *scope, Expr *target, Expr *expr);
@@ -398,7 +398,7 @@ struct Scope {
 	Decl *structhost;
 	Stmt *loophost;
 	Import **imports;
-	DllImport **dll_imports;
+	Foreign **foreigns;
 	Decl **decls;
 };
 

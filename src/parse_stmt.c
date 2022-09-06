@@ -79,7 +79,7 @@ static Stmt *p_print()
 	return (Stmt*)new_print(start, scope, expr);
 }
 
-static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
+static Stmt *p_vardecl_core(Token *start, int exported, int param, int foreign)
 {
 	Token *ident = eat(TK_IDENT);
 	if(!ident) return 0;
@@ -93,10 +93,11 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 	
 	Expr *init = 0;
 	if(!param && eat(TK_ASSIGN)) {
-		if(dll) {
+		if(foreign) {
 			fatal_at(
 				cur,
-				"variables imported from dlls can not have initialization"
+				"variables imported from dynamic libraries "
+				"can not have initialization"
 			);
 		}
 		
@@ -129,12 +130,12 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 	return (Stmt*)decl;
 }
 
-static Stmt *p_vardecl(int exported, int dll)
+static Stmt *p_vardecl(int exported, int foreign)
 {
 	if(!eat(TK_var)) return 0;
 	Token *start = last;
 	
-	Stmt *core = p_vardecl_core(start, exported, 0, dll);
+	Stmt *core = p_vardecl_core(start, exported, 0, foreign);
 	if(!core) fatal_after(last, "expected identifier after keyword var");
 	
 	if(!eat(TK_SEMICOLON))
@@ -551,13 +552,13 @@ static Stmt *p_import()
 	return (Stmt*)import;
 }
 
-static Stmt *p_dllimport()
+static Stmt *p_foreign()
 {
-	if(!eat(TK_dllimport)) return 0;
+	if(!eat(TK_foreign)) return 0;
 	Token *start = last;
 	
 	if(scope->parent)
-		fatal_at(last, "DLL imports can only be used at top level");
+		fatal_at(last, "foreign imports can only be used at top level");
 	
 	Token *filename = eat(TK_STRING);
 	if(!filename) fatal_at(cur, "expected filename of library to import from");
@@ -569,7 +570,7 @@ static Stmt *p_dllimport()
 	
 	while(1) {
 		Decl *decl = 0;
-		//(decl = &p_funcdecl(0, 1)->as_decl) ||
+		(decl = &p_foreign_func(0)->as_decl) ||
 		(decl = &p_vardecl(0, 1)->as_decl) ;
 		if(!decl) break;
 		array_push(decls, decl);
@@ -578,8 +579,8 @@ static Stmt *p_dllimport()
 	if(!eat(TK_RCURLY))
 		fatal_after(last, "expected } after library list");
 	
-	DllImport *import = new_dll_import(start, scope, filename->string, decls);
-	array_push(scope->dll_imports, import);
+	Foreign *import = new_foreign(start, scope, filename->string, decls);
+	array_push(scope->foreigns, import);
 	return (Stmt*)import;
 }
 
@@ -752,7 +753,7 @@ static Stmt *p_stmt()
 	(stmt = p_whilestmt()) ||
 	(stmt = p_returnstmt()) ||
 	(stmt = p_import()) ||
-	(stmt = p_dllimport()) ||
+	(stmt = p_foreign()) ||
 	(stmt = p_export()) ||
 	(stmt = p_break()) ||
 	(stmt = p_continue()) ||

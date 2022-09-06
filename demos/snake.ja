@@ -44,11 +44,11 @@ struct SDL_Rect {
 	h : int32;
 }
 
-dllimport "libc.so.6" {
+foreign "libc.so.6" {
 	function rand() : int;
 }
 
-dllimport "libSDL2-2.0.so" {
+foreign "libSDL2-2.0.so" {
 	function SDL_Init(flags : uint32) : int32;
 	
 	function SDL_CreateWindow(

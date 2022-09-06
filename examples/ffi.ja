@@ -1,5 +1,5 @@
 
-dllimport "libc.so.6" {
+foreign "libc.so.6" {
 	function fopen(filename : cstring, mode : cstring) : ptr;
 	function fwrite(p : cstring, size : uint, count : uint, stream : ptr) : uint;
 	var stdout : >ptr;

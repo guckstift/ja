@@ -11,12 +11,12 @@
 	_(continue) \
 	_(cstring) \
 	_(delete) \
-	_(dllimport) \
 	_(else) \
 	_(enum) \
 	_(export) \
 	_(false) \
 	_(for) \
+	_(foreign) \
 	_(from) \
 	_(function) \
 	_(if) \

@@ -1,6 +1,6 @@
 import build from "./build.ja";
 
-dllimport "libc.so.6" {
+foreign "libc.so.6" {
 	function exit(code :int32);
 	function fwrite(p :cstring, size :uint, count :uint, fs :ptr);
 	var stdout : >ptr;

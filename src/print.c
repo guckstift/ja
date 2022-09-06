@@ -666,14 +666,14 @@ static void print_stmt(Stmt *stmt)
 			print_keyword_cstr("import ");
 			printf(COL_MAGENTA "\"%s\"", stmt->as_import.unit->src_filename);
 			break;
-		case DLLIMPORT:
-			print_keyword_cstr("dllimport ");
+		case FOREIGN:
+			print_keyword_cstr("foreign ");
 			printf(
 				COL_MAGENTA "\"%s\"" COL_RESET " {\n",
-				stmt->as_dll_import.dll_name
+				stmt->as_foreign.filename
 			);
 			level ++;
-			print_stmts((Stmt**)stmt->as_dll_import.decls);
+			print_stmts((Stmt**)stmt->as_foreign.decls);
 			level --;
 			print_indent();
 			printf("}");

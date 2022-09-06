@@ -863,10 +863,10 @@ static void gen_imports(Import **imports)
 	}
 }
 
-static void gen_dll_import_decls(DllImport **imports)
+static void gen_foreign_decls(Foreign **imports)
 {
 	array_for(imports, i) {
-		DllImport *import = imports[i];
+		Foreign *import = imports[i];
 		Decl **decls = import->decls;
 		
 		array_for(decls, j) {
@@ -882,22 +882,22 @@ static void gen_dll_import_decls(DllImport **imports)
 	}
 }
 
-static void gen_dll_imports(DllImport **imports)
+static void gen_foreign_imports(Foreign **imports)
 {
-	write(INDENT "void *dll = 0;\n");
+	write(INDENT "void *lib = 0;\n");
 	
 	array_for(imports, i) {
-		DllImport *import = imports[i];
+		Foreign *import = imports[i];
 		Decl **decls = import->decls;
 		
 		write(
-			INDENT "dll = dlopen(\"%s\", RTLD_LAZY);\n"
-			INDENT "if(dll == 0) {\n"
+			INDENT "lib = dlopen(\"%s\", RTLD_LAZY);\n"
+			INDENT "if(lib == 0) {\n"
 			INDENT INDENT "fprintf(stderr, \"error: could not load library "
 				"%s\\n\");\n"
 			INDENT "}\n"
-			, import->dll_name
-			, import->dll_name
+			, import->filename
+			, import->filename
 		);
 		
 		array_for(decls, j) {
@@ -905,13 +905,13 @@ static void gen_dll_imports(DllImport **imports)
 			
 			if(decl->kind == FUNC) {
 				write(
-					INDENT "*(void**)&%s = dlsym(dll, \"%t\");\n"
+					INDENT "*(void**)&%s = dlsym(lib, \"%t\");\n"
 					,decl->private_id, decl->id
 				);
 			}
 			else if(decl->kind == VAR) {
 				write(
-					INDENT "%s = dlsym(dll, \"%t\");\n",
+					INDENT "%s = dlsym(lib, \"%t\");\n",
 					decl->private_id, decl->id
 				);
 			}
@@ -987,8 +987,8 @@ static void gen_c()
 	write("\n// structures & unions\n");
 	gen_structdecls(decls);
 	
-	write("\n// dll imports\n");
-	gen_dll_import_decls(unit_scope->dll_imports);
+	write("\n// foreign imports\n");
+	gen_foreign_decls(unit_scope->foreigns);
 	
 	write("\n// variables\n");
 	gen_vardecls(decls);
@@ -1019,8 +1019,8 @@ static void gen_c()
 			"(jastring){strlen(argv[i]), argv[i]};\n"
 	);
 	
-	write("%>// dll imports\n");
-	gen_dll_imports(unit_scope->dll_imports);
+	write("%>// foreign imports\n");
+	gen_foreign_imports(unit_scope->foreigns);
 	level --;
 	gen_block(cur_unit->block);
 	

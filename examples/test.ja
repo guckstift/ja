@@ -1,1 +1,3 @@
-function foo() {}
+foreign "libc.so.6" {
+	function fopen(filename : cstring, mode : cstring) : ptr;
+}

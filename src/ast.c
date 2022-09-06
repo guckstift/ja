@@ -474,10 +474,10 @@ Import *new_import(Token *start, Scope *scope, Unit *unit, Decl **decls)
 	return import;
 }
 
-DllImport *new_dll_import(Token *start, Scope *scope, char *name, Decl **decls)
+Foreign *new_foreign(Token *start, Scope *scope, char *name, Decl **decls)
 {
-	DllImport *import = &new_stmt(DLLIMPORT, start, scope)->as_dll_import;
-	import->dll_name = name;
+	Foreign *import = &new_stmt(FOREIGN, start, scope)->as_foreign;
+	import->filename = name;
 	import->decls = decls;
 	return import;
 }
@@ -565,7 +565,7 @@ Scope *new_scope(char *unit_id, Scope *parent) {
 	scope->structhost = 0;
 	scope->loophost = parent ? parent->loophost : 0;
 	scope->imports = 0;
-	scope->dll_imports = 0;
+	scope->foreigns = 0;
 	scope->decls = 0;
 	return scope;
 }
