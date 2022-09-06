@@ -113,17 +113,12 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int dll)
 			);
 	}
 	
-	if(type == 0 && init == 0)
+	if(type == 0 && init == 0) {
 		fatal_at(
 			ident, "%s without type declared",
 			param ? "parameter" : "variable"
 		);
-	
-	/*
-	if(exported) {
-		make_type_exportable(type);
 	}
-	*/
 	
 	Decl *decl = new_var(start, scope, ident->id, exported, param, type, init);
 	
@@ -170,7 +165,6 @@ static Stmt *p_funcdecl(int exported, int dll)
 		Decl *param = &p_vardecl_core(0, 0, 1, 0)->as_decl;
 		if(!param) break;
 		array_push(params, param);
-		if(exported) make_type_exportable(param->type);
 		if(!eat(TK_COMMA)) break;
 	}
 	
@@ -183,14 +177,7 @@ static Stmt *p_funcdecl(int exported, int dll)
 	
 	if(eat(TK_COLON)) {
 		returntype = p_type();
-		if(!returntype)
-			fatal_after(last, "expected return type after colon");
-		
-		/*
-		if(exported) {
-			make_type_exportable(returntype);
-		}
-		*/
+		if(!returntype) fatal_after(last, "expected return type after colon");
 	}
 	
 	Decl *decl = new_func(
@@ -292,7 +279,6 @@ static Stmt *p_structdecl(int exported)
 			error_after(last, "expected semicolon after struct member");
 		
 		array_push(members, member);
-		// if(exported) make_type_exportable(member->type);
 	}
 	
 	if(!eat(TK_RCURLY))
@@ -406,7 +392,6 @@ static Stmt *p_uniondecl(int exported)
 			error_after(last, "expected semicolon after union member");
 		
 		array_push(members, member);
-		// if(exported) make_type_exportable(member->type);
 	}
 	
 	if(!eat(TK_RCURLY))

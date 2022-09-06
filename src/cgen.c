@@ -1006,24 +1006,22 @@ static void gen_c()
 	);
 	
 	gen_mainfunchead(cur_unit);
+	level ++;
 	
 	write(
 		" {\n"
-		INDENT "if(main_was_called) {\n"
-		INDENT INDENT "return 0;\n"
-		INDENT "}\n"
-		INDENT "main_was_called = 1;\n"
-		INDENT "ja_argv.length = argc;\n"
-		INDENT "ja_argv.items = malloc(sizeof(jastring) * argc);\n"
-		INDENT "for(int64_t i=0; i < argc; i++) {\n"
-		INDENT INDENT "((jastring*)ja_argv.items)[i] = "
+		"%>if(main_was_called) return 0;\n"
+		"%>else main_was_called = 1;\n"
+		"%>jastring argv_buf[argc];\n"
+		"%>ja_argv = (jaslice){.length = argc, .items = argv_buf};\n"
+		"%>for(int64_t i=0; i < argc; i++) "
+		"((jastring*)ja_argv.items)[i] = "
 			"(jastring){strlen(argv[i]), argv[i]};\n"
-		INDENT "}\n"
 	);
 	
-	write(INDENT "// dll imports\n");
+	write("%>// dll imports\n");
 	gen_dll_imports(unit_scope->dll_imports);
-	
+	level --;
 	gen_block(cur_unit->block);
 	
 	write(

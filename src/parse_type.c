@@ -82,33 +82,6 @@ static Type *p_type()
 	return type;
 }
 
-void make_type_exportable(Type *type)
-{
-	while(type->kind == PTR || type->kind == ARRAY) {
-		type = type->subtype;
-	}
-	
-	if(type->kind == STRUCT) {
-		Decl *decl = type->decl;
-		
-		if(decl->exported == 0) {
-			decl->exported = 1;
-			Decl **members = decl->members;
-			
-			array_for(members, i) {
-				make_type_exportable(members[i]->type);
-			}
-		}
-	}
-	else if(type->kind == FUNC) {
-		make_type_exportable(type->returntype);
-			
-		array_for(type->paramtypes, i) {
-			make_type_exportable(type->paramtypes[i]);
-		}
-	}
-}
-
 Type *p_type_pub(ParseState *state)
 {
 	unpack_state(state);

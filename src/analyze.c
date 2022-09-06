@@ -10,6 +10,33 @@ static bool repeat_analyze = false;
 static void a_block(Block *block);
 static void a_expr(Expr *expr);
 
+static void make_type_exportable(Type *type)
+{
+	while(type->kind == PTR || type->kind == ARRAY) {
+		type = type->subtype;
+	}
+	
+	if(type->kind == STRUCT || type->kind == UNION) {
+		Decl *decl = type->decl;
+		
+		if(decl->exported == 0) {
+			decl->exported = 1;
+			Decl **members = decl->members;
+			
+			array_for(members, i) {
+				make_type_exportable(members[i]->type);
+			}
+		}
+	}
+	else if(type->kind == FUNC) {
+		make_type_exportable(type->returntype);
+			
+		array_for(type->paramtypes, i) {
+			make_type_exportable(type->paramtypes[i]);
+		}
+	}
+}
+
 static Type *a_named_type(Type *type, Token *start, int is_subtype_of_ptr)
 {
 	Token *id = type->id;
@@ -640,6 +667,11 @@ static void a_vardecl(Decl *decl)
 	}
 	
 	decl->type = a_type(decl->type, decl->start, 0);
+	Decl *structhost = decl->scope->structhost;
+	
+	if(decl->exported) {
+		make_type_exportable(decl->type);
+	}
 }
 
 static void a_funcdecl(Decl *decl)
@@ -652,6 +684,10 @@ static void a_funcdecl(Decl *decl)
 	decl->type->returntype = a_type(decl->type->returntype, decl->start, 0);
 	a_block(decl->body);
 	decl->deps_scanned = 1;
+	
+	if(decl->exported) {
+		make_type_exportable(decl->type);
+	}
 }
 
 static void a_structdecl(Decl *decl)
@@ -659,6 +695,10 @@ static void a_structdecl(Decl *decl)
 	array_for(decl->members, i) {
 		Decl *member = decl->members[i];
 		a_vardecl(member);
+		
+		if(decl->exported) {
+			make_type_exportable(member->type);
+		}
 	}
 }
 
