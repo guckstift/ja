@@ -547,10 +547,8 @@ static void gen_foreign_imports(Foreign **imports)
 		
 		write(
 			INDENT "lib = dlopen(\"%s\", RTLD_LAZY);\n"
-			INDENT "if(lib == 0) {\n"
-			INDENT INDENT "fprintf(stderr, \"error: could not load library "
-				"%s\\n\");\n"
-			INDENT "}\n"
+			INDENT "if(lib == 0) "
+			"fprintf(stderr, \"error: could not load library %s\\n\");\n"
 			, import->filename
 			, import->filename
 		);
@@ -572,10 +570,8 @@ static void gen_foreign_imports(Foreign **imports)
 			}
 			
 			write(
-				INDENT "if(%s == 0) {\n"
-				INDENT INDENT "fprintf(stderr, \"error: could not load symbol "
-					"%t\\n\");\n"
-				INDENT "}\n"
+				INDENT "if(%s == 0) "
+				"fprintf(stderr, \"error: could not load symbol %t\\n\");\n"
 				, decl->private_id
 				, decl->id
 			);

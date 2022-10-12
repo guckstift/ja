@@ -419,6 +419,7 @@ Decl *new_func(
 	decl->type = new_func_type(returntype, paramtypes);
 	decl->params = params;
 	decl->func_scope = func_scope;
+	decl->body = 0;
 	return decl;
 }
 

@@ -1,7 +1,12 @@
-union Foo {
-	x : >Foo;
+foreign "libc.so.6" {
+	function fopen(filename : cstring, mode : cstring) : ptr;
 }
 
-var x : Foo;
-var f : >Foo;
-f = >x;
+if argv.length >= 2 {
+	var filename = argv[1];
+	var fs = fopen(filename, "rb");
+}
+
+var s1 = new [4]uint8 as string;
+var s2 = new [5]int8 as string;
+var s3 = new [6]bool as string;
