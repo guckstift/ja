@@ -28,7 +28,7 @@ typedef struct Delete Delete;
 
 /*
 	Kind
-	
+
 	enum for types, expressions and statements
 */
 
@@ -48,9 +48,9 @@ typedef enum {
 	BOOL,
 	STRING,
 	CSTRING,
-	
+
 	_PRIMKIND_COUNT,
-	
+
 	// types
 	PTR,
 	ARRAY,
@@ -60,7 +60,7 @@ typedef enum {
 	ENUM,
 	UNION,
 	NAMED,
-	
+
 	// expressions
 	VAR,
 	DEREF,
@@ -73,7 +73,7 @@ typedef enum {
 	NEW,
 	NEGATION,
 	COMPLEMENT,
-	
+
 	// statements
 	PRINT,
 	IF,
@@ -91,7 +91,7 @@ typedef enum {
 
 /*
 	Type
-	
+
 	* primitive type
 	* ptr
 	* array
@@ -103,14 +103,14 @@ typedef enum {
 
 struct Type {
 	Kind kind;
-	
+
 	union {
 		Type *subtype; // ptr target type
 		Type *itemtype; // array/slice item type
 		Type *returntype; // func return type
 		Token *id; // named type
 	};
-	
+
 	union {
 		int64_t length; // array length
 		Decl *decl; // struct, enum, union
@@ -135,7 +135,7 @@ bool is_array_ptr_type(Type *type);
 
 /*
 	Expr
-	
+
 	centralized struct for any expression
 */
 
@@ -145,7 +145,7 @@ typedef enum {
 	OL_CMP,
 	OL_ADD,
 	OL_MUL,
-	
+
 	_OPLEVEL_COUNT,
 } OpLevel;
 
@@ -155,7 +155,7 @@ struct Expr {
 	Type *type;
 	int isconst : 1;
 	int islvalue : 1;
-	
+
 	union {
 		int64_t value; // int, bool
 		int64_t length; // string
@@ -168,7 +168,7 @@ struct Expr {
 		Expr *left; // binop
 		Expr **items; // array
 	};
-	
+
 	union {
 		Token *id; // var
 		char *string; // string, cstring
@@ -178,12 +178,12 @@ struct Expr {
 		Expr **args; // call
 		EnumItem *item; // enum
 	};
-	
+
 	union {
 		Token *operator; // binop
 		Token *member_id; // member (before analyze)
 	};
-	
+
 	OpLevel oplevel; // binop
 };
 
@@ -231,22 +231,22 @@ struct Decl {
 	char *private_id;
 	char *public_id;
 	Type *type;
-	
+
 	uint8_t imported;
 	uint8_t exported;
 	uint8_t builtin;
 	uint8_t isproto;
 	uint8_t cfunc;
 	uint8_t deps_scanned;
-	
+
 	Decl **deps; // func: variables used from outer scope
 	Scope *func_scope; // func
-	
+
 	union {
 		Expr *init; // var
 		Block *body; // func
 	};
-	
+
 	union {
 		Decl **members; // struct
 		Decl **params; // func

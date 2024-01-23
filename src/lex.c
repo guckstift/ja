@@ -6,158 +6,146 @@
 #include "print.h"
 #include "array.h"
 
-#define hex2int(x) ( \
-	(x) >= '0' && (x) <= '9' ? x - '0' : \
-	(x) >= 'a' && (x) <= 'f' ? x - 'a' + 10 : \
-	(x) >= 'A' && (x) <= 'F' ? x - 'A' + 10 : \
-0)
+static char *pos;
+static char *end;
+static char *start;
+static char *line_start;
+static int64_t line_num;
+static Token *tokens;
+static Token *last;
+static Token **ids;
 
-#define tokequ(a, b) ( \
-	(a)->length == (b)->length && \
-	memcmp((a)->start, (b)->start, (a)->length) == 0 \
-)
-
-static Token **ids = 0;
-
-Token *create_id(char *start, int64_t length)
+static inline uint8_t hex_char_to_int(char x)
 {
-	if(length == 0) {
-		length = strlen(start);
-	}
-	
-	Token *ident = malloc(sizeof(Token));
-	ident->kind = TK_IDENT;
-	ident->line = 0;
-	ident->linep = 0;
-	ident->start = start;
-	ident->length = length;
-	
-	array_for(ids, i) {
-		if(tokequ(ident, ids[i])) {
-			free(ident);
-			return ids[i];
-		}
-	}
-	
-	ident->id = ident;
-	array_push(ids, ident);
-	return ident;
+	return
+		"\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0"
+		"\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0"
+		"\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0"
+		"\x0\x1\x2\x3\x4\x5\x6\x7\x8\x9\x0\x0\x0\x0\x0\x0"
+		"\x0\xA\xB\xC\xD\xE\xF\x0\x0\x0\x0\x0\x0\x0\x0\x0"
+		"\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0"
+		"\x0\xa\xb\xc\xd\xe\xf\x0\x0\x0\x0\x0\x0\x0\x0\x0"
+		"\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0"
+		[x & 0x7f]
+	;
 }
 
-Token *lex(char *src, int64_t src_len)
+static inline void emit(TokenKind kind)
 {
-	char *src_end = src + src_len;
-	Token *tokens = 0;
-	Token *last = 0;
-	char *pos = src;
-	int64_t line = 1;
-	char *linep = pos;
-	
-	#define emit(t) do { \
-		array_push(tokens, ((Token){ \
-			.kind = (t), \
-			.line = line, \
-			.linep = linep, \
-			.start = start, \
-			.length = pos - start, \
-		})); \
-		last = tokens + array_length(tokens) - 1; \
-	} while(0)
-	
-	#define match(s) ( \
-		strlen(s) == 1 ? (s)[0] == pos[0] : \
-		strlen(s) == 2 ? (s)[0] == pos[0] && (s)[1] == pos[1] : \
-	0)
-	
-	while(pos < src_end) {
-		char *start = pos;
-		
-		// new line
-		
+	Token token = {.kind = kind, .line = line_num, .linep = line_start, .start = start, .length = pos - start};
+	array_push(tokens, token);
+	last = tokens + array_length(tokens) - 1;
+}
+
+static inline int match(char *str)
+{
+	for(long i=0; i < strlen(str); i++) {
+		if(str[i] != pos[i]) {
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+static inline int token_equal(Token *a, Token *b)
+{
+	return a->length == b->length && memcmp(a->start, b->start, a->length) == 0;
+}
+
+Token *lex(char *src, long length)
+{
+	pos = src;
+	end = src + length;
+	line_start = src;
+	line_num = 1;
+	tokens = 0;
+	last = 0;
+
+	while(pos < end) {
+		start = pos;
+
 		if(*pos == '\n') {
 			pos ++;
-			line ++;
-			linep = pos;
+			line_num ++;
+			line_start = pos;
 		}
-		
-		// whitespace
-		
-		else if(isspace(*pos)) {
+
+		else if(*pos == ' ' || *pos == '\t') {
 			pos ++;
 		}
-		
-		// comments
-		
+
 		else if(*pos == '#') {
-			while(pos < src_end && *pos != '\n') pos ++;
+			while(*pos != 0 && *pos != '\n') {
+				pos ++;
+			}
 		}
+
 		else if(match("/*")) {
-			int64_t start_line = line;
-			char *start_linep = linep;
+			int64_t first_line_num = line_num;
+			char *first_line_start = line_start;
 			pos += 2;
-			
-			while(pos < src_end) {
+
+			while(pos < end) {
 				if(match("*/")) {
 					pos += 2;
 					break;
 				}
 				else if(*pos == '\n') {
 					pos ++;
-					line ++;
-					linep = pos;
+					line_num ++;
+					line_start = pos;
 				}
 				else {
 					pos ++;
 				}
 			}
-			
-			if(pos == src_end) {
+
+			if(pos == end) {
 				print_error(
-					start_line, start_linep, src_end, start_linep,
+					first_line_num, first_line_start, end, first_line_start,
 					"unterminated multi line comment"
 				);
-				
+
 				exit(EXIT_FAILURE);
 			}
 		}
-		
-		// identifiers / keywords
-		
+
 		else if(isalpha(*pos) || *pos == '_') {
-			while(isalnum(*pos) || *pos == '_') pos ++;
+			while(isalnum(*pos) || *pos == '_') {
+				pos ++;
+			}
+
 			emit(TK_IDENT);
-			
+
 			#define F(x) \
-				if( \
-					last->length == strlen(#x) && \
-					memcmp(last->start, #x, strlen(#x)) == 0 \
-				) { \
-					last->kind = TK_ ## x; \
-				} else
-			
+				if(last->length == strlen(#x) && memcmp(last->start, #x, strlen(#x)) == 0) { \
+					last->kind = TK_KEYWORD; \
+					last->keyword = KW_ ## x; \
+					continue; \
+				} \
+
 			KEYWORDS(F);
 			#undef F
 		}
-		
-		// numbers
-		
+
 		else if(isdigit(*pos)) {
 			int64_t ival = 0;
-			
+
 			if(match("0x")) {
 				pos += 2;
-				
+
 				while(isxdigit(*pos) || *pos == '_') {
 					if(*pos == '_') {
 						pos ++;
 						continue;
 					}
-					
+
 					ival *= 16;
-					ival += hex2int(*pos);
+					ival += hex_char_to_int(*pos);
 					pos ++;
 				}
-				
+
 				emit(TK_INT);
 				last->ival = ival;
 			}
@@ -167,35 +155,36 @@ Token *lex(char *src, int64_t src_len)
 						pos ++;
 						continue;
 					}
-					
+
 					ival *= 10;
 					ival += *pos - '0';
 					pos ++;
 				}
-				
+
 				emit(TK_INT);
 				last->ival = ival;
 			}
 		}
-		
-		// strings
-		
+
 		else if(*pos == '"') {
-			int64_t start_line = line;
-			char *start_linep = linep;
+			int64_t first_line_num = line_num;
+			char *first_line_start = line_start;
 			pos ++;
 			char *str_start = pos;
-			while(pos < src_end && *pos != '"') pos ++;
-			
-			if(pos == src_end) {
+
+			while(pos < end && *pos != '"') {
+				pos ++;
+			}
+
+			if(pos == end) {
 				print_error(
-					start_line, start_linep, src_end, start_linep,
+					first_line_num, first_line_start, end, first_line_start,
 					"unterminated string literal"
 				);
-				
+
 				exit(EXIT_FAILURE);
 			}
-			
+
 			int64_t length = pos - str_start;
 			char *buf = malloc(length + 1);
 			memcpy(buf, str_start, length);
@@ -205,64 +194,83 @@ Token *lex(char *src, int64_t src_len)
 			last->string = buf;
 			last->string_length = length;
 		}
-		
-		// punctuators
-		
+
 		#define F(x, y) \
 			else if(match(x)) { \
 				pos += strlen(x); \
 				emit(TK_ ## y); \
 				last->punct = x; \
 			}
-		
+
 		PUNCTS(F)
 		#undef F
-		
-		// unrecognized punctuator
-		
+
 		else if(ispunct(*pos)) {
 			print_error(
-				line, linep, src_end, pos,
+				line_num, line_start, end, pos,
 				"unrecognized punctuator '%c' (ignoring)",
 				(uint8_t)*pos
 			);
-			
+
 			pos ++;
 		}
-		
-		// unrecognized character
-		
+
 		else {
 			print_error(
-				line, linep, src_end, pos,
+				line_num, line_start, end, pos,
 				"unrecognized character (byte value: 0x%b; ignoring)",
 				(uint8_t)*pos
 			);
-			
+
 			pos ++;
 		}
 	}
-	
-	char *start = pos;
+
+	start = pos;
 	emit(TK_EOF);
-	
+
 	for(Token *token = tokens; token->kind != TK_EOF; token ++) {
 		if(token->kind == TK_IDENT) {
 			token->id = 0;
-			
+
 			array_for(ids, i) {
-				if(tokequ(token, ids[i])) {
+				if(token_equal(token, ids[i])) {
 					token->id = ids[i];
 					break;
 				}
 			}
-			
+
 			if(token->id == 0) {
 				token->id = token;
 				array_push(ids, token);
 			}
 		}
 	}
-	
+
 	return tokens;
+}
+
+Token *create_id(char *start, int64_t length)
+{
+	if(length == 0) {
+		length = strlen(start);
+	}
+
+	Token *ident = malloc(sizeof(Token));
+	ident->kind = TK_IDENT;
+	ident->line = 0;
+	ident->linep = 0;
+	ident->start = start;
+	ident->length = length;
+
+	array_for(ids, i) {
+		if(token_equal(ident, ids[i])) {
+			free(ident);
+			return ids[i];
+		}
+	}
+
+	ident->id = ident;
+	array_push(ids, ident);
+	return ident;
 }

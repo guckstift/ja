@@ -10,17 +10,17 @@
 Type *new_type(Kind kind)
 {
 	static Type *primtypebuf[_PRIMKIND_COUNT] = {0};
-	
+
 	if(kind < _PRIMKIND_COUNT) {
 		if(primtypebuf[kind] == 0) {
 			Type *type = malloc(sizeof(Type));
 			type->kind = kind;
 			primtypebuf[kind] = type;
 		}
-		
+
 		return primtypebuf[kind];
 	}
-	
+
 	Type *type = malloc(sizeof(Type));
 	type->kind = kind;
 	return type;
@@ -29,21 +29,21 @@ Type *new_type(Kind kind)
 Type *new_ptr_type(Type *subtype)
 {
 	static Type *primptrtypebuf[_PRIMKIND_COUNT] = {0};
-	
+
 	if(subtype) {
 		Kind subkind = subtype->kind;
-		
+
 		if(subkind < _PRIMKIND_COUNT) {
 			if(primptrtypebuf[subkind] == 0) {
 				Type *type = new_type(PTR);
 				type->subtype = new_type(subkind);
 				primptrtypebuf[subkind] = type;
 			}
-			
+
 			return primptrtypebuf[subkind];
 		}
 	}
-	
+
 	Type *type = new_type(PTR);
 	type->subtype = subtype;
 	return type;
@@ -52,10 +52,10 @@ Type *new_ptr_type(Type *subtype)
 Type *new_array_type(int64_t length, Type *itemtype)
 {
 	static Type *primarraytypebuf[_PRIMKIND_COUNT] = {0};
-	
+
 	if(itemtype) {
 		Kind itemkind = itemtype->kind;
-		
+
 		if(length == -1 && itemkind < _PRIMKIND_COUNT) {
 			if(primarraytypebuf[itemkind] == 0) {
 				Type *type = new_type(ARRAY);
@@ -63,11 +63,11 @@ Type *new_array_type(int64_t length, Type *itemtype)
 				type->length = -1;
 				primarraytypebuf[itemkind] = type;
 			}
-			
+
 			return primarraytypebuf[itemkind];
 		}
 	}
-	
+
 	Type *type = new_type(ARRAY);
 	type->itemtype = itemtype;
 	type->length = length;
@@ -77,21 +77,21 @@ Type *new_array_type(int64_t length, Type *itemtype)
 Type *new_slice_type(Type *itemtype)
 {
 	static Type *primslicetypebuf[_PRIMKIND_COUNT] = {0};
-	
+
 	if(itemtype) {
 		Kind itemkind = itemtype->kind;
-		
+
 		if(itemkind < _PRIMKIND_COUNT) {
 			if(primslicetypebuf[itemkind] == 0) {
 				Type *type = new_type(SLICE);
 				type->itemtype = new_type(itemkind);
 				primslicetypebuf[itemkind] = type;
 			}
-			
+
 			return primslicetypebuf[itemkind];
 		}
 	}
-	
+
 	Type *type = new_type(SLICE);
 	type->itemtype = itemtype;
 	return type;
@@ -138,17 +138,17 @@ int type_equ(Type *left, Type *right)
 	if(left->kind == PTR && right->kind == PTR) {
 		return type_equ(left->subtype, right->subtype);
 	}
-	
+
 	if(left->kind == ARRAY && right->kind == ARRAY) {
 		return
 			left->length == right->length &&
 			type_equ(left->itemtype, right->itemtype);
 	}
-	
+
 	if(left->kind == FUNC && right->kind == FUNC) {
 		Type **lparamtypes = left->paramtypes;
 		Type **rparamtypes = right->paramtypes;
-		
+
 		if(
 			type_equ(left->returntype, right->returntype) &&
 			array_length(lparamtypes) == array_length(rparamtypes)
@@ -158,28 +158,28 @@ int type_equ(Type *left, Type *right)
 					return 0;
 				}
 			}
-			
+
 			return 1;
 		}
-		
+
 		return 0;
 	}
-	
+
 	if(left->kind == STRUCT && right->kind == STRUCT) {
 		return left->decl == right->decl;
 	}
-	
+
 	if(left->kind == ENUM && right->kind == ENUM) {
 		return left->decl == right->decl;
 	}
-	
+
 	return left->kind == right->kind;
 }
 
 int is_integer_type(Type *type)
 {
 	Kind kind = type->kind;
-	
+
 	return
 		kind == INT8 || kind == INT16 || kind == INT32 || kind == INT64 ||
 		kind == UINT8 || kind == UINT16 || kind == UINT32 || kind == UINT64 ;
@@ -256,7 +256,7 @@ Expr *new_array_expr(Token *start, Expr **items, int isconst)
 		isconst, 0
 	);
 	*/
-	
+
 	expr->items = items;
 	return expr;
 }
@@ -264,7 +264,7 @@ Expr *new_array_expr(Token *start, Expr **items, int isconst)
 Expr *new_subscript_expr(Expr *array, Expr *index)
 {
 	Expr *expr = 0;
-	
+
 	if(array->type) {
 		if(array->type->kind == STRING) {
 			expr = new_expr(
@@ -282,7 +282,7 @@ Expr *new_subscript_expr(Expr *array, Expr *index)
 			SUBSCRIPT, array->start, 0, 0, 1
 		);
 	}
-	
+
 	expr->array = array;
 	expr->index = index;
 	return expr;
@@ -293,7 +293,7 @@ Expr *new_length_expr(Expr *array)
 	Expr *expr = new_expr(
 		LENGTH, array->start, new_type(INT), array->isconst, 0
 	);
-	
+
 	expr->array = array;
 	return expr;
 }
@@ -319,7 +319,7 @@ Expr *new_deref_expr(Token *start, Expr *ptr)
 	Expr *expr = new_expr(
 		DEREF, start, ptr->type ? ptr->type->subtype : 0, 0, 1
 	);
-	
+
 	expr->ptr = ptr;
 	return expr;
 }
@@ -345,7 +345,7 @@ Expr *new_binop_expr(Expr *left, Expr *right, Token *operator, OpLevel oplevel)
 	Expr *expr = new_expr(
 		BINOP, left->start, 0, left->isconst && right->isconst, 0
 	);
-	
+
 	expr->left = left;
 	expr->right = right;
 	expr->operator = operator;
@@ -362,7 +362,7 @@ Expr *new_new_expr(Token *start, Type *obj_type)
 Expr *new_enum_item_expr(Token *start, Decl *enumdecl, EnumItem *item)
 {
 	assert(item);
-	
+
 	Expr *expr = new_expr(ENUM, start, enumdecl->type, 1, 0);
 	expr->item = item;
 	return expr;
@@ -376,10 +376,10 @@ Decl *new_decl(
 ) {
 	char *private_id = string_clone("ja_");
 	string_append_token(private_id, id);
-	
+
 	char *public_id = string_concat("_", scope->unit_id, "_", 0);
 	string_append_token(public_id, id);
-		
+
 	Decl *decl = &new_stmt(kind, start, scope)->as_decl;
 	decl->id = id;
 	decl->private_id = private_id;
@@ -409,11 +409,11 @@ Decl *new_func(
 	Decl **params, Scope *func_scope
 ) {
 	Type **paramtypes = 0;
-	
+
 	array_for(params, i) {
 		array_push(paramtypes, params[i]->type);
 	}
-	
+
 	Decl *decl = new_decl(FUNC, start, scope, id, exported, 0);
 	decl->deps = 0;
 	decl->type = new_func_type(returntype, paramtypes);
@@ -578,22 +578,22 @@ Decl *lookup_flat_in(Token *id, Scope *scope)
 			return scope->decls[i];
 		}
 	}
-	
+
 	return 0;
 }
 
 Decl *lookup_in(Token *id, Scope *scope)
 {
 	Decl *decl = lookup_flat_in(id, scope);
-	
+
 	if(decl) {
 		return decl;
 	}
-	
+
 	if(scope->parent) {
 		return lookup_in(id, scope->parent);
 	}
-	
+
 	return 0;
 }
 
@@ -603,7 +603,7 @@ bool scope_contains_scope(Scope *upper, Scope *lower)
 		if(lower->parent == upper) return true;
 		return scope_contains_scope(upper, lower->parent);
 	}
-	
+
 	return false;
 }
 
@@ -614,11 +614,11 @@ int declare_in(Decl *decl, Scope *scope)
 		decl->imported = 1;
 		decl->exported = 0;
 	}
-	
+
 	if(lookup_flat_in(decl->id, scope)) {
 		return 0;
 	}
-	
+
 	array_push(scope->decls, decl);
 	return 1;
 }
@@ -631,7 +631,7 @@ int redeclare_in(Decl *decl, Scope *scope)
 			return 1;
 		}
 	}
-	
+
 	return 0;
 }
 

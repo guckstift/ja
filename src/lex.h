@@ -85,15 +85,18 @@
 )
 
 typedef enum {
+	#define F(x) KW_ ## x,
+	KEYWORDS(F)
+	#undef F
+} Keyword;
+
+typedef enum {
 	TK_EOF,
 	TK_IDENT,
 	TK_INT,
 	TK_STRING,
-	
-	#define F(x) TK_ ## x,
-	KEYWORDS(F)
-	#undef F
-	
+	TK_KEYWORD,
+
 	#define F(x, y) TK_ ## y,
 	PUNCTS(F)
 	#undef F
@@ -106,12 +109,13 @@ typedef struct Token {
 	char *linep;
 	char *start;
 	int64_t length;
-	
+
 	union {
 		int64_t ival;
 		int64_t string_length;
+		Keyword keyword;
 	};
-	
+
 	union {
 		struct Token *id;
 		char *punct;
@@ -120,6 +124,6 @@ typedef struct Token {
 } Token;
 
 Token *create_id(char *start, int64_t length);
-Token *lex(char *src, int64_t src_len);
+Token *lex(char *src, long length);
 
 #endif

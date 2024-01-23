@@ -12,7 +12,198 @@ static int64_t level;
 static void print_stmts(Stmt **stmts);
 static void fprint_type(FILE *fs, Type *type);
 static void print_block(Block *block);
-static void fprint_ident(FILE *fs, Token *token);
+static void xprint_ident(FILE *fs, Token *token);
+
+static void xprint_char(FILE *fs, char ch)
+{
+	fputc(ch, fs);
+}
+
+static void print_char(char ch)
+{
+	xprint_char(stdout, ch);
+}
+
+static int xprint_str(FILE *fs, char *str)
+{
+	return fprintf(fs, "%s", str);
+}
+
+static int print_str(char *str)
+{
+	return xprint_str(stdout, str);
+}
+
+static int xprint_nstr(FILE *fs, char *str, int64_t len)
+{
+	return fwrite(str, 1, len, fs);
+}
+
+static int print_nstr(char *str, int64_t len)
+{
+	return xprint_nstr(stdout, str, len);
+}
+
+static int xprint_int(FILE *fs, int64_t val)
+{
+	return fprintf(fs, "%" PRId64, val);
+}
+
+static int print_int(int64_t val)
+{
+	return xprint_int(stdout, val);
+}
+
+static void xprint_indent(FILE *fs, int64_t level)
+{
+	for(int64_t i=0; i < level * INDENT_LENGTH; i++) {
+		xprint_char(fs, ' ');
+	}
+}
+
+static void print_indent()
+{
+	xprint_indent(stdout, level);
+}
+
+static void xprint_raw_token(FILE *fs, Token *token)
+{
+	xprint_nstr(fs, token->start, token->length);
+}
+
+static void print_raw_token(Token *token)
+{
+	xprint_raw_token(stdout, token);
+}
+
+static void xprint_ident(FILE *fs, Token *token)
+{
+	xprint_str(fs, COL_CYAN);
+	xprint_raw_token(fs, token);
+	xprint_str(fs, COL_RESET);
+}
+
+static void print_ident(Token *token)
+{
+	xprint_ident(stdout, token);
+}
+
+static void xprint_int_lit(FILE *fs, int64_t val)
+{
+	xprint_str(fs, COL_MAGENTA);
+	xprint_int(fs, val);
+	xprint_str(fs, COL_RESET);
+}
+
+static void print_int_lit(int64_t val)
+{
+	xprint_int_lit(stdout, val);
+}
+
+static void xprint_str_lit(FILE *fs, char *str, int64_t len)
+{
+	xprint_str(fs, COL_MAGENTA "\"");
+	xprint_nstr(fs, str, len);
+	xprint_str(fs, "\"" COL_RESET);
+}
+
+static void print_str_lit(char *str, int64_t len)
+{
+	xprint_str_lit(stdout, str, len);
+}
+
+static void xprint_keyword_str(FILE *fs, char *str)
+{
+	xprint_str(fs, COL_BLUE);
+	xprint_str(fs, str);
+	xprint_str(fs, COL_RESET);
+}
+
+static void print_keyword_str(char *str)
+{
+	xprint_keyword_str(stdout, str);
+}
+
+static void xprint_keyword(FILE *fs, Token *token)
+{
+	xprint_str(fs, COL_BLUE);
+	xprint_raw_token(fs, token);
+	xprint_str(fs, COL_RESET);
+}
+
+static void print_keyword(Token *token)
+{
+	xprint_keyword(stdout, token);
+}
+
+static void xprint_marked_line(FILE *fs, int64_t line_num, char *line_start, char *src_end, char *mark_pos)
+{
+	xprint_str(fs, COL_GREY);
+	int64_t white_len = xprint_int(fs, line_num);
+	white_len += xprint_str(fs, ": ");
+	xprint_str(fs, COL_RESET);
+	int64_t col = 0;
+
+	for(char *p = line_start; p < src_end && *p != '\n'; p++) {
+		if(*p == '\t') {
+			do {
+				col ++;
+				xprint_char(fs, ' ');
+				white_len += p < mark_pos;
+			} while(col % INDENT_LENGTH);
+		}
+		else {
+			col ++;
+
+			if(isprint(*p)) {
+				xprint_char(fs, *p);
+			}
+			else {
+				xprint_str(fs, COL_YELLOW_BG " " COL_RESET);
+			}
+
+			white_len += p < mark_pos;
+		}
+	}
+
+	xprint_char(fs, '\n');
+
+	for(int64_t i = 0; i < white_len; i++) {
+		xprint_char(fs, ' ');
+	}
+
+	xprint_str(fs, COL_RED "^" COL_RESET "\n");
+}
+
+static void print_token(Token *token)
+{
+	switch(token->kind) {
+		case TK_IDENT:
+			print_str("IDENT   ");
+			print_ident(token);
+			break;
+		case TK_INT:
+			print_str("INT     ");
+			print_int_lit(token->ival);
+			break;
+		case TK_STRING:
+			print_str("STRING  ");
+			print_str_lit(token->string, token->string_length);
+			break;
+		case TK_KEYWORD:
+			print_str("KEYWORD ");
+			print_keyword(token);
+			break;
+
+		#define F(x, y) \
+			case TK_ ## y: \
+				print_str("PUNCT   " x); \
+				break;
+
+		PUNCTS(F)
+		#undef F
+	}
+}
 
 /*
 	format specifiers:
@@ -49,9 +240,9 @@ void ja_vfprintf(FILE *fs, char *msg, va_list args)
 			else if(*msg == 't') {
 				msg++;
 				Token *token = va_arg(args, Token*);
-				
+
 				if(token->kind == TK_IDENT) {
-					fprint_ident(fs, token);
+					xprint_ident(fs, token);
 				}
 				else {
 					fwrite(token->start, 1, token->length, fs);
@@ -94,42 +285,6 @@ void ja_printf(char *msg, ...)
 	va_end(args);
 }
 
-void fprint_marked_src_line(
-	FILE *fs, int64_t line, char *linep, char *src_end, char *err_pos
-) {
-	fprintf(fs, COL_GREY);
-	int64_t white_len = fprintf(fs, "%" PRId64 ": ", line);
-	fprintf(fs, COL_RESET);
-	int64_t col = 0;
-	
-	for(char *p = linep; p < src_end; p++) {
-		if(*p == '\n') {
-			break;
-		}
-		else if(isprint(*p)) {
-			fprintf(fs, "%c", *p);
-			col ++;
-			if(p < err_pos) white_len ++;
-		}
-		else if(*p == '\t') {
-			do {
-				fprintf(fs, " ");
-				col ++;
-				if(p < err_pos) white_len ++;
-			} while(col % 4 != 0);
-		}
-		else {
-			fprintf(fs, COL_YELLOW_BG " " COL_RESET);
-			col ++;
-			if(p < err_pos) white_len ++;
-		}
-	}
-	
-	fprintf(fs, "\n");
-	for(int64_t i = 0; i < white_len; i++) fprintf(fs, " ");
-	fprintf(fs, COL_RED "^" COL_RESET "\n");
-}
-
 void vprint_error(
 	int64_t line, char *linep, char *src_end, char *err_pos, char *msg,
 	va_list args
@@ -138,7 +293,7 @@ void vprint_error(
 	ja_vfprintf(stderr, msg, args);
 	fprintf(stderr, "\n");
 	if(linep == 0) return;
-	fprint_marked_src_line(stderr, line, linep, src_end, err_pos);
+	xprint_marked_line(stderr, line, linep, src_end, err_pos);
 }
 
 void print_error(
@@ -148,23 +303,6 @@ void print_error(
 	va_start(args, msg);
 	vprint_error(line, linep, src_end, err_pos, msg, args);
 	va_end(args);
-}
-
-static void fprint_raw(FILE *fs, char *str)
-{
-	fwrite(str, 1, strlen(str), fs);
-}
-
-static void fprint_ident(FILE *fs, Token *token)
-{
-	fprintf(fs, COL_AQUA);
-	fwrite(token->start, 1, token->length, fs);
-	fprintf(fs, COL_RESET);
-}
-
-static void print_ident(Token *token)
-{
-	fprint_ident(stdout, token);
 }
 
 static int64_t dec_len(int64_t val)
@@ -190,33 +328,6 @@ static int64_t print_line_num(int64_t line, int64_t max_line)
 	return printf_len;
 }
 
-static void fprint_keyword_cstr(FILE *fs, char *str)
-{
-	fprintf(fs, COL_BLUE "%s" COL_RESET, str);
-}
-
-static void print_keyword_cstr(char *str)
-{
-	fprint_keyword_cstr(stdout, str);
-}
-
-static void print_keyword(Token *token)
-{
-	printf(COL_BLUE);
-	fwrite(token->start, 1, token->length, stdout);
-	printf(COL_RESET);
-}
-
-static void fprint_int(FILE *fs, int64_t val)
-{
-	fprintf(fs, COL_MAGENTA "%" PRId64 COL_RESET, val);
-}
-
-static void print_int(int64_t val)
-{
-	fprint_int(stdout, val);
-}
-
 static void fprint_uint(FILE *fs, uint64_t val)
 {
 	fprintf(fs, COL_MAGENTA "%" PRIu64 COL_RESET, val);
@@ -232,75 +343,26 @@ static void print_float(double val)
 	printf(COL_MAGENTA "%f" COL_RESET, val);
 }
 
-static void print_string(char *string, int64_t length)
-{
-	printf(COL_MAGENTA "\"");
-	fwrite(string, 1, length, stdout);
-	printf("\"" COL_RESET);
-}
-
-static void print_token(Token *token)
-{
-	switch(token->kind) {
-		case TK_IDENT:
-			printf("IDENT   ");
-			print_ident(token);
-			break;
-		case TK_INT:
-			printf("INT     ");
-			print_int(token->ival);
-			break;
-		case TK_STRING:
-			printf("STRING  ");
-			print_string(token->string, token->string_length);
-			break;
-		
-		#define F(x) \
-			case TK_ ## x: \
-				printf("KEYWORD "); \
-				print_keyword(token); \
-				break;
-		
-		KEYWORDS(F)
-		#undef F
-		
-		#define F(x, y) \
-			case TK_ ## y: \
-				fprint_raw(stdout, "PUNCT   " x); \
-				break;
-		
-		PUNCTS(F)
-		#undef F
-	}
-}
-
 void print_tokens(Token *tokens)
 {
 	int64_t line_pref_len = 0;
 	int64_t last_line = 0;
-	
+	Token *last = tokens + array_length(tokens) - 1;
+
 	printf(COL_YELLOW "=== tokens ===" COL_RESET "\n");
-	
+
 	for(Token *token = tokens; token->kind != TK_EOF; token ++) {
 		if(last_line != token->line) {
-			line_pref_len = print_line_num(
-				token->line, array_last(tokens)->line
-			);
-			
+			line_pref_len = print_line_num(token->line, last->line);
 			last_line = token->line;
 		}
 		else {
 			printf("%*c", (int)line_pref_len, ' ');
 		}
-		
+
 		print_token(token);
 		printf("\n");
 	}
-}
-
-static void print_indent()
-{
-	for(int64_t i=0; i<level; i++) printf("  ");
 }
 
 static void fprint_type(FILE *fs, Type *type)
@@ -309,56 +371,56 @@ static void fprint_type(FILE *fs, Type *type)
 		fprintf(fs, "(null)");
 		return;
 	}
-	
+
 	switch(type->kind) {
 		case NONE:
-			fprint_keyword_cstr(fs, "none");
+			xprint_keyword_str(fs, "none");
 			break;
 		case INT8:
-			fprint_keyword_cstr(fs, "int8");
+			xprint_keyword_str(fs, "int8");
 			break;
 		case INT16:
-			fprint_keyword_cstr(fs, "int16");
+			xprint_keyword_str(fs, "int16");
 			break;
 		case INT32:
-			fprint_keyword_cstr(fs, "int32");
+			xprint_keyword_str(fs, "int32");
 			break;
 		case INT64:
-			fprint_keyword_cstr(fs, "int64");
+			xprint_keyword_str(fs, "int64");
 			break;
 		case UINT8:
-			fprint_keyword_cstr(fs, "uint8");
+			xprint_keyword_str(fs, "uint8");
 			break;
 		case UINT16:
-			fprint_keyword_cstr(fs, "uint16");
+			xprint_keyword_str(fs, "uint16");
 			break;
 		case UINT32:
-			fprint_keyword_cstr(fs, "uint32");
+			xprint_keyword_str(fs, "uint32");
 			break;
 		case UINT64:
-			fprint_keyword_cstr(fs, "uint64");
+			xprint_keyword_str(fs, "uint64");
 			break;
 		case BOOL:
-			fprint_keyword_cstr(fs, "bool");
+			xprint_keyword_str(fs, "bool");
 			break;
 		case STRING:
-			fprint_keyword_cstr(fs, "string");
+			xprint_keyword_str(fs, "string");
 			break;
 		case CSTRING:
-			fprint_keyword_cstr(fs, "cstring");
+			xprint_keyword_str(fs, "cstring");
 			break;
 		case PTR:
 			if(type->subtype->kind == NONE) {
-				fprint_keyword_cstr(fs, "ptr");
+				xprint_keyword_str(fs, "ptr");
 			}
 			else {
-				fprintf(fs, ">");
+				fprintf(fs, "*");
 				fprint_type(fs, type->subtype);
 			}
 			break;
 		case ARRAY:
 			fprintf(fs, "[");
-			fprint_int(fs, type->length);
+			xprint_int_lit(fs, type->length);
 			fprintf(fs, "]");
 			fprint_type(fs, type->itemtype);
 			break;
@@ -376,16 +438,16 @@ static void fprint_type(FILE *fs, Type *type)
 			fprint_type(fs, type->returntype);
 			break;
 		case STRUCT:
-			fprint_ident(fs, type->decl->id);
+			xprint_ident(fs, type->decl->id);
 			break;
 		case ENUM:
-			fprint_ident(fs, type->decl->id);
+			xprint_ident(fs, type->decl->id);
 			break;
 		case UNION:
-			fprint_ident(fs, type->decl->id);
+			xprint_ident(fs, type->decl->id);
 			break;
 		case NAMED:
-			fprint_ident(fs, type->id);
+			xprint_ident(fs, type->id);
 			fprintf(fs, "?");
 			break;
 	}
@@ -399,25 +461,25 @@ static void print_type(Type *type)
 static void print_expr(Expr *expr)
 {
 	assert(expr);
-	
+
 	switch(expr->kind) {
 		case INT:
-			print_int(expr->value);
+			print_int_lit(expr->value);
 			break;
 		case BOOL:
 			if(expr->value)
-				print_keyword_cstr("true");
+				print_keyword_str("true");
 			else
-				print_keyword_cstr("false");
+				print_keyword_str("false");
 			break;
 		case STRING:
-			print_string(expr->string, expr->length);
+			print_str_lit(expr->string, expr->length);
 			break;
 		case VAR:
 			print_ident(expr->id);
 			break;
 		case PTR:
-			printf(">(");
+			printf("&(");
 			print_expr(expr->subexpr);
 			printf(")");
 			break;
@@ -430,7 +492,7 @@ static void print_expr(Expr *expr)
 			printf("(");
 			print_expr(expr->subexpr);
 			printf(")");
-			print_keyword_cstr(" as ");
+			print_keyword_str(" as ");
 			print_type(expr->type);
 			break;
 		case SUBSCRIPT:
@@ -459,12 +521,12 @@ static void print_expr(Expr *expr)
 			printf("(");
 			print_expr(expr->callee);
 			printf(")(");
-			
+
 			array_for(expr->args, i) {
 				if(i > 0) printf(", ");
 				print_expr(expr->args[i]);
 			}
-			
+
 			printf(")");
 			break;
 		case MEMBER:
@@ -479,7 +541,7 @@ static void print_expr(Expr *expr)
 			printf(").length");
 			break;
 		case NEW:
-			print_keyword_cstr("new ");
+			print_keyword_str("new ");
 			print_type(expr->type->subtype);
 			break;
 		case ENUM:
@@ -516,15 +578,15 @@ static void print_vardecl_core(Decl *decl)
 
 static void print_func(Decl *func)
 {
-	print_keyword_cstr("function ");
+	print_keyword_str("function ");
 	print_ident(func->id);
 	printf("(");
-	
+
 	array_for(func->params, i) {
 		if(i > 0) printf(", ");
 		print_vardecl_core(func->params[i]);
 	}
-	
+
 	printf(")");
 	if(func->type) {
 		printf(" : ");
@@ -533,19 +595,19 @@ static void print_func(Decl *func)
 	if(!func->isproto) {
 		printf(" {\n");
 		level ++;
-		
+
 		if(array_length(func->deps) > 0) {
 			print_indent();
 			printf("# uses outer vars: ");
-			
+
 			array_for(func->deps, i) {
 				print_ident(func->deps[i]->id);
 				printf(" ");
 			}
-			
+
 			printf("\n");
 		}
-		
+
 		print_block(func->body);
 		level --;
 		print_indent();
@@ -558,12 +620,12 @@ static void print_enumitems(EnumItem **items)
 	array_for(items, i) {
 		print_indent();
 		print_ident(items[i]->id);
-		
+
 		if(items[i]->val) {
 			printf(" = ");
 			print_expr(items[i]->val);
 		}
-		
+
 		printf(",\n");
 	}
 }
@@ -572,21 +634,21 @@ static void print_stmt(Stmt *stmt)
 {
 	switch(stmt->kind) {
 		case PRINT:
-			print_keyword_cstr("print ");
+			print_keyword_str("print ");
 			print_expr(stmt->as_print.expr);
 			break;
 		case VAR:
-			if(stmt->as_decl.exported) print_keyword_cstr("export ");
-			print_keyword_cstr("var ");
+			if(stmt->as_decl.exported) print_keyword_str("export ");
+			print_keyword_str("var ");
 			print_vardecl_core((Decl*)stmt);
 			break;
 		case FUNC:
-			if(stmt->as_decl.exported) print_keyword_cstr("export ");
+			if(stmt->as_decl.exported) print_keyword_str("export ");
 			print_func((Decl*)stmt);
 			break;
 		case STRUCT:
-			if(stmt->as_decl.exported) print_keyword_cstr("export ");
-			print_keyword_cstr("struct ");
+			if(stmt->as_decl.exported) print_keyword_str("export ");
+			print_keyword_str("struct ");
 			print_ident(stmt->as_decl.id);
 			printf(" {\n");
 			level ++;
@@ -596,8 +658,8 @@ static void print_stmt(Stmt *stmt)
 			printf("}");
 			break;
 		case UNION:
-			if(stmt->as_decl.exported) print_keyword_cstr("export ");
-			print_keyword_cstr("union ");
+			if(stmt->as_decl.exported) print_keyword_str("export ");
+			print_keyword_str("union ");
 			print_ident(stmt->as_decl.id);
 			printf(" {\n");
 			level ++;
@@ -607,7 +669,7 @@ static void print_stmt(Stmt *stmt)
 			printf("}");
 			break;
 		case IF:
-			print_keyword_cstr("if ");
+			print_keyword_str("if ");
 			print_expr(stmt->as_if.cond);
 			printf(" {\n");
 			level ++;
@@ -623,13 +685,13 @@ static void print_stmt(Stmt *stmt)
 				) {
 					printf("\n");
 					print_indent();
-					print_keyword_cstr("else ");
+					print_keyword_str("else ");
 					print_stmt(else_body->stmts[0]);
 				}
 				else {
 					printf("\n");
 					print_indent();
-					print_keyword_cstr("else");
+					print_keyword_str("else");
 					printf(" {\n");
 					level ++;
 					print_stmts(stmt->as_if.else_body->stmts);
@@ -640,7 +702,7 @@ static void print_stmt(Stmt *stmt)
 			}
 			break;
 		case WHILE:
-			print_keyword_cstr("while ");
+			print_keyword_str("while ");
 			print_expr(stmt->as_while.cond);
 			printf(" {\n");
 			level ++;
@@ -658,16 +720,16 @@ static void print_stmt(Stmt *stmt)
 			print_expr(stmt->as_call.call);
 			break;
 		case RETURN:
-			print_keyword_cstr("return ");
+			print_keyword_str("return ");
 			if(stmt->as_return.expr)
 				print_expr(stmt->as_return.expr);
 			break;
 		case IMPORT:
-			print_keyword_cstr("import ");
+			print_keyword_str("import ");
 			printf(COL_MAGENTA "\"%s\"", stmt->as_import.unit->src_filename);
 			break;
 		case FOREIGN:
-			print_keyword_cstr("foreign ");
+			print_keyword_str("foreign ");
 			printf(
 				COL_MAGENTA "\"%s\"" COL_RESET " {\n",
 				stmt->as_foreign.filename
@@ -679,17 +741,17 @@ static void print_stmt(Stmt *stmt)
 			printf("}");
 			break;
 		case BREAK:
-			print_keyword_cstr("break");
+			print_keyword_str("break");
 			break;
 		case CONTINUE:
-			print_keyword_cstr("continue");
+			print_keyword_str("continue");
 			break;
 		case FOR:
-			print_keyword_cstr("for ");
+			print_keyword_str("for ");
 			print_ident(stmt->as_for.iter->id);
-			print_keyword_cstr(" = ");
+			print_keyword_str(" = ");
 			print_expr(stmt->as_for.from);
-			print_keyword_cstr(" .. ");
+			print_keyword_str(" .. ");
 			print_expr(stmt->as_for.to);
 			printf(" {\n");
 			level ++;
@@ -699,9 +761,9 @@ static void print_stmt(Stmt *stmt)
 			printf("}");
 			break;
 		case FOREACH:
-			print_keyword_cstr("for ");
+			print_keyword_str("for ");
 			print_ident(stmt->as_foreach.iter->id);
-			print_keyword_cstr(" in ");
+			print_keyword_str(" in ");
 			print_expr(stmt->as_foreach.array);
 			printf(" {\n");
 			level ++;
@@ -711,12 +773,12 @@ static void print_stmt(Stmt *stmt)
 			printf("}");
 			break;
 		case DELETE:
-			print_keyword_cstr("delete ");
+			print_keyword_str("delete ");
 			print_expr(stmt->as_delete.expr);
 			break;
 		case ENUM:
-			if(stmt->as_decl.exported) print_keyword_cstr("export ");
-			print_keyword_cstr("enum ");
+			if(stmt->as_decl.exported) print_keyword_str("export ");
+			print_keyword_str("enum ");
 			print_ident(stmt->as_decl.id);
 			printf(" {\n");
 			level ++;
@@ -753,12 +815,12 @@ void print_c_code(char *c_filename)
 {
 	printf(COL_YELLOW "=== code ===" COL_RESET "\n");
 	FILE *fs = fopen(c_filename, "rb");
-	
+
 	while(!feof(fs)) {
 		int ch = fgetc(fs);
 		if(ch == EOF) break;
 		fputc(ch, stdout);
 	}
-	
+
 	fclose(fs);
 }

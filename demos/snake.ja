@@ -5,14 +5,14 @@ struct SDL_QuitEvent {
 }
 
 enum SDL_Scancode {
-    SDL_SCANCODE_UNKNOWN = 0,
+	SDL_SCANCODE_UNKNOWN = 0,
 }
 
 var SDLK_RIGHT = 0x40000000 | 79;
 var SDLK_LEFT = 0x40000000 | 80;
 var SDLK_DOWN = 0x40000000 | 81;
 var SDLK_UP = 0x40000000 | 82;
- 
+
 struct SDL_Keysym {
     scancode : SDL_Scancode;
     sym : int32;
@@ -50,27 +50,27 @@ foreign "libc.so.6" {
 
 foreign "libSDL2-2.0.so" {
 	function SDL_Init(flags : uint32) : int32;
-	
+
 	function SDL_CreateWindow(
 		title : cstring, x : int32, y : int32, w : int32, h : int32,
 		flags : uint32
 	) : ptr;
-	
+
 	function SDL_CreateRenderer(
 		wnd : ptr, index : int32, flags : uint32
 	) : ptr;
-	
+
 	function SDL_PollEvent(event : >SDL_Event) : int32;
 	function SDL_DestroyWindow(wnd : ptr);
 	function SDL_Quit();
 	function SDL_GetTicks() : uint32;
 	function SDL_RenderPresent(renderer : ptr);
 	function SDL_RenderClear(renderer : ptr) : int32;
-	
+
 	function SDL_SetRenderDrawColor(
 		renderer : ptr, r : uint8, g : uint8, b : uint8, a : uint8
 	) : int32;
-	
+
 	function SDL_RenderFillRect(renderer : ptr, rect : >SDL_Rect) : int32;
 }
 
@@ -146,27 +146,27 @@ while running {
 			}
 		}
 	}
-	
+
 	if last + 125 < SDL_GetTicks() {
 		last = last + 125;
-		
+
 		var head = >snake.segments[snake.start];
 		snake.start = (snake.start + 255) % 256;
 		var new_head = >snake.segments[snake.start];
 		new_head.x = (head.x + 16 + dir.x) % 16;
 		new_head.y = (head.y + 16 + dir.y) % 16;
 		snake.length = snake.length + 1;
-		
+
 		if new_head.x == apple.x && new_head.y == apple.y {
 			apple.x = -1;
-			
+
 			while apple.x == -1 {
 				apple.x = rand() % 16;
 				apple.y = rand() % 16;
-				
+
 				for i = 0 .. snake.length - 1 {
 					var p = >snake.segments[(i + snake.start) % 256];
-					
+
 					if apple.x == p.x && apple.y == p.y {
 						apple.x = -1;
 						break;
@@ -177,36 +177,36 @@ while running {
 		else {
 			for i = 1 .. snake.length - 1 {
 				var p = >snake.segments[(i + snake.start) % 256];
-				
+
 				if new_head.x == p.x && new_head.y == p.y {
 					snake.length = 1;
 					break;
 				}
 			}
-			
+
 			if snake.length > 1 {
 				snake.length = snake.length - 1;
 			}
 		}
-		
+
 		SDL_SetRenderDrawColor(renderer, 8, 16, 32, 0);
 		SDL_RenderClear(renderer);
-		
+
 		SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
 		rect.x = 16 * apple.x;
 		rect.y = 16 * apple.y;
 		SDL_RenderFillRect(renderer, >rect);
-		
+
 		SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-		
+
 		for i = 0 .. snake.length-1 {
 			var p = >snake.segments[(i + snake.start) % 256];
-			
+
 			rect.x = 16 * p.x;
 			rect.y = 16 * p.y;
 			SDL_RenderFillRect(renderer, >rect);
 		}
-		
+
 		SDL_RenderPresent(renderer);
 	}
 }

@@ -1,11 +1,10 @@
 #include <stdlib.h>
 #include "print.h"
 
-#define match(t) (cur->kind == (t))
-#define match2(t1, t2) (cur[0].kind == (t1) && cur[1].kind == (t2))
-#define adv() (last = cur++)
-#define eat(t) (match(t) ? adv() : 0)
-#define eat2(t1, t2) (match2(t1, t2) ? (adv(), adv()) : 0)
+#define match(t)  (cur->kind == (t))
+#define adv()     (last = cur++)
+#define eat(t)    (match(t) ? adv() : 0)
+#define eatkw(k)  (cur->kind == TK_KEYWORD && cur->keyword == (k) ? adv() : 0)
 
 #define error(line, linep, start, ...) \
 	print_error(line, linep, src_end, start, __VA_ARGS__)
