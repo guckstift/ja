@@ -1,11 +1,13 @@
 #include <stdlib.h>
 #include "print.h"
 
-#define match(t)  (cur->kind == (t))
-#define adv()     (last = cur++)
-#define eat(t)    (match(t) ? adv() : 0)
-#define eatkw(k)  (cur->kind == TK_KEYWORD && cur->keyword == (k) ? adv() : 0)
-#define eatpt(p)  (cur->kind == TK_PUNCT && cur->punct_id == (p) ? adv() : 0)
+#define adv()       (last = cur++)
+#define match(t)    (cur->kind == (t))
+#define matchkw(k)  (cur->kind == TK_KEYWORD && cur->keyword == (k))
+#define matchpt(p)  (cur->kind == TK_PUNCT && cur->punct_id == (p))
+#define eat(t)      (match(t) ? adv() : 0)
+#define eatkw(k)    (matchkw(k) ? adv() : 0)
+#define eatpt(p)    (matchpt(p) ? adv() : 0)
 
 #define error(line, linep, start, ...) \
 	print_error(line, linep, src_end, start, __VA_ARGS__)

@@ -410,7 +410,7 @@ static Stmt *p_ifstmt()
 
 	Block *else_body = 0;
 	if(eatkw(KW_else)) {
-		if(eatkw(KW_if)) {
+		if(matchkw(KW_if)) {
 			enter();
 			Stmt *else_if = p_ifstmt();
 			Stmt **stmts = 0;

@@ -150,9 +150,9 @@ while running {
 	if last + 125 < SDL_GetTicks() {
 		last = last + 125;
 
-		var head = >snake.segments[snake.start];
+		var head = &snake.segments[snake.start];
 		snake.start = (snake.start + 255) % 256;
-		var new_head = >snake.segments[snake.start];
+		var new_head = &snake.segments[snake.start];
 		new_head.x = (head.x + 16 + dir.x) % 16;
 		new_head.y = (head.y + 16 + dir.y) % 16;
 		snake.length = snake.length + 1;
@@ -195,16 +195,16 @@ while running {
 		SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
 		rect.x = 16 * apple.x;
 		rect.y = 16 * apple.y;
-		SDL_RenderFillRect(renderer, >rect);
+		SDL_RenderFillRect(renderer, &rect);
 
 		SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
 
 		for i = 0 .. snake.length-1 {
-			var p = >snake.segments[(i + snake.start) % 256];
+			var p = &snake.segments[(i + snake.start) % 256];
 
 			rect.x = 16 * p.x;
 			rect.y = 16 * p.y;
-			SDL_RenderFillRect(renderer, >rect);
+			SDL_RenderFillRect(renderer, &rect);
 		}
 
 		SDL_RenderPresent(renderer);
