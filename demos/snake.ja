@@ -122,7 +122,7 @@ var running = true;
 var event : SDL_Event;
 
 while running {
-	while SDL_PollEvent(>event) {
+	while SDL_PollEvent(&event) {
 		if event.type == SDL_QUIT {
 			running = false;
 			break;
@@ -165,7 +165,7 @@ while running {
 				apple.y = rand() % 16;
 
 				for i = 0 .. snake.length - 1 {
-					var p = >snake.segments[(i + snake.start) % 256];
+					var p = &snake.segments[(i + snake.start) % 256];
 
 					if apple.x == p.x && apple.y == p.y {
 						apple.x = -1;
@@ -176,7 +176,7 @@ while running {
 		}
 		else {
 			for i = 1 .. snake.length - 1 {
-				var p = >snake.segments[(i + snake.start) % 256];
+				var p = &snake.segments[(i + snake.start) % 256];
 
 				if new_head.x == p.x && new_head.y == p.y {
 					snake.length = 1;

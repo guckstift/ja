@@ -37,7 +37,7 @@ static Type *p_nametype()
 
 static Type *p_ptrtype()
 {
-	if(!eat(TK_GREATER)) return 0;
+	if(!eatpt(PT_GREATER)) return 0;
 
 	Type *subtype = p_type();
 	if(!subtype)
@@ -48,14 +48,14 @@ static Type *p_ptrtype()
 
 static Type *p_arraytype()
 {
-	if(!eat(TK_LBRACK)) return 0;
+	if(!eatpt(PT_LBRACK)) return 0;
 
 	Token *length = eat(TK_INT);
 
 	if(length && length->ival <= 0)
 		fatal_at(length, "array length must be greater than 0");
 
-	if(!eat(TK_RBRACK)) {
+	if(!eatpt(PT_RBRACK)) {
 		if(length)
 			fatal_after(last, "expected ]");
 		else

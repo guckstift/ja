@@ -91,16 +91,18 @@ typedef enum {
 } Keyword;
 
 typedef enum {
+	#define F(x,y) PT_ ## y,
+	PUNCTS(F)
+	#undef F
+} Punct;
+
+typedef enum {
 	TK_EOF,
 	TK_IDENT,
 	TK_INT,
 	TK_STRING,
 	TK_KEYWORD,
-
-	#define F(x, y) TK_ ## y,
-	PUNCTS(F)
-	#undef F
-
+	TK_PUNCT,
 } TokenKind;
 
 typedef struct Token {
@@ -114,6 +116,7 @@ typedef struct Token {
 		int64_t ival;
 		int64_t string_length;
 		Keyword keyword;
+		Punct punct_id;
 	};
 
 	union {

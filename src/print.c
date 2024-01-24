@@ -194,14 +194,10 @@ static void print_token(Token *token)
 			print_str("KEYWORD ");
 			print_keyword(token);
 			break;
-
-		#define F(x, y) \
-			case TK_ ## y: \
-				print_str("PUNCT   " x); \
-				break;
-
-		PUNCTS(F)
-		#undef F
+		case TK_PUNCT:
+			print_str("PUNCT   ");
+			print_str(token->punct);
+			break;
 	}
 }
 

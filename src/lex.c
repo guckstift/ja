@@ -198,8 +198,9 @@ Token *lex(char *src, long length)
 		#define F(x, y) \
 			else if(match(x)) { \
 				pos += strlen(x); \
-				emit(TK_ ## y); \
+				emit(TK_PUNCT); \
 				last->punct = x; \
+				last->punct_id = PT_ ## y; \
 			}
 
 		PUNCTS(F)

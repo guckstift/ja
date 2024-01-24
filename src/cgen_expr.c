@@ -9,7 +9,7 @@ static void gen_cast(Expr *expr)
 	Type *subtype = type->subtype;
 	Expr *srcexpr = expr->subexpr;
 	Type *srctype = srcexpr->type;
-	
+
 	if(type->kind == BOOL) {
 		write("(%e ? jatrue : jafalse)", srcexpr);
 	}
@@ -44,7 +44,7 @@ static void gen_subscript(Expr *expr)
 	if(expr->subexpr->type->kind == STRING) {
 		Expr *string = expr->subexpr;
 		Expr *index = expr->index;
-		
+
 		write(
 			"((jastring){1L, %e.string + %e})",
 			string, index
@@ -54,7 +54,7 @@ static void gen_subscript(Expr *expr)
 		Expr *slice = expr->array;
 		Type *itemtype = slice->type->itemtype;
 		Expr *index = expr->index;
-		
+
 		write(
 			"((%y(*)%z)(%e).items)[%e]",
 			itemtype, itemtype, slice, index
@@ -70,8 +70,8 @@ static void gen_binop(Expr *expr)
 	Expr *left = expr->left;
 	Expr *right = expr->right;
 	Token *op = expr->operator;
-	
-	if(left->type->kind == STRING && op->kind == TK_EQUALS) {
+
+	if(left->type->kind == STRING && op->punct_id == PT_EQUALS) {
 		write(
 			"(%e.length == %e.length && "
 			"memcmp(%e.string, %e.string, %e.length) == 0)",
@@ -79,7 +79,7 @@ static void gen_binop(Expr *expr)
 			expr->left, expr->right, expr->left
 		);
 	}
-	else if(op->kind == TK_AND) {
+	else if(op->punct_id == PT_AND) {
 		if(expr->type->kind == STRING) {
 			write("(%e.length == 0 ? %e : %e)", left, left, right);
 		}
@@ -87,7 +87,7 @@ static void gen_binop(Expr *expr)
 			write("(!(%e) ? %e : %e)", left, left, right);
 		}
 	}
-	else if(op->kind == TK_OR) {
+	else if(op->punct_id == PT_OR) {
 		if(expr->type->kind == STRING) {
 			write("(%e.length != 0 ? %e : %e)", left, right, left);
 		}
@@ -114,7 +114,7 @@ static void gen_args(Expr **exprs)
 		if(i > 0) write(", ");
 		Expr *expr = exprs[i];
 		Type *type = expr->type;
-		
+
 		if(type->kind == ARRAY) {
 			write("(&%e)", expr);
 		}
@@ -136,11 +136,11 @@ static void gen_call(Expr *expr)
 	write("(%e(", expr->callee);
 	gen_args(expr->args);
 	write(")");
-	
+
 	if(expr->callee->type->returntype->kind == ARRAY) {
 		write(".a");
 	}
-	
+
 	write(")");
 }
 
@@ -153,12 +153,12 @@ void gen_init_expr(Expr *expr)
 {
 	if(expr->kind == ARRAY) {
 		write("{");
-		
+
 		array_for(expr->items, i) {
 			if(i > 0) write(", ");
 			gen_init_expr(expr->items[i]);
 		}
-		
+
 		write("}");
 	}
 	else if(expr->kind == STRING) {
@@ -173,7 +173,7 @@ void gen_length(Expr *expr)
 {
 	Expr *array = expr->array;
 	Type *type = array->type;
-	
+
 	if(type->kind == ARRAY) {
 		if(type->length == -1) {
 			if(array->kind == DEREF) {
@@ -199,7 +199,7 @@ void gen_enum_item(Expr *expr)
 	EnumItem *item = expr->item;
 	Type *type = expr->type;
 	Decl *decl = type->decl;
-	
+
 	if(decl->exported) {
 		write(
 			"_%s_ja_%t",

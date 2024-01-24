@@ -5,6 +5,7 @@
 #define adv()     (last = cur++)
 #define eat(t)    (match(t) ? adv() : 0)
 #define eatkw(k)  (cur->kind == TK_KEYWORD && cur->keyword == (k) ? adv() : 0)
+#define eatpt(p)  (cur->kind == TK_PUNCT && cur->punct_id == (p) ? adv() : 0)
 
 #define error(line, linep, start, ...) \
 	print_error(line, linep, src_end, start, __VA_ARGS__)

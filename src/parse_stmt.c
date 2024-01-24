@@ -73,7 +73,7 @@ static Stmt *p_print()
 	Expr *expr = p_expr();
 	if(!expr) fatal_after(last, "expected expression to print");
 
-	if(!eat(TK_SEMICOLON))
+	if(!eatpt(PT_SEMICOLON))
 		error_after(last, "expected semicolon after print statement");
 
 	return (Stmt*)new_print(start, scope, expr);
@@ -86,13 +86,13 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int foreign)
 	if(!start) start = ident;
 
 	Type *type = 0;
-	if(eat(TK_COLON)) {
+	if(eatpt(PT_COLON)) {
 		type = p_type();
 		if(!type) fatal_after(last, "expected type after colon");
 	}
 
 	Expr *init = 0;
-	if(!param && eat(TK_ASSIGN)) {
+	if(!param && eatpt(PT_ASSIGN)) {
 		if(foreign) {
 			fatal_at(
 				cur,
@@ -138,7 +138,7 @@ static Stmt *p_vardecl(int exported, int foreign)
 	Stmt *core = p_vardecl_core(start, exported, 0, foreign);
 	if(!core) fatal_after(last, "expected identifier after keyword var");
 
-	if(!eat(TK_SEMICOLON))
+	if(!eatpt(PT_SEMICOLON))
 		error_after(last, "expected semicolon after variable declaration");
 
 	return core;
@@ -156,7 +156,7 @@ static Decl *p_funchead(int exported)
 	if(!ident)
 		fatal_after(last, "expected identifier after keyword function");
 
-	if(!eat(TK_LPAREN))
+	if(!eatpt(PT_LPAREN))
 		fatal_after(last, "expected ( after function name");
 
 	Decl **params = 0;
@@ -166,17 +166,17 @@ static Decl *p_funchead(int exported)
 		Decl *param = &p_vardecl_core(0, 0, 1, 0)->as_decl;
 		if(!param) break;
 		array_push(params, param);
-		if(!eat(TK_COMMA)) break;
+		if(!eatpt(PT_COMMA)) break;
 	}
 
 	Scope *func_scope = leave();
 
-	if(!eat(TK_RPAREN))
+	if(!eatpt(PT_RPAREN))
 		fatal_after(last, "expected ) after parameter list");
 
 	Type *returntype = new_type(NONE);
 
-	if(eat(TK_COLON)) {
+	if(eatpt(PT_COLON)) {
 		returntype = p_type();
 		if(!returntype) fatal_after(last, "expected return type after colon");
 	}
@@ -202,7 +202,7 @@ static Stmt *p_foreign_func(int exported)
 	decl->isproto = 1;
 	decl->deps_scanned = 1;
 
-	if(!eat(TK_SEMICOLON))
+	if(!eatpt(PT_SEMICOLON))
 		fatal_after(last, "expected ; after function head");
 
 	decl->end = cur;
@@ -214,12 +214,12 @@ static Stmt *p_funcdecl(int exported)
 	Decl *decl = p_funchead(exported);
 	if(!decl) return 0;
 
-	if(!eat(TK_LCURLY))
+	if(!eatpt(PT_LCURLY))
 		fatal_after(last, "expected { after function head");
 
 	decl->body = p_block(decl->func_scope);
 
-	if(!eat(TK_RCURLY))
+	if(!eatpt(PT_RCURLY))
 		fatal_after(last, "expected } after function body");
 
 	decl->end = cur;
@@ -238,7 +238,7 @@ static Stmt *p_structdecl(int exported)
 	if(!ident)
 		fatal_after(last, "expected identifier after keyword struct");
 
-	if(!eat(TK_LCURLY))
+	if(!eatpt(PT_LCURLY))
 		fatal_after(last, "expected {");
 
 	Decl **members = 0;
@@ -255,13 +255,13 @@ static Stmt *p_structdecl(int exported)
 			);
 		}
 
-		if(!eat(TK_SEMICOLON))
+		if(!eatpt(PT_SEMICOLON))
 			error_after(last, "expected semicolon after struct member");
 
 		array_push(members, member);
 	}
 
-	if(!eat(TK_RCURLY))
+	if(!eatpt(PT_RCURLY))
 		fatal_after(last, "expected } after structure body");
 
 	if(array_length(members) == 0)
@@ -290,7 +290,7 @@ static Stmt *p_enumdecl(int exported)
 	if(!ident)
 		fatal_after(last, "expected identifier after keyword enum");
 
-	if(!eat(TK_LCURLY))
+	if(!eatpt(PT_LCURLY))
 		fatal_after(last, "expected {");
 
 	EnumItem **items = 0;
@@ -310,7 +310,7 @@ static Stmt *p_enumdecl(int exported)
 		item->id = ident->id;
 		item->val = 0;
 
-		if(eat(TK_ASSIGN)) {
+		if(eatpt(PT_ASSIGN)) {
 			Expr *val = p_expr();
 			if(!val) fatal_at(last, "expected expression after =");
 
@@ -321,10 +321,10 @@ static Stmt *p_enumdecl(int exported)
 		}
 
 		array_push(items, item);
-		if(!eat(TK_COMMA)) break;
+		if(!eatpt(PT_COMMA)) break;
 	}
 
-	if(!eat(TK_RCURLY))
+	if(!eatpt(PT_RCURLY))
 		fatal_after(last, "expected } after enum body");
 
 	if(array_length(items) == 0)
@@ -351,7 +351,7 @@ static Stmt *p_uniondecl(int exported)
 	if(!ident)
 		fatal_after(last, "expected identifier after keyword union");
 
-	if(!eat(TK_LCURLY))
+	if(!eatpt(PT_LCURLY))
 		fatal_after(last, "expected {");
 
 	Decl **members = 0;
@@ -368,13 +368,13 @@ static Stmt *p_uniondecl(int exported)
 			);
 		}
 
-		if(!eat(TK_SEMICOLON))
+		if(!eatpt(PT_SEMICOLON))
 			error_after(last, "expected semicolon after union member");
 
 		array_push(members, member);
 	}
 
-	if(!eat(TK_RCURLY))
+	if(!eatpt(PT_RCURLY))
 		fatal_after(last, "expected } after union body");
 
 	if(array_length(members) == 0)
@@ -400,12 +400,12 @@ static Stmt *p_ifstmt()
 	if(!cond)
 		fatal_at(last, "expected condition after if");
 
-	if(!eat(TK_LCURLY))
+	if(!eatpt(PT_LCURLY))
 		fatal_after(last, "expected { after condition");
 
 	Block *if_body = p_block(0);
 
-	if(!eat(TK_RCURLY))
+	if(!eatpt(PT_RCURLY))
 		fatal_after(last, "expected } after if-body");
 
 	Block *else_body = 0;
@@ -419,12 +419,12 @@ static Stmt *p_ifstmt()
 			else_body = new_block(stmts, block_scope);
 		}
 		else {
-			if(!eat(TK_LCURLY))
+			if(!eatpt(PT_LCURLY))
 				fatal_after(last, "expected { after else");
 
 			else_body = p_block(0);
 
-			if(!eat(TK_RCURLY))
+			if(!eatpt(PT_RCURLY))
 				fatal_after(last, "expected } after else-body");
 		}
 	}
@@ -441,7 +441,7 @@ static Stmt *p_whilestmt()
 	if(!cond)
 		fatal_at(last, "expected condition after while");
 
-	if(!eat(TK_LCURLY))
+	if(!eatpt(PT_LCURLY))
 		fatal_after(last, "expected { after condition");
 
 	enter();
@@ -450,7 +450,7 @@ static Stmt *p_whilestmt()
 	blockscope->loophost = (Stmt*)stmt;
 	stmt->body = p_block(blockscope);
 
-	if(!eat(TK_RCURLY))
+	if(!eatpt(PT_RCURLY))
 		fatal_after(last, "expected } after if-body");
 
 	return (Stmt*)stmt;
@@ -467,7 +467,7 @@ static Stmt *p_returnstmt()
 
 	Expr *result = p_expr();
 
-	if(!eat(TK_SEMICOLON))
+	if(!eatpt(PT_SEMICOLON))
 		error_after(last, "expected semicolon after return statement");
 
 	Type *functype = funchost->type;
@@ -501,7 +501,7 @@ static Stmt *p_import()
 			Token *ident = eat(TK_IDENT);
 			if(!ident) break;
 			array_push(idents, ident);
-			if(!eat(TK_COMMA)) break;
+			if(!eatpt(PT_COMMA)) break;
 		}
 
 		if(idents == 0) {
@@ -518,7 +518,7 @@ static Stmt *p_import()
 			fatal_at(cur, "expected filename string to import from");
 	}
 
-	if(!eat(TK_SEMICOLON))
+	if(!eatpt(PT_SEMICOLON))
 		error_after(last, "expected semicolon after import statement");
 
 	ParseState state;
@@ -566,7 +566,7 @@ static Stmt *p_foreign()
 	Token *filename = eat(TK_STRING);
 	if(!filename) fatal_at(cur, "expected filename of library to import from");
 
-	if(!eat(TK_LCURLY))
+	if(!eatpt(PT_LCURLY))
 		fatal_after(last, "expected { after library name");
 
 	Decl **decls = 0;
@@ -579,7 +579,7 @@ static Stmt *p_foreign()
 		array_push(decls, decl);
 	}
 
-	if(!eat(TK_RCURLY))
+	if(!eatpt(PT_RCURLY))
 		fatal_after(last, "expected } after library list");
 
 	Foreign *import = new_foreign(start, scope, filename->string, decls);
@@ -616,11 +616,11 @@ static Stmt *p_assign()
 	Expr *target = p_expr();
 	if(!target) return 0;
 
-	if(target->kind == CALL && eat(TK_SEMICOLON)) {
+	if(target->kind == CALL && eatpt(PT_SEMICOLON)) {
 		return (Stmt*)new_call(scope, target);
 	}
 
-	if(!eat(TK_ASSIGN))
+	if(!eatpt(PT_ASSIGN))
 		fatal_after(last, "expected = after left side");
 
 	Expr *expr = p_expr();
@@ -628,7 +628,7 @@ static Stmt *p_assign()
 	if(!expr)
 		fatal_at(last, "expected right side after =");
 
-	if(!eat(TK_SEMICOLON))
+	if(!eatpt(PT_SEMICOLON))
 		error_after(last, "expected semicolon after assignment");
 
 	return (Stmt*)new_assign(scope, target, expr);
@@ -642,7 +642,7 @@ static Stmt *p_break()
 	if(!scope->loophost)
 		fatal_at(start, "break can only be used inside loops");
 
-	if(!eat(TK_SEMICOLON))
+	if(!eatpt(PT_SEMICOLON))
 		error_after(last, "expected semicolon after break");
 
 	return new_stmt(BREAK, start, scope);
@@ -656,7 +656,7 @@ static Stmt *p_continue()
 	if(!scope->loophost)
 		fatal_at(start, "continue can only be used inside loops");
 
-	if(!eat(TK_SEMICOLON))
+	if(!eatpt(PT_SEMICOLON))
 		error_after(last, "expected semicolon after continue");
 
 	return new_stmt(CONTINUE, start, scope);
@@ -681,11 +681,11 @@ static Stmt *p_for()
 		if(!array)
 			fatal_after(last, "expected iterable");
 	}
-	else if(eat(TK_ASSIGN)) {
+	else if(eatpt(PT_ASSIGN)) {
 		from = p_expr();
 		if(!from) fatal_at(last, "expected start value after =");
 
-		if(!eat(TK_DOTDOT))
+		if(!eatpt(PT_DOTDOT))
 			fatal_after(last, "expected .. after start expression");
 
 		to = p_expr();
@@ -695,7 +695,7 @@ static Stmt *p_for()
 		error_at(cur, "expected 'in' or '=' after iterator");
 	}
 
-	if(!eat(TK_LCURLY))
+	if(!eatpt(PT_LCURLY))
 		fatal_after(last, "expected { after for-in-head");
 
 	enter();
@@ -708,7 +708,7 @@ static Stmt *p_for()
 		blockscope->loophost = (Stmt*)foreach;
 		foreach->body = p_block(blockscope);
 
-		if(!eat(TK_RCURLY))
+		if(!eatpt(PT_RCURLY))
 			fatal_after(last, "expected } after for-body");
 
 		return (Stmt*)foreach;
@@ -718,7 +718,7 @@ static Stmt *p_for()
 		blockscope->loophost = (Stmt*)forstmt;
 		forstmt->body = p_block(blockscope);
 
-		if(!eat(TK_RCURLY))
+		if(!eatpt(PT_RCURLY))
 			fatal_after(last, "expected } after for-body");
 
 		return (Stmt*)forstmt;
@@ -737,7 +737,7 @@ static Stmt *p_delete()
 	if(expr->type->kind != PTR)
 		fatal_at(expr->start, "expression to delete is not a pointer");
 
-	if(!eat(TK_SEMICOLON))
+	if(!eatpt(PT_SEMICOLON))
 		error_after(last, "expected semicolon after delete");
 
 	return (Stmt*)new_delete(start, scope, expr);

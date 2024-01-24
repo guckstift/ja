@@ -37,7 +37,7 @@ static Expr *p_new()
 
 static Expr *p_array()
 {
-	if(!eat(TK_LBRACK)) return 0;
+	if(!eatpt(PT_LBRACK)) return 0;
 
 	Token *start = last;
 	Expr **items = 0;
@@ -52,10 +52,10 @@ static Expr *p_array()
 		array_push(items, item);
 		length ++;
 
-		if(!eat(TK_COMMA)) break;
+		if(!eatpt(PT_COMMA)) break;
 	}
 
-	if(!eat(TK_RBRACK))
+	if(!eatpt(PT_RBRACK))
 		fatal_after(last, "expected comma or ]");
 
 	if(length == 0)
@@ -75,11 +75,11 @@ static Expr *p_atom()
 	if(eat(TK_STRING))
 		return new_string_expr(last, last->string, last->string_length);
 
-	if(eat(TK_LPAREN)) {
+	if(eatpt(PT_LPAREN)) {
 		Token *start = last;
 		Expr *expr = p_expr();
 		expr->start = start;
-		if(!eat(TK_RPAREN)) fatal_after(last, "expected )");
+		if(!eatpt(PT_RPAREN)) fatal_after(last, "expected )");
 		return expr;
 	}
 
@@ -92,12 +92,12 @@ static Expr *p_atom()
 
 static Expr *p_call_x(Expr *expr)
 {
-	if(!eat(TK_LPAREN)) return 0;
+	if(!eatpt(PT_LPAREN)) return 0;
 
 	Type *type = expr->type;
 	Expr **args = p_exprs();
 
-	if(!eat(TK_RPAREN))
+	if(!eatpt(PT_RPAREN))
 		fatal_after(last, "expected ) after argument list");
 
 	return new_call_expr(expr, args);
@@ -105,13 +105,13 @@ static Expr *p_call_x(Expr *expr)
 
 static Expr *p_subscript_x(Expr *expr)
 {
-	if(!eat(TK_LBRACK)) return 0;
+	if(!eatpt(PT_LBRACK)) return 0;
 
 	Expr *index = p_expr();
 	if(!index)
 		fatal_after(last, "expected index expression after [");
 
-	if(!eat(TK_RBRACK))
+	if(!eatpt(PT_RBRACK))
 		fatal_after(last, "expected ] after index expression");
 
 	return new_subscript_expr(expr, index);
@@ -119,7 +119,7 @@ static Expr *p_subscript_x(Expr *expr)
 
 static Expr *p_member_x(Expr *object)
 {
-	if(!eat(TK_PERIOD)) return 0;
+	if(!eatpt(PT_PERIOD)) return 0;
 	Token *ident = eat(TK_IDENT);
 	if(!ident) fatal_at(last, "expected id of member to access");
 
@@ -165,7 +165,7 @@ static Expr *p_postfix()
 
 static Expr *p_ptr()
 {
-	if(!eat(TK_AMP)) return 0;
+	if(!eatpt(PT_AMP)) return 0;
 	Token *start = last;
 
 	Expr *subexpr = p_prefix();
@@ -184,7 +184,7 @@ static Expr *p_ptr()
 
 static Expr *p_deref()
 {
-	if(!eat(TK_LOWER)) return 0;
+	if(!eatpt(PT_LOWER)) return 0;
 	Token *start = last;
 
 	Expr *ptr = p_prefix();
@@ -200,7 +200,7 @@ static Expr *p_deref()
 
 static Expr *p_negation()
 {
-	if(!eat(TK_MINUS)) return 0;
+	if(!eatpt(PT_MINUS)) return 0;
 	Token *start = last;
 
 	Expr *subexpr = p_prefix();
@@ -215,7 +215,7 @@ static Expr *p_negation()
 
 static Expr *p_complement()
 {
-	if(!eat(TK_TILDE)) return 0;
+	if(!eatpt(PT_TILDE)) return 0;
 	Token *start = last;
 
 	Expr *subexpr = p_prefix();
@@ -259,30 +259,30 @@ static Token *p_operator(OpLevel level)
 	Token *op = 0;
 	switch(level) {
 		case OL_OR:
-			(op = eat(TK_OR)) ;
+			(op = eatpt(PT_OR)) ;
 			break;
 		case OL_AND:
-			(op = eat(TK_AND)) ;
+			(op = eatpt(PT_AND)) ;
 			break;
 		case OL_CMP:
-			(op = eat(TK_LOWER)) ||
-			(op = eat(TK_GREATER)) ||
-			(op = eat(TK_EQUALS)) ||
-			(op = eat(TK_NEQUALS)) ||
-			(op = eat(TK_LEQUALS)) ||
-			(op = eat(TK_GEQUALS)) ;
+			(op = eatpt(PT_LOWER)) ||
+			(op = eatpt(PT_GREATER)) ||
+			(op = eatpt(PT_EQUALS)) ||
+			(op = eatpt(PT_NEQUALS)) ||
+			(op = eatpt(PT_LEQUALS)) ||
+			(op = eatpt(PT_GEQUALS)) ;
 			break;
 		case OL_ADD:
-			(op = eat(TK_PLUS)) ||
-			(op = eat(TK_MINUS)) ||
-			(op = eat(TK_PIPE)) ||
-			(op = eat(TK_XOR)) ;
+			(op = eatpt(PT_PLUS)) ||
+			(op = eatpt(PT_MINUS)) ||
+			(op = eatpt(PT_PIPE)) ||
+			(op = eatpt(PT_XOR)) ;
 			break;
 		case OL_MUL:
-			(op = eat(TK_MUL)) ||
-			(op = eat(TK_DSLASH)) ||
-			(op = eat(TK_MOD)) ||
-			(op = eat(TK_AMP)) ;
+			(op = eatpt(PT_MUL)) ||
+			(op = eatpt(PT_DSLASH)) ||
+			(op = eatpt(PT_MOD)) ||
+			(op = eatpt(PT_AMP)) ;
 			break;
 	}
 	return op;
@@ -322,7 +322,7 @@ static Expr **p_exprs()
 		Expr *expr = p_expr();
 		if(!expr) break;
 		array_push(exprs, expr);
-		if(!eat(TK_COMMA)) break;
+		if(!eatpt(PT_COMMA)) break;
 	}
 
 	return exprs;
