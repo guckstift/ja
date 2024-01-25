@@ -174,7 +174,7 @@ static Expr *p_ptr()
 
 static Expr *p_deref()
 {
-	if(!eatpt(PT_LOWER)) return 0;
+	if(!eatpt(PT_MUL)) return 0;
 	Token *start = last;
 
 	Expr *ptr = p_(prefix);

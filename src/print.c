@@ -480,7 +480,7 @@ static void print_expr(Expr *expr)
 			printf(")");
 			break;
 		case DEREF:
-			printf("<(");
+			printf("*(");
 			print_expr(expr->subexpr);
 			printf(")");
 			break;
