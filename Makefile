@@ -3,7 +3,7 @@ PROGNAME = \
 
 CFILES = \
 	analyze.c asm.c ast.c build.c cgen.c cgen_expr.c cgen_stmt.c cgen_type.c \
-	elf.c lex.c main.c parse.c parse_expr.c parse_stmt.c parse_type.c print.c \
+	elf.c lex.c main.c parse.c parse_internal.c parse_expr.c parse_stmt.c parse_type.c print.c \
 	string.c
 
 HFILES = \
@@ -17,7 +17,7 @@ BUILDDIR = \
 	build
 
 CFLAGS = \
-	-std=c17 -pedantic-errors -D JA_DEBUG -g
+	-std=c17 -D JA_DEBUG -g
 
 LDFLAGS = \
 	 -ldl

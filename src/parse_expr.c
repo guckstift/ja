@@ -3,18 +3,8 @@
 #include "parse_internal.h"
 #include "array.h"
 
-static Expr *p_expr();
 static Expr **p_exprs();
 static Expr *p_prefix();
-
-static Type *p_type()
-{
-	ParseState state;
-	pack_state(&state);
-	Type *type = p_type_pub(&state);
-	unpack_state(&state);
-	return type;
-}
 
 static Expr *p_var()
 {
@@ -29,7 +19,7 @@ static Expr *p_new()
 	Token *start = last;
 
 	Token *t_start = cur;
-	Type *obj_type = p_type();
+	Type *obj_type = p_(type);
 	if(!obj_type) fatal_at(t_start, "expected type of object to create");
 
 	return new_new_expr(start, obj_type);
@@ -45,7 +35,7 @@ static Expr *p_array()
 	int isconst = 1;
 
 	while(1) {
-		Expr *item = p_expr();
+		Expr *item = p_(expr);
 		if(!item) break;
 
 		isconst = isconst && item->isconst;
@@ -77,16 +67,16 @@ static Expr *p_atom()
 
 	if(eatpt(PT_LPAREN)) {
 		Token *start = last;
-		Expr *expr = p_expr();
+		Expr *expr = p_(expr);
 		expr->start = start;
 		if(!eatpt(PT_RPAREN)) fatal_after(last, "expected )");
 		return expr;
 	}
 
 	Expr *expr = 0;
-	(expr = p_var()) ||
-	(expr = p_new()) ||
-	(expr = p_array()) ;
+	(expr = p_(var)) ||
+	(expr = p_(new)) ||
+	(expr = p_(array)) ;
 	return expr;
 }
 
@@ -95,7 +85,7 @@ static Expr *p_call_x(Expr *expr)
 	if(!eatpt(PT_LPAREN)) return 0;
 
 	Type *type = expr->type;
-	Expr **args = p_exprs();
+	Expr **args = p_(exprs);
 
 	if(!eatpt(PT_RPAREN))
 		fatal_after(last, "expected ) after argument list");
@@ -107,7 +97,7 @@ static Expr *p_subscript_x(Expr *expr)
 {
 	if(!eatpt(PT_LBRACK)) return 0;
 
-	Expr *index = p_expr();
+	Expr *index = p_(expr);
 	if(!index)
 		fatal_after(last, "expected index expression after [");
 
@@ -148,14 +138,14 @@ static Expr *p_member_x(Expr *object)
 
 static Expr *p_postfix()
 {
-	Expr *expr = p_atom();
+	Expr *expr = p_(atom);
 	if(!expr) return 0;
 
 	while(1) {
 		Expr *new_expr = 0;
-		(new_expr = p_call_x(expr)) ||
-		(new_expr = p_subscript_x(expr)) ||
-		(new_expr = p_member_x(expr)) ;
+		(new_expr = p_(call_x, expr)) ||
+		(new_expr = p_(subscript_x, expr)) ||
+		(new_expr = p_(member_x, expr)) ;
 		if(!new_expr) break;
 		expr = new_expr;
 	}
@@ -168,7 +158,7 @@ static Expr *p_ptr()
 	if(!eatpt(PT_AMP)) return 0;
 	Token *start = last;
 
-	Expr *subexpr = p_prefix();
+	Expr *subexpr = p_(prefix);
 
 	if(!subexpr)
 		fatal_after(last, "expected expression to point to");
@@ -187,7 +177,7 @@ static Expr *p_deref()
 	if(!eatpt(PT_LOWER)) return 0;
 	Token *start = last;
 
-	Expr *ptr = p_prefix();
+	Expr *ptr = p_(prefix);
 
 	if(!ptr)
 		fatal_at(last, "expected expression to dereference");
@@ -203,7 +193,7 @@ static Expr *p_negation()
 	if(!eatpt(PT_MINUS)) return 0;
 	Token *start = last;
 
-	Expr *subexpr = p_prefix();
+	Expr *subexpr = p_(prefix);
 
 	if(!subexpr)
 		fatal_at(last, "expected expression to negate");
@@ -218,7 +208,7 @@ static Expr *p_complement()
 	if(!eatpt(PT_TILDE)) return 0;
 	Token *start = last;
 
-	Expr *subexpr = p_prefix();
+	Expr *subexpr = p_(prefix);
 
 	if(!subexpr)
 		fatal_at(last, "expected expression to complement");
@@ -234,20 +224,20 @@ static Expr *p_complement()
 static Expr *p_prefix()
 {
 	Expr *expr = 0;
-	(expr = p_ptr()) ||
-	(expr = p_deref()) ||
-	(expr = p_negation()) ||
-	(expr = p_complement()) ||
-	(expr = p_postfix()) ;
+	(expr = p_(ptr)) ||
+	(expr = p_(deref)) ||
+	(expr = p_(negation)) ||
+	(expr = p_(complement)) ||
+	(expr = p_(postfix)) ;
 	return expr;
 }
 
 static Expr *p_cast()
 {
-	Expr *expr = p_prefix();
+	Expr *expr = p_(prefix);
 	if(!eatkw(KW_as)) return expr;
 
-	Type *type = p_type();
+	Type *type = p_(type);
 	if(!type)
 		fatal_after(last, "expected type after as");
 
@@ -290,16 +280,16 @@ static Token *p_operator(OpLevel level)
 
 static Expr *p_binop(int level)
 {
-	if(level == _OPLEVEL_COUNT) return p_cast();
+	if(level == _OPLEVEL_COUNT) return p_(cast);
 
-	Expr *left = p_binop(level + 1);
+	Expr *left = p_(binop, level + 1);
 	if(!left) return 0;
 
 	while(1) {
-		Token *operator = p_operator(level);
+		Token *operator = p_(operator, level);
 		if(!operator) break;
 
-		Expr *right = p_binop(level + 1);
+		Expr *right = p_(binop, level + 1);
 		if(!right) fatal_after(last, "expected right side after %t", operator);
 
 		Expr *binop = new_binop_expr(left, right, operator, level);
@@ -309,9 +299,9 @@ static Expr *p_binop(int level)
 	return left;
 }
 
-static Expr *p_expr()
+Expr *p_expr()
 {
-	return p_binop(0);
+	return p_(binop, 0);
 }
 
 static Expr **p_exprs()
@@ -319,19 +309,11 @@ static Expr **p_exprs()
 	Expr **exprs = 0;
 
 	while(1) {
-		Expr *expr = p_expr();
+		Expr *expr = p_(expr);
 		if(!expr) break;
 		array_push(exprs, expr);
 		if(!eatpt(PT_COMMA)) break;
 	}
 
 	return exprs;
-}
-
-Expr *p_expr_pub(ParseState *state)
-{
-	unpack_state(state);
-	Expr *expr = p_expr();
-	pack_state(state);
-	return expr;
 }

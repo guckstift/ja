@@ -3,26 +3,6 @@
 #include "build.h"
 #include "array.h"
 
-static Block *p_block(Scope *scope);
-
-static Expr *p_expr()
-{
-	ParseState state;
-	pack_state(&state);
-	Expr *expr = p_expr_pub(&state);
-	unpack_state(&state);
-	return expr;
-}
-
-static Type *p_type()
-{
-	ParseState state;
-	pack_state(&state);
-	Type *type = p_type_pub(&state);
-	unpack_state(&state);
-	return type;
-}
-
 static int declare(Decl *decl)
 {
 	return declare_in(decl, scope);
@@ -70,7 +50,7 @@ static Stmt *p_print()
 	if(!eatkw(KW_print)) return 0;
 	Token *start = last;
 
-	Expr *expr = p_expr();
+	Expr *expr = p_(expr);
 	if(!expr) fatal_after(last, "expected expression to print");
 
 	if(!eatpt(PT_SEMICOLON))
@@ -87,7 +67,7 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int foreign)
 
 	Type *type = 0;
 	if(eatpt(PT_COLON)) {
-		type = p_type();
+		type = p_(type);
 		if(!type) fatal_after(last, "expected type after colon");
 	}
 
@@ -101,7 +81,7 @@ static Stmt *p_vardecl_core(Token *start, int exported, int param, int foreign)
 			);
 		}
 
-		init = p_expr();
+		init = p_(expr);
 		if(!init) fatal_after(last, "expected initializer after =");
 
 		Token *init_start = init->start;
@@ -135,7 +115,7 @@ static Stmt *p_vardecl(int exported, int foreign)
 	if(!eatkw(KW_var)) return 0;
 	Token *start = last;
 
-	Stmt *core = p_vardecl_core(start, exported, 0, foreign);
+	Stmt *core = p_(vardecl_core, start, exported, 0, foreign);
 	if(!core) fatal_after(last, "expected identifier after keyword var");
 
 	if(!eatpt(PT_SEMICOLON))
@@ -163,7 +143,7 @@ static Decl *p_funchead(int exported)
 	enter();
 
 	while(1) {
-		Decl *param = &p_vardecl_core(0, 0, 1, 0)->as_decl;
+		Decl *param = &p_(vardecl_core, 0, 0, 1, 0)->as_decl;
 		if(!param) break;
 		array_push(params, param);
 		if(!eatpt(PT_COMMA)) break;
@@ -177,7 +157,7 @@ static Decl *p_funchead(int exported)
 	Type *returntype = new_type(NONE);
 
 	if(eatpt(PT_COLON)) {
-		returntype = p_type();
+		returntype = p_(type);
 		if(!returntype) fatal_after(last, "expected return type after colon");
 	}
 
@@ -195,7 +175,7 @@ static Decl *p_funchead(int exported)
 
 static Stmt *p_foreign_func(int exported)
 {
-	Decl *decl = p_funchead(exported);
+	Decl *decl = p_(funchead, exported);
 	if(!decl) return 0;
 
 	decl->imported = 1;
@@ -211,13 +191,13 @@ static Stmt *p_foreign_func(int exported)
 
 static Stmt *p_funcdecl(int exported)
 {
-	Decl *decl = p_funchead(exported);
+	Decl *decl = p_(funchead, exported);
 	if(!decl) return 0;
 
 	if(!eatpt(PT_LCURLY))
 		fatal_after(last, "expected { after function head");
 
-	decl->body = p_block(decl->func_scope);
+	decl->body = p_(block, decl->func_scope);
 
 	if(!eatpt(PT_RCURLY))
 		fatal_after(last, "expected } after function body");
@@ -245,7 +225,7 @@ static Stmt *p_structdecl(int exported)
 	enter();
 
 	while(1) {
-		Decl *member = &p_vardecl_core(0, 0, 0, 0)->as_decl;
+		Decl *member = &p_(vardecl_core, 0, 0, 0, 0)->as_decl;
 		if(!member) break;
 
 		if(member->init && !member->init->isconst) {
@@ -311,7 +291,7 @@ static Stmt *p_enumdecl(int exported)
 		item->val = 0;
 
 		if(eatpt(PT_ASSIGN)) {
-			Expr *val = p_expr();
+			Expr *val = p_(expr);
 			if(!val) fatal_at(last, "expected expression after =");
 
 			if(!val->isconst)
@@ -358,7 +338,7 @@ static Stmt *p_uniondecl(int exported)
 	enter();
 
 	while(1) {
-		Decl *member = &p_vardecl_core(0, 0, 0, 0)->as_decl;
+		Decl *member = &p_(vardecl_core, 0, 0, 0, 0)->as_decl;
 		if(!member) break;
 
 		if(member->init) {
@@ -396,14 +376,14 @@ static Stmt *p_ifstmt()
 	if(!eatkw(KW_if)) return 0;
 	Token *start = last;
 
-	Expr *cond = p_expr();
+	Expr *cond = p_(expr);
 	if(!cond)
 		fatal_at(last, "expected condition after if");
 
 	if(!eatpt(PT_LCURLY))
 		fatal_after(last, "expected { after condition");
 
-	Block *if_body = p_block(0);
+	Block *if_body = p_(block, 0);
 
 	if(!eatpt(PT_RCURLY))
 		fatal_after(last, "expected } after if-body");
@@ -412,7 +392,7 @@ static Stmt *p_ifstmt()
 	if(eatkw(KW_else)) {
 		if(matchkw(KW_if)) {
 			enter();
-			Stmt *else_if = p_ifstmt();
+			Stmt *else_if = p_(ifstmt);
 			Stmt **stmts = 0;
 			array_push(stmts, else_if);
 			Scope *block_scope = leave();
@@ -422,7 +402,7 @@ static Stmt *p_ifstmt()
 			if(!eatpt(PT_LCURLY))
 				fatal_after(last, "expected { after else");
 
-			else_body = p_block(0);
+			else_body = p_(block, 0);
 
 			if(!eatpt(PT_RCURLY))
 				fatal_after(last, "expected } after else-body");
@@ -437,7 +417,7 @@ static Stmt *p_whilestmt()
 	if(!eatkw(KW_while)) return 0;
 	Token *start = last;
 
-	Expr *cond = p_expr();
+	Expr *cond = p_(expr);
 	if(!cond)
 		fatal_at(last, "expected condition after while");
 
@@ -448,7 +428,7 @@ static Stmt *p_whilestmt()
 	Scope *blockscope = leave();
 	While *stmt = new_while(start, blockscope, cond, 0);
 	blockscope->loophost = (Stmt*)stmt;
-	stmt->body = p_block(blockscope);
+	stmt->body = p_(block, blockscope);
 
 	if(!eatpt(PT_RCURLY))
 		fatal_after(last, "expected } after if-body");
@@ -465,7 +445,7 @@ static Stmt *p_returnstmt()
 	if(!funchost)
 		fatal_at(last, "return outside of any function");
 
-	Expr *result = p_expr();
+	Expr *result = p_(expr);
 
 	if(!eatpt(PT_SEMICOLON))
 		error_after(last, "expected semicolon after return statement");
@@ -521,10 +501,7 @@ static Stmt *p_import()
 	if(!eatpt(PT_SEMICOLON))
 		error_after(last, "expected semicolon after import statement");
 
-	ParseState state;
-	pack_state(&state);
 	Unit *unit = import(filename->string);
-	unpack_state(&state);
 
 	array_for(scope->imports, i) {
 		if(scope->imports[i]->unit == unit) {
@@ -573,8 +550,8 @@ static Stmt *p_foreign()
 
 	while(1) {
 		Decl *decl = 0;
-		(decl = &p_foreign_func(0)->as_decl) ||
-		(decl = &p_vardecl(0, 1)->as_decl) ;
+		(decl = &p_(foreign_func, 0)->as_decl) ||
+		(decl = &p_(vardecl, 0, 1)->as_decl) ;
 		if(!decl) break;
 		array_push(decls, decl);
 	}
@@ -596,10 +573,10 @@ static Stmt *p_export()
 		fatal_at(last, "exports can only be done at top level");
 
 	Stmt *stmt = 0;
-	(stmt = p_vardecl(1, 0)) ||
-	(stmt = p_funcdecl(1)) ||
-	(stmt = p_structdecl(1)) ||
-	(stmt = p_enumdecl(1)) ;
+	(stmt = p_(vardecl, 1, 0)) ||
+	(stmt = p_(funcdecl, 1)) ||
+	(stmt = p_(structdecl, 1)) ||
+	(stmt = p_(enumdecl, 1)) ;
 
 	if(!stmt) {
 		fatal_at(
@@ -613,7 +590,7 @@ static Stmt *p_export()
 
 static Stmt *p_assign()
 {
-	Expr *target = p_expr();
+	Expr *target = p_(expr);
 	if(!target) return 0;
 
 	if(target->kind == CALL && eatpt(PT_SEMICOLON)) {
@@ -623,7 +600,7 @@ static Stmt *p_assign()
 	if(!eatpt(PT_ASSIGN))
 		fatal_after(last, "expected = after left side");
 
-	Expr *expr = p_expr();
+	Expr *expr = p_(expr);
 
 	if(!expr)
 		fatal_at(last, "expected right side after =");
@@ -676,19 +653,19 @@ static Stmt *p_for()
 	Expr *to = 0;
 
 	if(eatkw(KW_in)) {
-		array = p_expr();
+		array = p_(expr);
 
 		if(!array)
 			fatal_after(last, "expected iterable");
 	}
 	else if(eatpt(PT_ASSIGN)) {
-		from = p_expr();
+		from = p_(expr);
 		if(!from) fatal_at(last, "expected start value after =");
 
 		if(!eatpt(PT_DOTDOT))
 			fatal_after(last, "expected .. after start expression");
 
-		to = p_expr();
+		to = p_(expr);
 		if(!to) fatal_at(last, "expected end value after ..");
 	}
 	else {
@@ -706,7 +683,7 @@ static Stmt *p_for()
 	if(array) {
 		ForEach *foreach = new_foreach(start, blockscope, array, iter, 0);
 		blockscope->loophost = (Stmt*)foreach;
-		foreach->body = p_block(blockscope);
+		foreach->body = p_(block, blockscope);
 
 		if(!eatpt(PT_RCURLY))
 			fatal_after(last, "expected } after for-body");
@@ -716,7 +693,7 @@ static Stmt *p_for()
 	else {
 		For *forstmt = new_for(start, blockscope, iter, from, to, 0);
 		blockscope->loophost = (Stmt*)forstmt;
-		forstmt->body = p_block(blockscope);
+		forstmt->body = p_(block, blockscope);
 
 		if(!eatpt(PT_RCURLY))
 			fatal_after(last, "expected } after for-body");
@@ -729,7 +706,7 @@ static Stmt *p_delete()
 {
 	if(!eatkw(KW_delete)) return 0;
 	Token *start = last;
-	Expr *expr = p_expr();
+	Expr *expr = p_(expr);
 
 	if(!expr)
 		fatal_after(last, "expected object to delete");
@@ -746,23 +723,23 @@ static Stmt *p_delete()
 static Stmt *p_stmt()
 {
 	Stmt *stmt = 0;
-	(stmt = p_print()) ||
-	(stmt = p_vardecl(0, 0)) ||
-	(stmt = p_funcdecl(0)) ||
-	(stmt = p_structdecl(0)) ||
-	(stmt = p_enumdecl(0)) ||
-	(stmt = p_uniondecl(0)) ||
-	(stmt = p_ifstmt()) ||
-	(stmt = p_whilestmt()) ||
-	(stmt = p_returnstmt()) ||
-	(stmt = p_import()) ||
-	(stmt = p_foreign()) ||
-	(stmt = p_export()) ||
-	(stmt = p_break()) ||
-	(stmt = p_continue()) ||
-	(stmt = p_for()) ||
-	(stmt = p_delete()) ||
-	(stmt = p_assign()) ;
+	(stmt = p_(print)) ||
+	(stmt = p_(vardecl, 0, 0)) ||
+	(stmt = p_(funcdecl, 0)) ||
+	(stmt = p_(structdecl, 0)) ||
+	(stmt = p_(enumdecl, 0)) ||
+	(stmt = p_(uniondecl, 0)) ||
+	(stmt = p_(ifstmt)) ||
+	(stmt = p_(whilestmt)) ||
+	(stmt = p_(returnstmt)) ||
+	(stmt = p_(import)) ||
+	(stmt = p_(foreign)) ||
+	(stmt = p_(export)) ||
+	(stmt = p_(break)) ||
+	(stmt = p_(continue)) ||
+	(stmt = p_(for)) ||
+	(stmt = p_(delete)) ||
+	(stmt = p_(assign)) ;
 	return stmt;
 }
 
@@ -770,7 +747,7 @@ static Stmt **p_stmts()
 {
 	Stmt **stmts = 0;
 	while(1) {
-		Stmt *stmt = p_stmt();
+		Stmt *stmt = p_(stmt);
 		if(!stmt) break;
 		array_push(stmts, stmt);
 	}
@@ -778,19 +755,11 @@ static Stmt **p_stmts()
 	return stmts;
 }
 
-static Block *p_block(Scope *scope)
+Block *p_block(Scope *scope)
 {
 	if(scope) reenter(scope);
 	else enter();
-	Stmt **stmts = p_stmts();
+	Stmt **stmts = p_(stmts);
 	Scope *block_scope = leave();
 	return new_block(stmts, block_scope);
-}
-
-Block *p_block_pub(ParseState *state, Scope *scope)
-{
-	unpack_state(state);
-	Block *block = p_block(scope);
-	pack_state(state);
-	return block;
 }

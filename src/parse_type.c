@@ -7,8 +7,6 @@
 #include "build.h"
 #include "array.h"
 
-static Type *p_type();
-
 static Type *p_primtype()
 {
 	if(eatkw(KW_int)) return new_type(INT);
@@ -39,7 +37,7 @@ static Type *p_ptrtype()
 {
 	if(!eatpt(PT_GREATER)) return 0;
 
-	Type *subtype = p_type();
+	Type *subtype = p_(type);
 	if(!subtype)
 		fatal_at(last, "expected target type");
 
@@ -62,7 +60,7 @@ static Type *p_arraytype()
 			fatal_after(last, "expected integer literal for array length");
 	}
 
-	Type *itemtype = p_type();
+	Type *itemtype = p_(type);
 	if(!itemtype)
 		fatal_at(last, "expected item type");
 
@@ -72,20 +70,12 @@ static Type *p_arraytype()
 		return new_slice_type(itemtype);
 }
 
-static Type *p_type()
+Type *p_type()
 {
 	Type *type = 0;
-	(type = p_primtype()) ||
-	(type = p_nametype()) ||
-	(type = p_ptrtype()) ||
-	(type = p_arraytype()) ;
-	return type;
-}
-
-Type *p_type_pub(ParseState *state)
-{
-	unpack_state(state);
-	Type *type = p_type();
-	pack_state(state);
+	(type = p_(primtype)) ||
+	(type = p_(nametype)) ||
+	(type = p_(ptrtype)) ||
+	(type = p_(arraytype)) ;
 	return type;
 }
