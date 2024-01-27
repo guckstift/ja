@@ -35,7 +35,7 @@ static Type *p_nametype()
 
 static Type *p_ptrtype()
 {
-	if(!eatpt(PT_GREATER)) return 0;
+	if(!eatpt(PT_MUL)) return 0;
 
 	Type *subtype = p_(type);
 	if(!subtype)

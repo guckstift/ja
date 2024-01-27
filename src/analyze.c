@@ -3,8 +3,6 @@
 #include "array.h"
 #include "parse_internal.h"
 
-#include <stdio.h>
-
 static bool repeat_analyze = false;
 
 static void a_block(Block *block);
@@ -208,11 +206,21 @@ static void eval_binop(Expr *expr)
 */
 static Expr *adjust_expr_to_type(Expr *expr, Type *type, bool explicit)
 {
+	Type *org_type = expr->type;
 	Type *expr_type = expr->type;
 
 	// can not cast from none type
 	if(expr_type->kind == NONE)
 		fatal_at(expr->start, "expression has no value");
+
+	// implicit address of l-value
+	if(
+		type->kind == PTR && expr_type->kind != PTR &&
+		expr->islvalue && type_equ(type->subtype, expr_type)
+	) {
+		expr = new_ptr_expr(expr->start, expr);
+		expr_type = expr->type;
+	}
 
 	// types equal => no adjustment needed
 	if(type_equ(expr_type, type))
@@ -263,7 +271,7 @@ static Expr *adjust_expr_to_type(Expr *expr, Type *type, bool explicit)
 	fatal_at(
 		expr->start,
 		"can not convert type  %y  to  %y",
-		expr_type, type
+		org_type, type
 	);
 }
 
