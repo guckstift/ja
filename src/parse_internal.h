@@ -35,8 +35,6 @@
 		__VA_ARGS__ \
 	)
 
-#define PARSER_NAME(a, ...)  p_ ## a
-
 #define p_(name, ...) \
 	( p_ ## name(__VA_ARGS__) )
 //	( printf("entering " #name "\n"), p_ ## name(__VA_ARGS__) )

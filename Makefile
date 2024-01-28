@@ -2,13 +2,13 @@ PROGNAME = \
 	ja
 
 CFILES = \
-	analyze.c asm.c ast.c build.c cgen.c cgen_expr.c cgen_stmt.c cgen_type.c \
-	elf.c lex.c main.c parse.c parse_internal.c parse_expr.c parse_stmt.c parse_type.c print.c \
-	string.c
+	analyze.c ast.c build.c cgen.c cgen_expr.c cgen_stmt.c cgen_type.c \
+	lex.c main.c parse.c parse_internal.c parse_expr.c parse_stmt.c parse_type.c print.c \
+	utils/string.c
 
 HFILES = \
-	analyze.h array.h asm.h ast.h build.h cgen.h elf.h lex.h parse.h \
-	parse_internal.h print.h string.h
+	analyze.h utils/array.h ast.h build.h cgen.h lex.h parse.h \
+	parse_internal.h print.h utils/string.h
 
 RESOURCES = \
 	runtime.h runtime.c
@@ -17,7 +17,7 @@ BUILDDIR = \
 	build
 
 CFLAGS = \
-	-std=c17 -D JA_DEBUG -g
+	-std=c17 -D JA_DEBUG -g -iquote .
 
 LDFLAGS = \
 	 -ldl
@@ -33,7 +33,7 @@ TESTOKS = $(patsubst tests/%.ja,$(BUILDDIR)/%.ok,$(TESTS))
 $(PROGTARGET): $(OBJS) | $(BUILDDIR)
 	gcc -o $@ $(OBJS) $(LDFLAGS)
 
-$(BUILDDIR)/%.o: src/%.c | $(BUILDDIR)
+$(BUILDDIR)/%.o: src/%.c | $(BUILDDIR) $(BUILDDIR)/utils
 	gcc -o $@ -c $(CFLAGS) $<
 
 $(BUILDDIR)/jaja: $(PROGTARGET) $(wildcard jasrc/*.ja) | $(BUILDDIR)
@@ -52,6 +52,9 @@ $(BUILDDIR)/%.ok: tests/%.ja $(PROGTARGET) | $(BUILDDIR)
 
 $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
+
+$(BUILDDIR)/utils:
+	mkdir -p $(BUILDDIR)/utils
 
 $(BUILDDIR)/deps: $(SRCS) $(HDRS) $(RESS) | $(BUILDDIR)
 	gcc -MM $(SRCS) | sed -e 's|^\([a-z].*\)|$(BUILDDIR)/\1|' > $@

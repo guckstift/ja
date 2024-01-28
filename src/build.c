@@ -13,8 +13,8 @@
 #include "analyze.h"
 #include "cgen.h"
 #include "utils/string.h"
-#include "../build/runtime.h.res"
-#include "../build/runtime.c.res"
+#include "build/runtime.h.res"
+#include "build/runtime.c.res"
 
 #define lo_nibble(x) ((x) & 0xf)
 #define hi_nibble(x) ((x) >> 4 & 0xf)
