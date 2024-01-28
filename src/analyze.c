@@ -1,6 +1,6 @@
 #include <stdbool.h>
 #include "analyze.h"
-#include "array.h"
+#include "utils/array.h"
 #include "parse_internal.h"
 
 static bool repeat_analyze = false;

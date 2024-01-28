@@ -4,7 +4,7 @@
 #include <inttypes.h>
 #include "lex.h"
 #include "print.h"
-#include "array.h"
+#include "utils/array.h"
 
 static char *pos;
 static char *end;

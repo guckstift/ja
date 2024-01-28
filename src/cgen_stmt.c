@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "cgen_internal.h"
-#include "array.h"
-#include "string.h"
+#include "utils/array.h"
+#include "utils/string.h"
 
 static Decl *gen_temp_var(Scope *scope, Type *type, Expr *init)
 {
@@ -50,11 +50,11 @@ static void gen_print(Scope *scope, Expr *expr, int repr)
 			INDENT "%>printf(\">\");\n"
 			, expr
 		);
-		
+
 		inc_level();
 		gen_print(scope, new_deref_expr(expr->start, expr), 1);
 		dec_level();
-		
+
 		write(
 			"%>}\n"
 			"%>else {\n"
@@ -63,10 +63,10 @@ static void gen_print(Scope *scope, Expr *expr, int repr)
 		);
 		return;
 	}
-	
+
 	if(expr->type->kind == STRING) {
 		if(repr) write("%>printf(\"\\\"\");\n");
-		
+
 		if(expr->kind == STRING) {
 			write(
 				"%>fwrite(\"%S\", 1, %i, stdout);\n",
@@ -79,13 +79,13 @@ static void gen_print(Scope *scope, Expr *expr, int repr)
 				expr, expr
 			);
 		}
-		
+
 		if(repr) write("%>printf(\"\\\"\");\n");
 		return;
 	}
 	else if(expr->type->kind == ARRAY) {
 		write("%>printf(\"[\");\n");
-		
+
 		if(expr->kind == ARRAY) {
 			array_for(expr->items, i) {
 				if(i > 0) write("%>printf(\", \");\n");
@@ -99,7 +99,7 @@ static void gen_print(Scope *scope, Expr *expr, int repr)
 			Expr *val_tmp_var = new_var_expr(val_tmp->start, val_tmp);
 			write("%>%y %s%z;\n", type, val_tmp->private_id, type);
 			gen_assign(val_tmp_var, expr);
-			
+
 			for(int64_t i=0; i < type->length; i++) {
 				if(i > 0) write("%>printf(\", \");\n");
 				Expr *index = new_int_expr(val_tmp_var->start, i);
@@ -107,13 +107,13 @@ static void gen_print(Scope *scope, Expr *expr, int repr)
 				gen_print(scope, item, 1);
 			}
 		}
-		
+
 		write("%>printf(\"]\");\n");
 		return;
 	}
-	
+
 	write("%>printf(");
-	
+
 	switch(expr->type->kind) {
 		case INT8:
 			write("\"%%\" PRId8");
@@ -146,17 +146,17 @@ static void gen_print(Scope *scope, Expr *expr, int repr)
 			write("\"%%p\"");
 			break;
 	}
-	
+
 	write(", ");
-	
+
 	if(expr->type->kind == PTR)
 		write("(void*)");
-	
+
 	gen_expr(expr);
-	
+
 	if(expr->type->kind == BOOL)
 		write(" ? \"true\" : \"false\"");
-	
+
 	write(");\n");
 }
 
@@ -165,10 +165,10 @@ static void gen_if(If *ifstmt)
 	write("if(%e) {\n", ifstmt->cond);
 	gen_block(ifstmt->if_body);
 	write("%>}\n");
-	
+
 	if(ifstmt->else_body && ifstmt->else_body->stmts) {
 		Stmt **else_body = ifstmt->else_body->stmts;
-		
+
 		if(array_length(else_body) == 1 && else_body[0]->kind == IF) {
 			write("%>else ");
 			gen_stmt(else_body[0], 1);
@@ -186,10 +186,10 @@ static void gen_return(Return *returnstmt)
 	if(returnstmt->expr) {
 		Expr *result = returnstmt->expr;
 		Type *type = result->type;
-		
+
 		if(type->kind == ARRAY) {
 			Token *funcid = returnstmt->scope->funchost->id;
-			
+
 			if(result->kind == ARRAY) {
 				write("%>return (rt_%I){.a = %E};\n", funcid, result);
 			}
@@ -197,11 +197,11 @@ static void gen_return(Return *returnstmt)
 				write("%>{\n");
 				inc_level();
 				write("%>rt_%I result;\n", funcid);
-				
+
 				write(
 					"%>memcpy(&result, %e, sizeof(rt_%I));\n", result, funcid
 				);
-				
+
 				write("%>return result;\n");
 				dec_level();
 				write("%>}\n");
@@ -245,7 +245,7 @@ static void gen_for(For *stmt)
 	Expr *from = stmt->from;
 	Expr *to = stmt->to;
 	Type *itertype = iter->type;
-	
+
 	write(
 		"%>for("
 			"%y %s%z = %e; "
@@ -255,7 +255,7 @@ static void gen_for(For *stmt)
 		iter->private_id, to,
 		iter->private_id
 	);
-	
+
 	gen_block(stmt->body);
 	write("%>}\n");
 }
@@ -266,14 +266,14 @@ static void gen_foreach(ForEach *foreach)
 	Expr *array = foreach->array;
 	Type *type = array->type;
 	Type *itemtype = type->itemtype;
-	
+
 	write("%>for(int64_t it_%t = 0; it_%t < ", iter->id, iter->id);
-	
+
 	if(type->length == -1 && array->kind == DEREF) {
 		array = array->ptr;
 		write("%e.length; ", array);
 		write("it_%t ++) {\n", iter->id);
-		
+
 		write(
 			INDENT "%>%y %s%z = ((%y(*)%z)%e.items)[it_%t];\n",
 			itemtype, iter->private_id, itemtype,
@@ -283,13 +283,13 @@ static void gen_foreach(ForEach *foreach)
 	else {
 		write("%i; ", type->length);
 		write("it_%t ++) {\n", iter->id);
-		
+
 		write(
 			INDENT "%>%y %s%z = %e[it_%t];\n",
 			itemtype, iter->private_id, itemtype, array, iter->id
 		);
 	}
-	
+
 	gen_block(foreach->body);
 	write("%>}\n");
 }

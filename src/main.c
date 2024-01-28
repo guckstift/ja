@@ -5,7 +5,7 @@
 #include <dlfcn.h>
 #include "print.h"
 #include "build.h"
-#include "string.h"
+#include "utils/string.h"
 
 /*
 #include "asm.h"
@@ -51,10 +51,10 @@ static void parse_args(int argc, char **argv)
 			break;
 		}
 	}
-	
+
 	if(compile_only && build_options.outfilename == 0)
 		error("no output filename");
-	
+
 	if(build_options.main_filename == 0)
 		error("no input file");
 }
@@ -70,30 +70,30 @@ int main(int argc, char *argv[])
 	elf_set_text(elf, asm_get_text(), asm_get_text_size());
 	elf_save(elf, "test");
 	*/
-	
+
 	#ifdef JA_DEBUG
 	build_options.show_tokens = true;
 	build_options.show_ast = true;
 	#endif
-	
+
 	parse_args(argc, argv);
 	Project *project = build(build_options);
-	
+
 	if(!compile_only) {
 		char *cmd = 0;
 		string_append(cmd, project->exe_filename);
-		
+
 		for(int64_t i=1; i < prog_argc; i++) {
 			string_append(cmd, " ");
 			string_append(cmd, prog_argv[i]);
 		}
-		
+
 		#ifdef JA_DEBUG
 		printf(COL_YELLOW "[run]:" COL_RESET " %s\n", cmd);
 		#endif
-		
+
 		system(cmd);
 	}
-	
+
 	return 0;
 }

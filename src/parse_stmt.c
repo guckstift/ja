@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "parse_internal.h"
 #include "build.h"
-#include "array.h"
+#include "utils/array.h"
 
 static int declare(Decl *decl)
 {
@@ -467,7 +467,9 @@ static Stmt *p_returnstmt()
 
 static Stmt *p_import()
 {
-	if(!eatkw(KW_import)) return 0;
+	if(!eatkw(KW_import))
+		return 0;
+
 	Token *start = last;
 
 	if(scope->parent)
@@ -484,16 +486,14 @@ static Stmt *p_import()
 			if(!eatpt(PT_COMMA)) break;
 		}
 
-		if(idents == 0) {
-			fatal_after(
-				start, "expected identifier list or filename string to import"
-			);
-		}
+		if(idents == 0)
+			fatal_after(start, "expected identifier list or filename string to import");
 
 		if(!eatkw(KW_from))
 			error_at(cur, "expected 'from' after identifier list");
 
 		filename = eat(TK_STRING);
+
 		if(!filename)
 			fatal_at(cur, "expected filename string to import from");
 	}

@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "parse_internal.h"
-#include "array.h"
+#include "utils/array.h"
 
 static Expr **p_exprs();
 static Expr *p_prefix();

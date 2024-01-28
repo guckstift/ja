@@ -1,5 +1,5 @@
 #include "cgen_internal.h"
-#include "array.h"
+#include "utils/array.h"
 
 static void gen_exprs(Expr **exprs);
 

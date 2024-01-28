@@ -12,7 +12,7 @@
 #include "print.h"
 #include "analyze.h"
 #include "cgen.h"
-#include "string.h"
+#include "utils/string.h"
 #include "../build/runtime.h.res"
 #include "../build/runtime.c.res"
 

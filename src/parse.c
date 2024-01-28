@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "parse_internal.h"
 #include "print.h"
-#include "array.h"
+#include "utils/array.h"
 
 Block *parse(Token *tokens, char *_unit_id)
 {

@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "ast.h"
-#include "array.h"
-#include "string.h"
+#include "utils/array.h"
+#include "utils/string.h"
 #include "print.h"
 
 #include <stdio.h>

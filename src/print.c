@@ -4,7 +4,7 @@
 #include <string.h>
 #include <assert.h>
 #include "print.h"
-#include "array.h"
+#include "utils/array.h"
 #include "build.h"
 
 static int64_t level;
@@ -421,7 +421,7 @@ static void fprint_type(FILE *fs, Type *type)
 			fprint_type(fs, type->itemtype);
 			break;
 		case SLICE:
-			fprintf(fs, "[]");
+			fprintf(fs, "[*]");
 			fprint_type(fs, type->itemtype);
 			break;
 		case FUNC:

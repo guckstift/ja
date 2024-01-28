@@ -5,7 +5,7 @@
 #include "parse.h"
 #include "parse_internal.h"
 #include "build.h"
-#include "array.h"
+#include "utils/array.h"
 
 static Type *p_primtype()
 {
@@ -53,11 +53,12 @@ static Type *p_arraytype()
 	if(length && length->ival <= 0)
 		fatal_at(length, "array length must be greater than 0");
 
+	if(!length && !eatpt(PT_MUL)) {
+		fatal_after(last, "expected integer literal for array length or *");
+	}
+
 	if(!eatpt(PT_RBRACK)) {
-		if(length)
-			fatal_after(last, "expected ]");
-		else
-			fatal_after(last, "expected integer literal for array length");
+		fatal_after(last, "expected ]");
 	}
 
 	Type *itemtype = p_(type);
