@@ -3,8 +3,8 @@
 #include <inttypes.h>
 #include "ast.h"
 #include "cgen_internal.h"
-#include "array.h"
-#include "string.h"
+#include "utils/array.h"
+#include "utils/string.h"
 
 static Unit *cur_unit;
 static FILE *ofs;
@@ -68,7 +68,7 @@ void write(char *msg, ...)
 {
 	va_list args;
 	va_start(args, msg);
-	
+
 	while(*msg) {
 		if(*msg == '%') {
 			msg++;
@@ -147,20 +147,20 @@ void write(char *msg, ...)
 			msg++;
 		}
 	}
-	
+
 	va_end(args);
 }
 
 void gen_stmts(Stmt **stmts)
 {
 	if(!stmts) return;
-	
+
 	level ++;
-	
+
 	array_for(stmts, i) {
 		gen_stmt(stmts[i], 0);
 	}
-	
+
 	level --;
 }
 
@@ -180,7 +180,7 @@ static void gen_params(Decl **params)
 		Decl *param = params[i];
 		Type *type = param->type;
 		if(i > 0) write(", ");
-		
+
 		if(type->kind == ARRAY) {
 			write("%y (*ap_%t)%z", type, param->id, type);
 		}
@@ -193,21 +193,21 @@ static void gen_params(Decl **params)
 static void gen_array_param_decls(Decl **params)
 {
 	level ++;
-	
+
 	array_for(params, i) {
 		Decl *param = params[i];
 		Type *type = param->type;
-		
+
 		if(type->kind == ARRAY) {
 			write("%>%y %s%z;\n", type, param->private_id, type);
-			
+
 			write(
 				"%>memcpy(%s, ap_%t, sizeof(%Y) * %i);\n",
 				param->private_id, param->id, type->itemtype, type->length
 			);
 		}
 	}
-	
+
 	level --;
 }
 
@@ -216,10 +216,10 @@ static void gen_array_param_decls(Decl **params)
 static void gen_returntypedecl(Decl *decl)
 {
 	Type *returntype = decl->type->returntype;
-	
+
 	if(returntype->kind == ARRAY) {
 		write("%>typedef struct { %y a%z; } ", returntype, returntype);
-		
+
 		if(in_header)
 			write("rt_%s;\n", decl->public_id);
 		else
@@ -230,18 +230,18 @@ static void gen_returntypedecl(Decl *decl)
 static void gen_funchead(Decl *decl)
 {
 	Type *returntype = decl->type->returntype;
-	
+
 	if(!decl->exported)
 		write("%>static ");
 	else
 		write("%>");
-	
+
 	if(returntype->kind == ARRAY) {
 		if(in_header)
 			write("rt_%s %s(", decl->public_id, decl->public_id);
 		else
 			write("rt_%s %s(", decl->private_id, decl->private_id);
-		
+
 		gen_params(decl->params);
 		write(")");
 	}
@@ -250,17 +250,17 @@ static void gen_funchead(Decl *decl)
 			write("%y %s(", returntype, decl->public_id);
 		else
 			write("%y %s(", returntype, decl->private_id);
-		
+
 		gen_params(decl->params);
 		write(")%z", returntype);
 	}
 }
-	
+
 void gen_vardecl_init(Decl *decl, int struct_inst_member)
 {
 	if(in_header || decl->scope->structhost && !struct_inst_member)
 		return;
-	
+
 	if(decl->init) {
 		if(
 			decl->init->isconst ||
@@ -273,15 +273,15 @@ void gen_vardecl_init(Decl *decl, int struct_inst_member)
 	else if(decl->type->kind == STRUCT) {
 		Decl *structdecl = decl->type->decl;
 		write(" = {");
-		
+
 		array_for(structdecl->members, i) {
 			if(i > 0) write(", ");
 			Decl *member = structdecl->members[i];
-			
+
 			write(".%s", member->private_id);
 			gen_vardecl_init(member, 1);
 		}
-		
+
 		write("}");
 	}
 	else if(
@@ -301,19 +301,19 @@ static void gen_enumdecl(Decl *decl)
 {
 	if(decl->imported)
 		return;
-	
+
 	if(!in_header && decl->exported) {
 		gen_export_alias(decl);
 		return;
 	}
-	
+
 	if(in_header && !decl->exported)
 		return;
-	
+
 	write("%>typedef enum {\n");
 	level ++;
 	EnumItem **items = decl->items;
-	
+
 	array_for(items, i) {
 		if(in_header)
 			write(
@@ -326,9 +326,9 @@ static void gen_enumdecl(Decl *decl)
 				decl->private_id, items[i]->id, items[i]->val
 			);
 	}
-	
+
 	level --;
-	
+
 	if(in_header)
 		write("%>} %s;\n", decl->public_id);
 	else
@@ -339,20 +339,20 @@ static void gen_structdecl_typedef(Decl *decl)
 {
 	if(decl->imported)
 		return;
-	
+
 	if(!in_header && decl->exported) {
 		gen_export_alias(decl);
 		return;
 	}
-	
+
 	if(in_header && !decl->exported)
 		return;
-	
+
 	if(decl->kind == STRUCT)
 		write("%>typedef struct ");
 	else if(decl->kind == UNION)
 		write("%>typedef union ");
-	
+
 	if(in_header)
 		write("%s %s;\n", decl->public_id, decl->public_id);
 	else
@@ -363,28 +363,28 @@ static void gen_structdecl(Decl *decl)
 {
 	if(decl->imported)
 		return;
-	
+
 	if(!in_header && decl->exported) {
 		return;
 	}
-	
+
 	if(in_header && !decl->exported)
 		return;
-	
+
 	if(decl->kind == STRUCT)
 		write("%>struct ");
 	else if(decl->kind == UNION)
 		write("%>union ");
-	
+
 	if(in_header)
 		write("%s {\n", decl->public_id);
 	else
 		write("%s {\n", decl->private_id);
-	
+
 	level ++;
 	gen_vardecls(decl->members);
 	level --;
-	
+
 	write("%>};\n");
 }
 
@@ -392,20 +392,20 @@ static void gen_funcproto(Decl *decl)
 {
 	if(decl->imported)
 		return;
-	
+
 	if(!in_header && decl->exported) {
 		gen_export_alias(decl);
 		Type *returntype = decl->type->returntype;
-		
+
 		if(returntype->kind == ARRAY)
 			write("#define rt_%s rt_%s\n", decl->private_id, decl->public_id);
-		
+
 		return;
 	}
-	
+
 	if(in_header && !decl->exported)
 		return;
-	
+
 	gen_returntypedecl(decl);
 	gen_funchead(decl);
 	write(";\n");
@@ -415,7 +415,7 @@ static void gen_funcdecl(Decl *decl)
 {
 	if(decl->imported)
 		return;
-	
+
 	gen_funchead(decl);
 	write(" {\n");
 	gen_array_param_decls(decl->params);
@@ -427,28 +427,28 @@ void gen_vardecl(Decl *decl)
 {
 	if(decl->imported)
 		return;
-	
+
 	if(in_header && !decl->exported && !decl->scope->structhost)
 		return;
-	
+
 	if(!in_header && decl->exported)
 		gen_export_alias(decl);
-	
+
 	write("%>");
-	
+
 	if(in_header && decl->exported)
 		write("extern ");
-	
+
 	if(!decl->exported && !decl->scope->parent)
 		write("static ");
-	
+
 	if(decl->exported && in_header)
 		write("%y %s%z", decl->type, decl->public_id, decl->type);
 	else
 		write("%y %s%z", decl->type, decl->private_id, decl->type);
-	
+
 	gen_vardecl_init(decl, 0);
-	
+
 	write(";\n");
 }
 
@@ -511,7 +511,7 @@ static void gen_imports(Import **imports)
 		Import *import = imports[i];
 		write("#include \"%s\"\n", import->unit->h_filename);
 		Decl **decls = import->decls;
-		
+
 		array_for(decls, j) {
 			gen_export_alias(decls[j]);
 		}
@@ -523,10 +523,10 @@ static void gen_foreign_decls(Foreign **imports)
 	array_for(imports, i) {
 		Foreign *import = imports[i];
 		Decl **decls = import->decls;
-		
+
 		array_for(decls, j) {
 			Decl *decl = decls[j];
-			
+
 			if(decl->kind == FUNC) {
 				Type *returntype = decl->type->returntype;
 				write("static %y (*%s)(", returntype, decl->private_id);
@@ -540,11 +540,11 @@ static void gen_foreign_decls(Foreign **imports)
 static void gen_foreign_imports(Foreign **imports)
 {
 	write(INDENT "void *lib = 0;\n");
-	
+
 	array_for(imports, i) {
 		Foreign *import = imports[i];
 		Decl **decls = import->decls;
-		
+
 		write(
 			INDENT "lib = dlopen(\"%s\", RTLD_LAZY);\n"
 			INDENT "if(lib == 0) "
@@ -552,10 +552,10 @@ static void gen_foreign_imports(Foreign **imports)
 			, import->filename
 			, import->filename
 		);
-		
+
 		array_for(decls, j) {
 			Decl *decl = decls[j];
-			
+
 			if(decl->kind == FUNC) {
 				write(
 					INDENT "*(void**)&%s = dlsym(lib, \"%t\");\n"
@@ -568,7 +568,7 @@ static void gen_foreign_imports(Foreign **imports)
 					decl->private_id, decl->id
 				);
 			}
-			
+
 			write(
 				INDENT "if(%s == 0) "
 				"fprintf(stderr, \"error: could not load symbol %t\\n\");\n"
@@ -586,7 +586,7 @@ static void gen_h()
 	ofs = fopen(cur_unit->h_filename, "wb");
 	level = 0;
 	in_header = 1;
-	
+
 	write(
 		"#ifndef _%s_H\n"
 		"#define _%s_H\n\n"
@@ -594,27 +594,27 @@ static void gen_h()
 		"#include \"runtime.h\"\n",
 		cur_unit->unit_id, cur_unit->unit_id
 	);
-	
+
 	write("\n// main function\n");
 	gen_mainfunchead(cur_unit);
 	write(";\n");
-	
+
 	Decl **decls = cur_unit->block->scope->decls;
-	
+
 	write("\n// exported enums\n");
 	gen_enumdecls(decls);
-	
+
 	write("\n// exported structures & unions\n");
 	gen_structdecls(decls);
-	
+
 	write("\n// exported functions\n");
 	gen_funcprotos(decls);
-	
+
 	write("\n// exported variables\n");
 	gen_vardecls(decls);
-	
+
 	write("\n#endif\n");
-	
+
 	fclose(ofs);
 }
 
@@ -623,42 +623,42 @@ static void gen_c()
 	ofs = fopen(cur_unit->c_filename, "wb");
 	level = 0;
 	in_header = 0;
-	
+
 	write("#include \"%s\"\n", cur_unit->h_filename);
-	
+
 	Scope *unit_scope = cur_unit->block->scope;
 	Decl **decls = unit_scope->decls;
-	
+
 	write("\n// imports\n");
 	gen_imports(unit_scope->imports);
-	
+
 	write("\n// enums\n");
 	gen_enumdecls(decls);
-	
+
 	write("\n// structures & unions\n");
 	gen_structdecls(decls);
-	
+
 	write("\n// foreign imports\n");
 	gen_foreign_decls(unit_scope->foreigns);
-	
+
 	write("\n// variables\n");
 	gen_vardecls(decls);
-	
+
 	write("\n// function prototypes\n");
 	gen_funcprotos(decls);
-	
+
 	write("\n// function implementations\n");
 	gen_funcdecls(decls);
-	
+
 	write(
 		"\n// control variables\n"
 		"static int main_was_called;\n\n"
 		"// main function\n"
 	);
-	
+
 	gen_mainfunchead(cur_unit);
 	level ++;
-	
+
 	write(
 		" {\n"
 		"%>if(main_was_called) return 0;\n"
@@ -669,17 +669,17 @@ static void gen_c()
 		"((jastring*)ja_argv.items)[i] = "
 			"(jastring){strlen(argv[i]), argv[i]};\n"
 	);
-	
+
 	write("%>// foreign imports\n");
 	gen_foreign_imports(unit_scope->foreigns);
 	level --;
 	gen_block(cur_unit->block);
-	
+
 	write(
 		INDENT "return 0;\n"
 		"}\n"
 	);
-	
+
 	if(cur_unit->ismain) {
 		write(
 			"\n#ifdef JA_ISMAIN\n"
@@ -687,16 +687,16 @@ static void gen_c()
 			INDENT "return ",
 			cur_unit->h_filename
 		);
-		
+
 		gen_mainfuncname(cur_unit);
-		
+
 		write(
 			"(argc, argv);\n"
 			"}\n"
 			"#endif\n"
 		);
 	}
-	
+
 	fclose(ofs);
 }
 

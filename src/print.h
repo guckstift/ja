@@ -6,14 +6,16 @@
 #include "lex.h"
 #include "parse.h"
 
-#define COL_RESET   "\x1b[0m"
-#define COL_GREY    "\x1b[38;2;170;170;170m"
-#define COL_BLUE    "\x1b[38;2;64;128;255m"
-#define COL_MAGENTA "\x1b[38;2;255;64;255m"
-#define COL_AQUA    "\x1b[38;2;64;255;255m"
-#define COL_YELLOW  "\x1b[38;2;255;255;0m"
-#define COL_RED     "\x1b[1;31m"
-#define COL_YELLOW_BG "\x1b[43m"
+#define INDENT_LENGTH  2
+
+#define COL_RESET      "\x1b[0m"
+#define COL_GREY       "\x1b[38;2;128;128;128m"
+#define COL_RED        "\x1b[38;2;255;0;0m"
+#define COL_BLUE       "\x1b[38;2;64;128;255m"
+#define COL_MAGENTA    "\x1b[38;2;255;64;255m"
+#define COL_CYAN       "\x1b[38;2;64;255;255m"
+#define COL_YELLOW     "\x1b[38;2;255;255;0m"
+#define COL_YELLOW_BG  "\x1b[48;2;255;255;0m"
 
 void ja_vfprintf(FILE *fs, char *msg, va_list args);
 void ja_fprintf(FILE *fs, char *msg, ...);
