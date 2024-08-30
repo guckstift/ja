@@ -1,420 +1,250 @@
 #ifndef AST_H
 #define AST_H
 
+#include <stdint.h>
 #include <stdbool.h>
-#include "lex.h"
 
-typedef struct Unit Unit;
-typedef struct Type Type;
-typedef struct Expr Expr;
-typedef struct StmtHead StmtHead;
-typedef struct Import Import;
-typedef struct Foreign Foreign;
-typedef struct EnumItem EnumItem;
-typedef struct DeclFlags DeclFlags;
-typedef struct Decl Decl;
-typedef struct If If;
-typedef struct While While;
-typedef struct Assign Assign;
-typedef struct Call Call;
-typedef struct Print Print;
-typedef struct Return Return;
-typedef struct Stmt Stmt;
-typedef struct Scope Scope;
-typedef struct Block Block;
-typedef struct For For;
-typedef struct ForEach ForEach;
-typedef struct Delete Delete;
+#define KEYWORDS \
+	_(bool) \
+	_(else) \
+	_(false) \
+	_(function) \
+	_(if) \
+	_(int) \
+	_(int8) \
+	_(int16) \
+	_(int32) \
+	_(int64) \
+	_(null) \
+	_(print) \
+	_(ptr) \
+	_(string) \
+	_(struct) \
+	_(true) \
+	_(uint) \
+	_(uint8) \
+	_(uint16) \
+	_(uint32) \
+	_(uint64) \
+	_(var) \
+	_(while) \
 
-/*
-	Kind
-	
-	enum for types, expressions and statements
-*/
+#define PUNCTS \
+	_("=", ASSIGN) \
+	_(":", COLON) \
+	_(";", SEMICOLON) \
+	_("{", LCURLY) \
+	_("}", RCURLY) \
+	_("[", LBRACK) \
+	_("]", RBRACK) \
+	_("(", LPAREN) \
+	_(")", RPAREN) \
+	_("*", STAR) \
+	_("&", AMPERSAND) \
+
+typedef struct {
+	int64_t index;
+	char *start;
+	char *end;
+	struct Token *first;
+} Line;
 
 typedef enum {
-	// primitive types
-	NONE,
-	INT8,
-	INT16,
-	INT32,
-	INT64,
-	INT = INT64,
-	UINT8,
-	UINT16,
-	UINT32,
-	UINT64,
-	UINT = UINT64,
-	BOOL,
-	STRING,
-	CSTRING,
-	
-	_PRIMKIND_COUNT,
-	
-	// types
-	PTR,
-	ARRAY,
-	SLICE,
-	FUNC,
-	STRUCT,
-	ENUM,
-	UNION,
-	NAMED,
-	
-	// expressions
-	VAR,
-	DEREF,
-	CAST,
-	SUBSCRIPT,
-	BINOP,
-	CALL,
-	MEMBER,
-	LENGTH,
-	NEW,
-	NEGATION,
-	COMPLEMENT,
-	
-	// statements
-	PRINT,
-	IF,
-	WHILE,
-	ASSIGN,
-	RETURN,
-	IMPORT,
-	FOREIGN,
-	BREAK,
-	CONTINUE,
-	FOR,
-	FOREACH,
-	DELETE,
+	TK_EOF,
+	TK_IDENT,
+	TK_INT,
+
+	TK_KEYWORDS_START,
+	#define _(x) KW_ ## x,
+	KEYWORDS
+	#undef _
+
+	TK_PUNCTS_START,
+	#define _(x, y) PT_ ## y,
+	PUNCTS
+	#undef _
+
+	TY_INT8,
+	TY_INT16,
+	TY_INT32,
+	TY_INT64,
+	TY_INT = TY_INT64,
+	TY_UINT8,
+	TY_UINT16,
+	TY_UINT32,
+	TY_UINT64,
+	TY_UINT = TY_UINT64,
+	TY_STRING,
+	TY_BOOL,
+	TY_PTR,
+	TY_ARRAY,
+	TY_SLICE,
+
+	EX_INT,
+	EX_BOOL,
+	EX_NULL,
+	EX_VAR,
+	EX_PTR,
+	EX_DEREF,
+	EX_CAST,
+	EX_SUBSCRIPT,
+
+	ST_VARDECL,
+	ST_ASSIGN,
+	ST_PRINT,
+	ST_IF,
+	ST_WHILE,
+	ST_FUNCDECL,
+
+	K_TYPE,
+	K_EXPR,
+	K_STMT,
 } Kind;
 
-/*
-	Type
-	
-	* primitive type
-	* ptr
-	* array
-	* func
-	* struct
-	* enum
-	* union
-*/
-
-struct Type {
+typedef struct Token {
 	Kind kind;
-	
+	char *start;
+	int64_t length;
+	int64_t index;
+	Line *line;
+
 	union {
-		Type *subtype; // ptr target type
-		Type *itemtype; // array/slice item type
-		Type *returntype; // func return type
-		Token *id; // named type
+		int64_t ival;
+		struct Token *id;
 	};
-	
-	union {
-		int64_t length; // array length
-		Decl *decl; // struct, enum, union
-		Type **paramtypes; // func
-	};
-};
+} Token;
 
-Type *new_type(Kind kind);
-Type *new_ptr_type(Type *subtype);
-Type *new_array_type(int64_t length, Type *itemtype);
-Type *new_slice_type(Type *itemtype);
-Type *new_func_type(Type *returntype, Type **paramtypes);
-Type *new_struct_type(Decl *decl);
-Type *new_enum_type(Decl *decl);
-Type *new_union_type(Decl *decl);
-Type *new_named_type(Token *id);
+// types
 
-int type_equ(Type *left, Type *right);
-int is_integer_type(Type *type);
-int is_integral_type(Type *type);
-bool is_array_ptr_type(Type *type);
+typedef struct Type {
+	Kind kind;
+	struct Type *subtype; // ptr, array
+	int64_t length; // array
+} Type;
 
-/*
-	Expr
-	
-	centralized struct for any expression
-*/
+// expressions
 
-typedef enum {
-	OL_OR,
-	OL_AND,
-	OL_CMP,
-	OL_ADD,
-	OL_MUL,
-	
-	_OPLEVEL_COUNT,
-} OpLevel;
-
-struct Expr {
+typedef struct Expr {
 	Kind kind;
 	Token *start;
 	Type *type;
 	int isconst : 1;
 	int islvalue : 1;
-	
+
 	union {
-		int64_t value; // int, bool
-		int64_t length; // string
-		Decl *decl; // var
-		Decl *member; // member
-		Expr *subexpr; // ptr, cast, negation
-		Expr *ptr; // deref
-		Expr *array; // subscript, length
-		Expr *callee; // call
-		Expr *left; // binop
-		Expr **items; // array
-	};
-	
-	union {
+		int64_t ival; // int
+		bool bval; // bool
 		Token *id; // var
-		char *string; // string, cstring
-		Expr *right; // binop
-		Expr *index; // subscript
-		Expr *object; // member
-		Expr **args; // call
-		EnumItem *item; // enum
+		struct Expr *subexpr; // ptr, deref, cast, subscript
 	};
-	
+
 	union {
-		Token *operator; // binop
-		Token *member_id; // member (before analyze)
+		struct Stmt *decl; // var
+		struct Expr *index; // subscript
 	};
-	
-	OpLevel oplevel; // binop
-};
+} Expr;
 
-Expr *new_expr(Kind kind, Token *start, Type *type, int isconst, int islvalue);
-Expr *new_int_expr(Token *start, int64_t value);
-Expr *new_bool_expr(Token *start, int64_t value);
-Expr *new_string_expr(Token *start, char *string, int64_t length);
-Expr *new_cstring_expr(Token *start, char *string);
-Expr *new_var_expr(Token *start, Decl *decl);
-Expr *new_array_expr(Token *start, Expr **items, int isconst);
-Expr *new_subscript_expr(Expr *array, Expr *index);
-Expr *new_length_expr(Expr *array);
-Expr *new_cast_expr(Expr *subexpr, Type *type);
-Expr *new_member_expr(Expr *object, Token *member_id);
-Expr *new_deref_expr(Token *start, Expr *ptr);
-Expr *new_ptr_expr(Token *start, Expr *subexpr);
-Expr *new_call_expr(Expr *callee, Expr **args);
-Expr *new_binop_expr(Expr *left, Expr *right, Token *operator, OpLevel oplevel);
-Expr *new_new_expr(Token *start, Type *obj_type);
-Expr *new_enum_item_expr(Token *start, Decl *enumdecl, EnumItem *item);
+// statements
 
-/*
-	Statment Head
-*/
+typedef struct Stmt {
+	Kind kind;
+	Token *start;
+	Token *end;
 
-#define STMT_HEAD \
-	Kind kind; \
-	Token *start; \
-	Token *end; \
-	Scope *scope; \
-
-/*
-	Decl
-*/
-
-struct EnumItem {
-	Token *id;
-	Expr *val;
-	Decl *enumdecl;
-};
-
-struct Decl {
-	STMT_HEAD
-	Token *id;
-	char *private_id;
-	char *public_id;
-	Type *type;
-	
-	uint8_t imported;
-	uint8_t exported;
-	uint8_t builtin;
-	uint8_t isproto;
-	uint8_t cfunc;
-	uint8_t deps_scanned;
-	
-	Decl **deps; // func: variables used from outer scope
-	Scope *func_scope; // func
-	
 	union {
-		Expr *init; // var
-		Block *body; // func
+		Token *id; // vardecl, funcdecl
+		Expr *target; // assign
+		Expr *cond; // if, while
 	};
-	
+
 	union {
-		Decl **members; // struct
-		Decl **params; // func
-		EnumItem **items; // enum
-		uint8_t isparam; // var
+		Type *type; // vardecl
+		struct Block *body; // if, while, funcdecl
 	};
-};
 
-Decl *new_decl(
-	Kind kind, Token *start, Scope *scope, Token *id, int exported,
-	Type *type
-);
-
-Decl *new_var(
-	Token *start, Scope *scope, Token *id, int exported, int isparam,
-	Type *type, Expr *init
-);
-
-Decl *new_func(
-	Token *start, Scope *scope, Token *id, int exported, Type *returntype,
-	Decl **params, Scope *func_scope
-);
-
-Decl *new_struct(
-	Token *start, Scope *scope, Token *id, int exported, Decl **members
-);
-
-Decl *new_enum(
-	Token *start, Scope *scope, Token *id, EnumItem **items, int exported
-);
-
-Decl *new_union(
-	Token *start, Scope *scope, Token *id, int exported, Decl **members
-);
-
-Decl *clone_decl(Decl *decl);
-
-/*
-	Stmt
-*/
-
-struct Import {
-	STMT_HEAD
-	Unit *unit;
-	Decl **decls;
-};
-
-struct Foreign {
-	STMT_HEAD
-	char *filename;
-	Decl **decls;
-};
-
-struct If {
-	STMT_HEAD
-	Expr *cond;
-	Block *if_body;
-	Block *else_body;
-};
-
-struct While {
-	STMT_HEAD
-	Expr *cond;
-	Block *body;
-};
-
-struct Assign {
-	STMT_HEAD
-	Expr *target;
-	Expr *expr;
-};
-
-struct Call {
-	STMT_HEAD
-	Expr *call;
-};
-
-struct Print {
-	STMT_HEAD
-	Expr *expr;
-};
-
-struct Return {
-	STMT_HEAD
-	Expr *expr;
-};
-
-struct For {
-	STMT_HEAD
-	Decl *iter;
-	Expr *from;
-	Expr *to;
-	Block *body;
-};
-
-struct ForEach {
-	STMT_HEAD
-	Expr *array;
-	Decl *iter;
-	Block *body;
-};
-
-struct Delete {
-	STMT_HEAD
-	Expr *expr;
-};
-
-struct Stmt {
 	union {
-		struct { STMT_HEAD };
-		Decl as_decl;
-		Import as_import;
-		Foreign as_foreign;
-		If as_if;
-		While as_while;
-		Assign as_assign;
-		Call as_call;
-		Print as_print;
-		Return as_return;
-		For as_for;
-		ForEach as_foreach;
-		Delete as_delete;
+		Expr *init; // vardecl
+		Expr *value; // assign, print
+		struct Block *else_body; // if
 	};
-};
 
-Stmt *new_stmt(Kind kind, Token *start, Scope *scope);
-Import *new_import(Token *start, Scope *scope, Unit *unit, Decl **decls);
-Foreign *new_foreign(Token *start, Scope *scope, char *name, Decl **decls);
-If *new_if(Token *start, Expr *cond, Block *if_body, Block *else_body);
-While *new_while(Token *start, Scope *scope, Expr *cond, Block *body);
-Assign *new_assign(Scope *scope, Expr *target, Expr *expr);
-Call *new_call(Scope *scope, Expr *call);
-Print *new_print(Token *start, Scope *scope, Expr *expr);
-Return *new_return(Token *start, Scope *scope, Expr *expr);
-Delete *new_delete(Token *start, Scope *scope, Expr *expr);
+	union {
+		char *jaid; // vardecl, funcdecl
+	};
+} Stmt;
 
-For *new_for(
-	Token *start, Scope *scope, Decl *iter, Expr *from, Expr *to, Block *body
-);
+// general
 
-ForEach *new_foreach(
-	Token *start, Scope *scope, Expr *array, Decl *iter, Block *body
-);
+typedef struct Scope {
+	struct Scope *parent;
+	struct Stmt **decls;
+} Scope;
 
-struct Scope {
-	char *unit_id;
-	Scope *parent;
-	Decl *funchost;
-	Decl *structhost;
-	Stmt *loophost;
-	Import **imports;
-	Foreign **foreigns;
-	Decl **decls;
-};
-
-Scope *new_scope(char *unit_id, Scope *parent);
-
-Decl *lookup_flat_in(Token *id, Scope *scope);
-Decl *lookup_in(Token *id, Scope *scope);
-bool scope_contains_scope(Scope *upper, Scope *lower);
-int declare_in(Decl *decl, Scope *scope);
-int redeclare_in(Decl *decl, Scope *scope);
-
-struct Block {
-	Stmt **stmts;
+typedef struct Block {
+	struct Stmt **stmts;
 	Scope *scope;
-};
+} Block;
 
-Block *new_block(Stmt **stmts, Scope *scope);
+typedef struct {
+	char *srcfile;
+	char *uid;
+	char *hfile;
+	char *cfile;
+	char *ofile;
+	char *src;
+	Line *lines;
+	Token *tokens;
+	Block *root;
+} Module;
+
+typedef struct {
+	Module *main;
+	char *progfile;
+} Project;
+
+// functions
+
+Token *new_token(Token value);
+Type *new_type(Type value);
+Expr *new_expr(Expr value);
+Expr *expr_from_token(Token *token);
+Stmt *new_stmt(Stmt value);
+
+char *create_jaid(Token *id);
+Expr *mock_int_var_expr();
+
+#define create_token(k, ...) new_token((Token){.kind = (k), __VA_ARGS__})
+
+#define create_type(k, ...)     new_type((Type){.kind = (k), __VA_ARGS__})
+#define create_ptr_type(s)      create_type(TY_PTR, .subtype = (s))
+#define create_array_type(s, l) create_type(TY_ARRAY, .subtype = (s), .length = (l))
+
+#define create_expr(k, ...)          new_expr((Expr){.kind = (k), __VA_ARGS__})
+#define create_int_expr(v, ...)      create_expr(EX_INT, .type = create_type(TY_INT), .isconst = 1, .ival = (v), __VA_ARGS__)
+#define create_bool_expr(v, ...)     create_expr(EX_BOOL, .type = create_type(TY_BOOL), .isconst = 1, .bval = (v), __VA_ARGS__)
+#define create_null_expr(...)        create_expr(EX_NULL, .type = create_type(TY_PTR), .isconst = 1, __VA_ARGS__)
+#define create_var_expr(i, ...)      create_expr(EX_VAR, .islvalue = 1, .id = (i), __VA_ARGS__)
+#define create_ptr_expr(se, ...)     create_expr(EX_PTR, .type = create_ptr_type(0), .subexpr = (se), __VA_ARGS__)
+#define create_deref_expr(se, ...)   create_expr(EX_DEREF, .islvalue = 1, .subexpr = (se), __VA_ARGS__)
+#define create_cast_expr(se, t, ...) create_expr(EX_CAST, .isconst = (se)->isconst, .subexpr = (se), .type = (t), __VA_ARGS__)
+
+#define create_subscript_expr(a, i, ...) create_expr(EX_SUBSCRIPT, .islvalue = 1, .subexpr = (a), .index = (i), __VA_ARGS__)
+
+#define create_stmt(k, ...)        new_stmt((Stmt){.kind = (k), __VA_ARGS__})
+#define create_assign(ta, v, ...)  create_stmt(ST_ASSIGN, .target = (ta), .value = (v), __VA_ARGS__)
+#define create_print(v, ...)       create_stmt(ST_PRINT, .value = (v), __VA_ARGS__)
+#define create_if(c, b, e, ...)    create_stmt(ST_IF, .cond = (c), .body = (b), .else_body = (e), __VA_ARGS__)
+#define create_while(c, b, ...)    create_stmt(ST_WHILE, .cond = (c), .body = (b), __VA_ARGS__)
+#define create_funcdecl(i, b, ...) create_stmt(ST_FUNCDECL, .id = (i), .body = (b), .jaid = create_jaid(i), __VA_ARGS__)
+
+#define create_vardecl(i, ty, in, ...) \
+	create_stmt(ST_VARDECL, .id = (i), .type = (ty), .init = (in), .jaid = create_jaid(i), __VA_ARGS__)
+
+Stmt *lookup_flat_in(Token *id, Scope *scope);
+Stmt *lookup_in(Token *id, Scope *scope);
+
+// variables
+
+extern char *token_names[];
 
 #endif

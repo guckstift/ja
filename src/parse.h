@@ -3,6 +3,6 @@
 
 #include "ast.h"
 
-Block *parse(Token *tokens, char *_unit_id);
+void parse(Module *module);
 
 #endif
