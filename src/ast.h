@@ -150,6 +150,7 @@ typedef struct Stmt {
 	Kind kind;
 	Token *start;
 	Token *end;
+	struct Stmt *next;
 
 	union {
 		Token *id; // vardecl, funcdecl
@@ -206,6 +207,7 @@ Expr *new_expr(Expr value);
 Expr *expr_from_token(Token *token);
 Expr *mock_int_var_expr();
 Stmt *new_stmt(Stmt value);
+Block *create_block(Stmt **stmts, Scope *scope);
 
 #define create_token(k, ...) new_token((Token){.kind = (k), __VA_ARGS__})
 

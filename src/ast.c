@@ -98,3 +98,11 @@ Expr *mock_int_var_expr()
 	Expr *var = create_var_expr(id, .decl = decl);
 	return var;
 }
+
+Block *create_block(Stmt **stmts, Scope *scope)
+{
+	Block *block = alloc(sizeof(Block));
+	block->stmts = stmts;
+	block->scope = scope;
+	return block;
+}

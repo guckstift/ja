@@ -82,9 +82,22 @@ static Stmt *p_if()
 	Block *else_body = 0;
 
 	if(eat(KW_else)) {
-		expect(PT_LCURLY, 0);
-		else_body = parse_block(0);
-		expect(PT_RCURLY, 0);
+		if(match(KW_if)) {
+			enter();
+			Stmt *else_if = p_if();
+			Stmt **stmts = 0;
+
+			if(else_if)
+				array_push(stmts, else_if);
+
+			Scope *else_scope = leave();
+			else_body = create_block(stmts, else_scope);
+		}
+		else {
+			expect(PT_LCURLY, 0);
+			else_body = parse_block(0);
+			expect(PT_RCURLY, 0);
+		}
 	}
 
 	return create_if(cond, body, else_body, .start = start, .end = peek());
@@ -140,13 +153,17 @@ Stmt *parse_stmt()
 
 Stmt **parse_stmts()
 {
-	Stmt **stmts = 0;
+	Stmt *first = 0;
+	Stmt *last = 0;
 	Stmt *stmt = 0;
+	int64_t count = 0;
 	int invalid_error_raised_before = 0;
 
 	while(1) {
 		while(stmt = parse_stmt()) {
-			array_push(stmts, stmt);
+			if(first) last = last->next = stmt;
+			else first = last = stmt;
+			count ++;
 			invalid_error_raised_before = 0;
 		}
 
@@ -161,6 +178,8 @@ Stmt **parse_stmts()
 		advance();
 	}
 
+	Stmt **stmts = 0;
+	for(Stmt *s = first; s; s = s->next) array_push(stmts, s);
 	return stmts;
 }
 
@@ -173,8 +192,5 @@ Block *parse_block(Scope *scope)
 
 	Stmt **stmts = parse_stmts();
 	Scope *blockscope = leave();
-	Block *block = alloc(sizeof(Block));
-	block->stmts = stmts;
-	block->scope = blockscope;
-	return block;
+	return create_block(stmts, blockscope);
 }

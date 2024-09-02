@@ -315,11 +315,19 @@ void fprint_stmt(FILE *fs, Stmt *stmt)
 			fprint(fs, "%>" "}\n");
 
 			if(stmt->else_body) {
-				fprint(fs, "%>" COL_KW("else") " {\n");
-				inclevel();
-				fprint_block(fs, stmt->else_body);
-				declevel();
-				fprint(fs, "%>" "}\n");
+				Stmt **else_stmts = stmt->else_body->stmts;
+
+				if(array_length(else_stmts) == 1 && else_stmts[0]->kind == ST_IF) {
+					fprint(fs, "%>" COL_KW("else") " ");
+					fprint_stmt(fs, else_stmts[0]);
+				}
+				else {
+					fprint(fs, "%>" COL_KW("else") " {\n");
+					inclevel();
+					fprint_block(fs, stmt->else_body);
+					declevel();
+					fprint(fs, "%>" "}\n");
+				}
 			}
 		} break;
 

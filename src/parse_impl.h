@@ -24,6 +24,7 @@ extern int e_before;
 
 void enter();
 Scope *leave();
+Scope *touchscope();
 void setscope(Scope *new_scope);
 bool declare(Stmt *decl);
 void *setcur(Token *pos);

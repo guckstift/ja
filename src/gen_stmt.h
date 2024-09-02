@@ -4,7 +4,7 @@
 #include "ast.h"
 
 void gen_vardecl(Stmt *decl);
-void gen_stmt(Stmt *stmt);
+void gen_stmt(Stmt *stmt, int no_indent_if_stmt);
 void gen_stmts(Stmt **stmts);
 void gen_block(Block *block);
 

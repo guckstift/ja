@@ -26,6 +26,12 @@ Scope *leave()
 	return old_scope;
 }
 
+Scope *touchscope()
+{
+	enter();
+	return leave();
+}
+
 void setscope(Scope *new_scope)
 {
 	scope = new_scope;

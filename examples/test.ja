@@ -1,10 +1,14 @@
-function foo()
-{
-	print 9;
+var x = true;
+
+if x {
+	var a = 0;
+	print 1;
 }
-
-var x = 90;
-
-var y : [8]int;
-
-print y;
+else if 0 {
+	var b = 0;
+	print 2;
+}
+else {
+	var c = 0;
+	print 3;
+}

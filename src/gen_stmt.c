@@ -75,7 +75,7 @@ void gen_vardecl(Stmt *decl)
 	write(";\n");
 }
 
-void gen_stmt(Stmt *stmt)
+void gen_stmt(Stmt *stmt, int no_indent_if_stmt)
 {
 	switch(stmt->kind) {
 		case ST_VARDECL: {
@@ -104,14 +104,23 @@ void gen_stmt(Stmt *stmt)
 		} break;
 
 		case ST_IF: {
-			write("%>if(%e) {\n", stmt->cond);
+			if(!no_indent_if_stmt) write("%>");
+			write("if(%e) {\n", stmt->cond);
 			gen_block(stmt->body);
 			write("%>}\n");
 
 			if(stmt->else_body) {
-				write("%>else {\n");
-				gen_block(stmt->else_body);
-				write("%>}\n");
+				Stmt **else_stmts = stmt->else_body->stmts;
+
+				if(array_length(else_stmts) == 1 && else_stmts[0]->kind == ST_IF) {
+					write("%>else ");
+					gen_stmt(else_stmts[0], 1);
+				}
+				else {
+					write("%>else {\n");
+					gen_block(stmt->else_body);
+					write("%>}\n");
+				}
 			}
 		} break;
 
@@ -129,7 +138,7 @@ void gen_stmt(Stmt *stmt)
 void gen_stmts(Stmt **stmts)
 {
 	array_for(stmts, i)
-		gen_stmt(stmts[i]);
+		gen_stmt(stmts[i], 0);
 }
 
 void gen_block(Block *block)
