@@ -18,7 +18,7 @@ char *write_expr(FILE *fs, char *msg, va_list args)
 			write("0");
 			break;
 		case EX_VAR:
-			write("%s", expr->decl->jaid);
+			write("%j", expr->decl->id);
 			break;
 		case EX_PTR:
 			write("&(%e)", expr->subexpr);

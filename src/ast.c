@@ -90,13 +90,6 @@ Stmt *lookup_in(Token *id, Scope *scope)
 	return 0;
 }
 
-char *create_jaid(Token *id)
-{
-	char *jaid = string_from_cstr("ja_");
-	string_append_token(jaid, id);
-	return jaid;
-}
-
 Expr *mock_int_var_expr()
 {
 	Type *type = create_type(TY_INT);

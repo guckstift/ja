@@ -13,9 +13,17 @@
 
 static int inheader;
 
+static char *write_jaid(FILE *fs, char *msg, va_list args)
+{
+	Token *ident = va_arg(args, Token*);
+	write("ja_");
+	fwrite(ident->start, 1, ident->length, fs);
+	return msg + 1;
+}
+
 static void gen_funcdecl(Stmt *decl)
 {
-	write("void %s() {\n", decl->jaid);
+	write("void %j() {\n", decl->id);
 	gen_block(decl->body);
 	write("}\n");
 }
@@ -73,6 +81,7 @@ void gen(Module *module)
 	register_escapemod('z', write_type_postfix);
 	register_escapemod('Y', write_full_type);
 	register_escapemod('e', write_expr);
+	register_escapemod('j', write_jaid);
 	gen_h(module);
 	gen_c(module);
 	reset_escapemods();

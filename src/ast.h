@@ -167,10 +167,6 @@ typedef struct Stmt {
 		Expr *value; // assign, print
 		struct Block *else_body; // if
 	};
-
-	union {
-		char *jaid; // vardecl, funcdecl
-	};
 } Stmt;
 
 // general
@@ -208,10 +204,8 @@ Token *new_token(Token value);
 Type *new_type(Type value);
 Expr *new_expr(Expr value);
 Expr *expr_from_token(Token *token);
-Stmt *new_stmt(Stmt value);
-
-char *create_jaid(Token *id);
 Expr *mock_int_var_expr();
+Stmt *new_stmt(Stmt value);
 
 #define create_token(k, ...) new_token((Token){.kind = (k), __VA_ARGS__})
 
@@ -230,15 +224,13 @@ Expr *mock_int_var_expr();
 
 #define create_subscript_expr(a, i, ...) create_expr(EX_SUBSCRIPT, .islvalue = 1, .subexpr = (a), .index = (i), __VA_ARGS__)
 
-#define create_stmt(k, ...)        new_stmt((Stmt){.kind = (k), __VA_ARGS__})
-#define create_assign(ta, v, ...)  create_stmt(ST_ASSIGN, .target = (ta), .value = (v), __VA_ARGS__)
-#define create_print(v, ...)       create_stmt(ST_PRINT, .value = (v), __VA_ARGS__)
-#define create_if(c, b, e, ...)    create_stmt(ST_IF, .cond = (c), .body = (b), .else_body = (e), __VA_ARGS__)
-#define create_while(c, b, ...)    create_stmt(ST_WHILE, .cond = (c), .body = (b), __VA_ARGS__)
-#define create_funcdecl(i, b, ...) create_stmt(ST_FUNCDECL, .id = (i), .body = (b), .jaid = create_jaid(i), __VA_ARGS__)
-
-#define create_vardecl(i, ty, in, ...) \
-	create_stmt(ST_VARDECL, .id = (i), .type = (ty), .init = (in), .jaid = create_jaid(i), __VA_ARGS__)
+#define create_stmt(k, ...)            new_stmt((Stmt){.kind = (k), __VA_ARGS__})
+#define create_vardecl(i, ty, in, ...) create_stmt(ST_VARDECL, .id = (i), .type = (ty), .init = (in), __VA_ARGS__)
+#define create_assign(ta, v, ...)      create_stmt(ST_ASSIGN, .target = (ta), .value = (v), __VA_ARGS__)
+#define create_print(v, ...)           create_stmt(ST_PRINT, .value = (v), __VA_ARGS__)
+#define create_if(c, b, e, ...)        create_stmt(ST_IF, .cond = (c), .body = (b), .else_body = (e), __VA_ARGS__)
+#define create_while(c, b, ...)        create_stmt(ST_WHILE, .cond = (c), .body = (b), __VA_ARGS__)
+#define create_funcdecl(i, b, ...)     create_stmt(ST_FUNCDECL, .id = (i), .body = (b), __VA_ARGS__)
 
 Stmt *lookup_flat_in(Token *id, Scope *scope);
 Stmt *lookup_in(Token *id, Scope *scope);

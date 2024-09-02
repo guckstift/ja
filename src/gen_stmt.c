@@ -32,12 +32,11 @@ static void gen_print(Stmt *print)
 		case TY_ARRAY: {
 			write("[\");\n");
 			Expr *iter = mock_int_var_expr();
-			char *jaid = iter->decl->jaid;
-			write("%>for(int64_t %s = 0; %s < %i; %s ++) {\n", jaid, jaid, type->length, jaid);
+			write("%>for(int64_t %j = 0; %j < %i; %j ++) {\n", iter->id, iter->id, type->length, iter->id);
 			inclevel();
 			Expr *item = create_subscript_expr(value, iter, .type = type->subtype);
 			Stmt *itemprint = create_print(item);
-			write("%>if(%s > 0) printf(\", \");\n", jaid);
+			write("%>if(%j > 0) printf(\", \");\n", iter->id);
 			gen_print(itemprint);
 			declevel();
 			write("%>}\n");
@@ -68,7 +67,7 @@ void gen_vardecl(Stmt *decl)
 	if(is_global)
 		write("static ");
 
-	write("%y %s %z", decl->type, decl->jaid, decl->type);
+	write("%y %j %z", decl->type, decl->id, decl->type);
 
 	if(decl->init && (decl->init->isconst || !is_global))
 		write(" = %e", decl->init);

@@ -1,4 +1,10 @@
 function foo()
 {
-	print x;
+	print 9;
 }
+
+var x = 90;
+
+var y : [8]int;
+
+print y;
