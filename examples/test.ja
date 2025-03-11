@@ -1,14 +1,1 @@
-var x = true;
-
-if x {
-	var a = 0;
-	print 1;
-}
-else if 0 {
-	var b = 0;
-	print 2;
-}
-else {
-	var c = 0;
-	print 3;
-}
+print 1 + 2;

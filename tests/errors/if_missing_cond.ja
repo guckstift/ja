@@ -1,0 +1,5 @@
+var foo = true;
+
+if {
+	print 42;
+}

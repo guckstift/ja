@@ -1,13 +1,35 @@
-#include "gen_type.h"
-#include "gen_impl.h"
-#include "ast.h"
-#include "error.h"
+#ifndef gen_type_H
+#define gen_type_H
 
-char *write_type(FILE *fs, char *msg, va_list args)
+#ifndef IMPLEMENT_FLAG
+#define IMPLEMENT_FLAG
+#define gen_type_C
+#endif
+
+#include <stdarg.h>
+#include <stdio.h>
+
+char *write_type_prefix(FILE *fs, char *msg, va_list args);
+char *write_type_postfix(FILE *fs, char *msg, va_list args);
+char *write_full_type(FILE *fs, char *msg, va_list args);
+
+#endif
+#ifdef gen_type_C
+
+#define IMPLEMENT_FLAG
+
+#include "gen_impl.c"
+#include "ast.c"
+#include "error.c"
+
+char *write_type_prefix(FILE *fs, char *msg, va_list args)
 {
 	Type *type = va_arg(args, Type*);
 
 	switch(type->kind) {
+		case TY_VOID:
+			write("void");
+			break;
 		case TY_INT8:
 			write("int8_t");
 			break;
@@ -35,13 +57,13 @@ char *write_type(FILE *fs, char *msg, va_list args)
 		case TY_BOOL:
 			write("int8_t");
 			break;
+		case TY_STRING:
+			write("jastring");
+			break;
 
-		case TY_PTR: {
-			if(type->subtype)
-				write("%y(*", type->subtype);
-			else
-				write("void*");
-		} break;
+		case TY_PTR:
+			write("%y(*", type->subtype);
+			break;
 
 		case TY_ARRAY:
 			write("%y", type->subtype);
@@ -72,10 +94,9 @@ char *write_type_postfix(FILE *fs, char *msg, va_list args)
 
 char *write_full_type(FILE *fs, char *msg, va_list args)
 {
-	va_list args2;
-	va_copy(args2, args);
-	write_type(fs, msg, args);
-	write_type_postfix(fs, msg, args2);
-	va_end(args2);
+	Type *type = va_arg(args, Type*);
+	write("%y%z", type, type);
 	return msg + 1;
 }
+
+#endif

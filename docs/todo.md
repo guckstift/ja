@@ -1,3 +1,18 @@
 # TODO
 
-* in parsing phase when dynamically growing statement lists, reallocation creates a lot of holes in the memory arena
+* function parameters
+* function hoiosting
+* call expr
+* call stmt
+* break, continue
+* for-in
+* for
+* print multiple
+* ffi
+* strings
+* floats
+
+# done
+
+* else-if
+* function returns

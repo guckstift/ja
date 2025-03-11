@@ -1,13 +1,31 @@
+#ifndef parse_type_H
+#define parse_type_H
+
+#ifndef IMPLEMENT_FLAG
+#define IMPLEMENT_FLAG
+#define parse_type_C
+#endif
+
+#include "ast.c"
+
+Type *parse_type();
+
+#endif
+#ifdef parse_type_C
+
+#define IMPLEMENT_FLAG
+
 #include <stdlib.h>
-#include "parse_type.h"
-#include "parse_impl.h"
-#include "error.h"
+#include "parse_impl.c"
+#include "error.c"
 
 Type *parse_type()
 {
 	Token *start = peek();
 
 	switch(advance()->kind) {
+		case KW_void:
+			return create_type(TY_VOID);
 		case KW_int8:
 			return create_type(TY_INT8);
 		case KW_int16:
@@ -29,7 +47,9 @@ Type *parse_type()
 		case PT_STAR:
 			return create_ptr_type(expect(K_TYPE, "expected pointer target type"));
 		case KW_ptr:
-			return create_ptr_type(0);
+			return create_ptr_type(create_type(TY_VOID));
+		case KW_string:
+			return create_type(TY_STRING);
 
 		case PT_LBRACK: {
 			Token *length = expect(TK_INT, "expected integer array type length");
@@ -42,3 +62,5 @@ Type *parse_type()
 	setcur(start);
 	return 0;
 }
+
+#endif

@@ -1,0 +1,31 @@
+MODULE = GLOBAL_STMT*
+
+GLOBAL_STMT = IMPORT | STMT
+
+IMPORT = (
+	"import" IDENT_LIST "from" STRING ";" |
+	"import" STRING ( "as" IDENT )? ";"
+)
+
+IDENT_LIST = IDENT ( "," IDENT )*
+
+STMT = VARDECL
+
+VARDECL = (
+	"var" IDENT ":" TYPE ";" |
+	"var" IDENT ( ":" TYPE )? "=" EXPR ";"
+)
+
+TYPE = PRIMTYPE | PTRTYPE | ARRAYTYPE | SLICETYPE
+
+PRIMTYPE = oneof(
+	"bool"
+	"int"  "int8"  "int16"  "int32"  "int64"
+	"uint" "uint8" "uint16" "uint32" "uint64"
+)
+
+PTRTYPE = "*" TYPE | "ptr"
+
+ARRAYTYPE = "[" EXPR "]" TYPE
+
+SLICETYPE = "[" "]" TYPE

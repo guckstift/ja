@@ -1,6 +1,24 @@
+#ifndef arena_H
+#define arena_H
+
+#ifndef IMPLEMENT_FLAG
+#define IMPLEMENT_FLAG
+#define arena_C
+#endif
+
+#include <stdint.h>
+
+void *alloc(int64_t size);
+void *resize(void *ptr, int64_t size, int64_t oldsize);
+void free_arena();
+int64_t get_total_alloc();
+
+#endif
+#ifdef arena_C
+
 #include <stdlib.h>
 #include <string.h>
-#include "arena.h"
+#include "print.c"
 
 typedef struct {
 	uint8_t *start;
@@ -67,8 +85,11 @@ void *resize(void *ptr, int64_t size, int64_t oldsize)
 
 	void *new_ptr = alloc(size);
 
-	if(ptr && new_ptr != ptr)
-		memcpy(new_ptr, ptr, oldsize < size ? oldsize : size);
+	if(ptr && new_ptr != ptr) {
+		int64_t copysize = oldsize < size ? oldsize : size;
+		debug_print("have to relocate memblock of size %i\n", copysize);
+		memcpy(new_ptr, ptr, copysize);
+	}
 
 	return new_ptr;
 }
@@ -89,3 +110,5 @@ int64_t get_total_alloc()
 {
 	return total_alloc;
 }
+
+#endif

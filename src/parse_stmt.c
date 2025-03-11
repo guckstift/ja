@@ -1,68 +1,61 @@
+#ifndef parse_stmt_H
+#define parse_stmt_H
+
+#ifndef IMPLEMENT_FLAG
+#define IMPLEMENT_FLAG
+#define parse_stmt_C
+#endif
+
+#include "parse_type.c"
+#include "parse_expr.c"
+#include "ast.c"
+
+Stmt *parse_stmt();
+Stmt **parse_stmts();
+Block *parse_block(Scope *scope);
+
+#endif
+#ifdef parse_stmt_C
+
+#define IMPLEMENT_FLAG
+
 #include <stdio.h>
-#include "parse_stmt.h"
-#include "parse_expr.h"
-#include "parse_type.h"
-#include "parse_impl.h"
-#include "error.h"
-#include "array.h"
-#include "arena.h"
+#include "parse_expr.c"
+#include "parse_type.c"
+#include "parse_impl.c"
+#include "error.c"
+#include "array.c"
+#include "arena.c"
 
-static Stmt *p_vardecl()
+static Decl *p_vardecl_core(Token *start)
 {
-	Token *start = peek();
-
-	if(!eat(KW_var))
-		return 0;
-
-	Token *ident = expect(TK_IDENT, 0);
+	Token *ident = eat(TK_IDENT);
+	if(!ident) return 0;
+	if(!start) start = ident;
 	Type *type = 0;
 	Expr *init = 0;
-
-	if(eat(PT_COLON))
-		type = expect(K_TYPE, "expected a type after ':'");
-
-	if(eat(PT_ASSIGN))
-		init = expect(K_EXPR, "expected an initializer expression after '='");
-
-	expect(PT_SEMICOLON, 0);
-
-	if(type == 0 && init == 0)
-		error_at(start, "variable declaration has neither a type nor an initializer");
-
-	Stmt *stmt = create_vardecl(ident ? ident->id : 0, type, init, .start = start, .end = peek());
-
-	if(stmt->id)
-		if(declare(stmt) == 0)
-			error_at(ident, "name %t already declared", ident);
-
-	return stmt;
+	if(eat(PT_COLON)) type = expect(K_TYPE, "expected a type after ':'");
+	if(eat(PT_ASSIGN)) init = expect(K_EXPR, "expected an initializer expression after '='");
+	if(type == 0 && init == 0) error_at(start, "variable declaration has neither a type nor an initializer");
+	Decl *decl = create_vardecl(ident ? ident->uid : 0, init, type, .stmt.start = start, .stmt.end = peek());
+	if(decl->uid) scope_add_decl(decl);
+	return decl;
 }
 
-static Stmt *p_assign()
+static Decl *p_vardecl()
 {
+	if(!eat(KW_var)) return 0;
 	Token *start = peek();
-	Expr *target = parse_expr();
-
-	if(!target)
-		return 0;
-
-	if(!eat(PT_ASSIGN)) {
-		setcur(start);
-		return 0;
-	}
-
-	Expr *value = expect(K_EXPR, "expected expression after '='");
+	Decl *decl = p_vardecl_core(start);
+	if(!decl) error_at_cur("expected identifier after keyword var");
 	expect(PT_SEMICOLON, 0);
-	return create_assign(target, value, .start = start, .end = peek());
+	return decl;
 }
 
 static Stmt *p_print()
 {
 	Token *start = peek();
-
-	if(!eat(KW_print))
-		return 0;
-
+	if(!eat(KW_print)) return 0;
 	Expr *value = expect(K_EXPR, 0);
 	expect(PT_SEMICOLON, 0);
 	return create_print(value, .start = start, .end = peek());
@@ -71,10 +64,7 @@ static Stmt *p_print()
 static Stmt *p_if()
 {
 	Token *start = peek();
-
-	if(!eat(KW_if))
-		return 0;
-
+	if(!eat(KW_if)) return 0;
 	Expr *cond = expect(K_EXPR, "expected if-condition");
 	expect(PT_LCURLY, 0);
 	Block *body = parse_block(0);
@@ -85,13 +75,10 @@ static Stmt *p_if()
 		if(match(KW_if)) {
 			enter();
 			Stmt *else_if = p_if();
-			Stmt **stmts = 0;
-
-			if(else_if)
-				array_push(stmts, else_if);
-
+			Stmt **else_stmts = 0;
+			if(else_if) array_push(else_stmts, else_if);
 			Scope *else_scope = leave();
-			else_body = create_block(stmts, else_scope);
+			else_body = create_block(else_stmts, else_scope);
 		}
 		else {
 			expect(PT_LCURLY, 0);
@@ -106,10 +93,7 @@ static Stmt *p_if()
 static Stmt *p_while()
 {
 	Token *start = peek();
-
-	if(!eat(KW_while))
-		return 0;
-
+	if(!eat(KW_while)) return 0;
 	Expr *cond = expect(K_EXPR, "expected while-condition");
 	expect(PT_LCURLY, 0);
 	Block *body = parse_block(0);
@@ -117,38 +101,115 @@ static Stmt *p_while()
 	return create_while(cond, body, .start = start, .end = peek());
 }
 
-static Stmt *p_funcdecl()
+static Stmt *p_import()
 {
 	Token *start = peek();
+	if(!eat(KW_import)) return 0;
+	Token *filename = expect(TK_STRING, "expected a module file name to import");
+	expect(PT_SEMICOLON, 0);
+	return create_import(filename->sval, .start = start, .end = peek());
+}
 
-	if(!eat(KW_function))
+static Decl **p_params()
+{
+	Decl *first = 0;
+	Decl *last = 0;
+	int64_t count = 0;
+
+	while(1) {
+		Decl *param = p_vardecl_core(0);
+		if(!param) break;
+		if(first) last = last->stmt.next = param;
+		else first = last = param;
+		count ++;
+		if(!eat(PT_COMMA)) break;
+	}
+
+	Decl **params = 0;
+	for(Decl *s = first; s; s = s->stmt.next) array_push(params, s);
+	return params;
+}
+
+static Decl *p_funchead()
+{
+	Token *start = peek();
+	if(!eat(KW_function)) return 0;
+	if(getscope()->parent) error_at(start, "functions can only be declared at top level");
+	Token *ident = expect(TK_IDENT, "expected a function name");
+	Token *uid = ident ? ident->uid : 0;
+	Decl **params = 0;
+	enter();
+
+	if(expect(PT_LPAREN, "expected parameter list in parenthesis")) {
+		params = p_params();
+		expect(PT_RPAREN, "expected ) after parameter list");
+	}
+
+	Scope *funcscope = leave();
+	Type *returntype = create_type(TY_VOID);
+	if(eat(PT_COLON)) returntype = expect(K_TYPE, "expected return type after :");
+	Decl *decl = create_funcdecl(uid, returntype, params, funcscope, .stmt.start = start);
+	if(decl->uid) scope_add_decl(decl);
+	return decl;
+}
+
+static Decl *p_funcdecl()
+{
+	Decl *decl = p_funchead();
+	if(!decl) return 0;
+
+	if(expect(PT_LCURLY, "expected a function body in curly braces")) {
+		decl->body = parse_block(decl->funcscope);
+		expect(PT_RCURLY, "expected } after function body");
+	}
+
+	decl->stmt.end = peek();
+	return decl;
+}
+
+static Stmt *p_return()
+{
+	Token *start = peek();
+	if(!eat(KW_return)) return 0;
+	if(!getscope()->parent) error_at(start, "return outside of any function");
+	Expr *value = parse_expr();
+	expect(PT_SEMICOLON, 0);
+	return create_return(value, .start = start, .end = peek());
+}
+
+static Stmt *p_assign_or_call()
+{
+	Token *start = peek();
+	Expr *target = parse_expr();
+	if(!target) return 0;
+
+	if(target->kind == EX_CALL && !match(PT_ASSIGN)) {
+		expect(PT_SEMICOLON, 0);
+		return create_call(target, .start = start, .end = peek());
+	}
+
+	if(!eat(PT_ASSIGN)) {
+		setcur(start);
 		return 0;
+	}
 
-	Token *ident = expect(TK_IDENT, 0);
-	expect(PT_LPAREN, 0);
-	expect(PT_RPAREN, 0);
-	expect(PT_LCURLY, 0);
-	Block *body = parse_block(0);
-	expect(PT_RCURLY, 0);
-	Stmt *stmt = create_funcdecl(ident ? ident->id : 0, body, .start = start, .end = peek());
-
-	if(stmt->id)
-		if(declare(stmt) == 0)
-			error_at(ident, "name %t already declared", ident);
-
-	return stmt;
+	Expr *value = expect(K_EXPR, "expected expression after '='");
+	expect(PT_SEMICOLON, 0);
+	return create_assign(target, value, .start = start, .end = peek());
 }
 
 Stmt *parse_stmt()
 {
-	Stmt *stmt;
-	(stmt = p_vardecl()) ||
-	(stmt = p_print()) ||
-	(stmt = p_if()) ||
-	(stmt = p_while()) ||
-	(stmt = p_funcdecl()) ||
-	(stmt = p_assign()) ;
-	return stmt;
+	switch(peek()->kind) {
+		case KW_function: return (Stmt*)p_funcdecl();
+		case KW_if: return p_if();
+		case KW_print: return p_print();
+		case KW_return: return p_return();
+		case KW_var: return (Stmt*)p_vardecl();
+		case KW_while: return p_while();
+		case KW_import: return p_import();
+		default: return p_assign_or_call();
+	}
 }
 
 Stmt **parse_stmts()
@@ -194,3 +255,5 @@ Block *parse_block(Scope *scope)
 	Scope *blockscope = leave();
 	return create_block(stmts, blockscope);
 }
+
+#endif

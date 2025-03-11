@@ -1,41 +1,35 @@
+#ifndef lex_H
+#define lex_H
+
+#ifndef IMPLEMENT_FLAG
+#define IMPLEMENT_FLAG
+#define lex_C
+#endif
+
+#include "ast.c"
+
+void lex(Module *module);
+
+#endif
+#ifdef lex_C
+
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
-#include "lex.h"
-#include "array.h"
-#include "error.h"
-#include "arena.h"
+#include <stdlib.h>
+#include "array.c"
+#include "error.c"
+#include "arena.c"
+#include "table.c"
+#include "string.c"
 
-static Token **idtab;
-static uint64_t mock_id_counter;
+#define token_equals_strlit(t, s) ((t).length == sizeof(s)-1 && memcmp((t).start, (s), sizeof(s)-1) == 0)
 
-Token *mock_id()
-{
-	char buf[32];
-	sprintf(buf, "%lu", mock_id_counter);
-	mock_id_counter ++;
-	int64_t len = strlen(buf);
-	char *str = alloc(len + 1);
-	strcpy(str, buf);
-	Token *token = create_token(TK_IDENT, .start = str, .length = len);
-	token->id = token;
-	return token;
-}
-
-static int ident_equal(Token *a, Token *b)
-{
-	return a->length == b->length && memcmp(a->start, b->start, a->length) == 0;
-}
-
-static Token *intern_ident(Token *ident)
-{
-	array_for(idtab, i)
-		if(ident_equal(idtab[i], ident))
-			return idtab[i];
-
-	array_push(idtab, ident);
-	return idtab[array_length(idtab) - 1];
-}
+#define hexchar_to_int(h) ( \
+	(h) >= '0' && (h) <= '9' ? (h) - '0' : \
+	(h) >= 'A' && (h) <= 'F' ? (h) - 'A' + 10 : \
+	(h) - 'a' + 10 \
+)
 
 static Line *create_lines(char *src)
 {
@@ -63,14 +57,14 @@ void lex(Module *module)
 	char *src = module->src;
 	Line *lines = create_lines(src);
 	Token *tokens = 0;
-	Token token = {.start = src, .line = lines, .index = 0};
+	Token token = {.start = src, .line = lines};
 
 	while(*src) {
 		token.start = src;
 
 		// new line
 
-		 if(*src == '\n') {
+		if(*src == '\n') {
 			src ++;
 			token.line ++;
 			continue;
@@ -142,21 +136,54 @@ void lex(Module *module)
 			token.kind = TK_IDENT;
 			token.length = src - token.start;
 
-			#define _(x) \
-				if(token.length == strlen(#x) && memcmp(token.start, #x, strlen(#x)) == 0) \
-					token.kind = KW_ ## x; \
-				else
+			// #define token_equals_strlit(t, s) ((t).length == sizeof(s)-1 && memcmp((t).start, (s), sizeof(s)-1) == 0)
+			// token.length == sizeof(#x)-1 && memcmp(token.start, #x, sizeof(#x)-1) == 0
+			#define _(x) if(token_equals_strlit(token, #x)) token.kind = KW_ ## x; else
 			KEYWORDS;
 			#undef _
 		}
 
+		// strings
+
+		else if(*src == '"') {
+			src ++;
+			token.slen = 0;
+
+			while(*src) {
+				if(*src == '"') {
+					break;
+				}
+				else if(*src == '\\') {
+					src ++;
+
+					if(*src == 'n' || *src == 't' || *src == '"' || *src == '\\') {
+						src ++;
+						token.slen ++;
+					}
+					else if(*src == 'x' && isxdigit(src[1]) && isxdigit(src[2])) {
+						src += 3;
+					}
+					else {
+						error_at(&token, "unrecognized or incomplete escape character %i", *src);
+					}
+				}
+				else {
+					src ++;
+					token.slen ++;
+				}
+			}
+
+			if(*src != '"')
+				error_at(&token, "unterminated string literal");
+			else
+				src ++;
+
+			token.kind = TK_STRING;
+		}
+
 		// puncts
 
-		#define _(x, y) \
-			else if(memcmp(token.start, x, strlen(x)) == 0) { \
-				token.kind = PT_ ## y; \
-				src += strlen(x); \
-			}
+		#define _(x, y) else if(memcmp(token.start, x, sizeof(x)-1) == 0) { token.kind = PT_ ## y; src += sizeof(x)-1; }
 		PUNCTS
 		#undef _
 
@@ -171,7 +198,6 @@ void lex(Module *module)
 
 		token.length = src - token.start;
 		array_push(tokens, token);
-		token.index ++;
 	}
 
 	// end of file
@@ -179,9 +205,10 @@ void lex(Module *module)
 	token.start = src;
 	token.kind = TK_EOF;
 	array_push(tokens, token);
-	token.index ++;
 
 	// setting first-in-line tokens and interning identifiers
+
+	table_init(&module->idset);
 
 	array_for(tokens, i) {
 		Token *token = tokens + i;
@@ -190,15 +217,74 @@ void lex(Module *module)
 			token->line->first = token;
 
 		if(token->kind == TK_IDENT)
-			token->id = intern_ident(token);
+			token->uid = table_add(&module->idset, token, 0);
 	}
 
+	// creating string literal data
+
+	array_for(tokens, i) {
+		Token *token = tokens + i;
+
+		if(token->kind == TK_STRING) {
+			uint64_t slen = token->slen;
+			uint8_t *src = token->start;
+			token->sval = 0;
+
+			for(uint64_t i=1; i < token->length; i++) {
+				if(src[i] == '\\' && src[i+1] == 'x' && isxdigit(src[i+2]) && isxdigit(src[i+2])) {
+					string_append_ch(
+						token->sval, hexchar_to_int(src[i+2]) * 16 + hexchar_to_int(src[i+3])
+					);
+					i+=3;
+				}
+				else if(token->start[i] == '\\') {
+					i ++;
+
+					if(src[i] == 'n')
+						string_append_ch(token->sval, '\n');
+					else if(src[i] == 't')
+						string_append_ch(token->sval, '\t');
+					else if(src[i] == '"')
+						string_append_ch(token->sval, '"');
+					else if(src[i] == '\\')
+						string_append_ch(token->sval, '\\');
+					else if(src[i] == 'x')
+						string_append_ch(token->sval, '\\');
+				}
+				else if(src[i] == '"') {
+					break;
+				}
+				else {
+					string_append_ch(token->sval, src[i]);
+				}
+			}
+		}
+	}
+
+	//table_print(&module->idset);
+
+	/*
+	Table *idset = alloc(sizeof(Table));
+	array_resize(idset->items, 4);
+	idset->usage = 0;
+
+	/*
+	array_for(tokens, i) {
+		Token *token = tokens + i;
+
+		if(token->line->first == 0)
+			token->line->first = token;
+
+		if(token->kind == TK_IDENT)
+			token->id = idset_add(idset, token);
+	}
+	*/
+
+	//print_idset(idset);
+
+	//module->idset = idset;
 	module->lines = lines;
 	module->tokens = tokens;
 }
 
-void lex_reset()
-{
-	idtab = 0;
-	mock_id_counter = 0;
-}
+#endif

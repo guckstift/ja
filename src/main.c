@@ -1,9 +1,10 @@
+
+#define IMPLEMENT_FLAG
+
 #include <stdio.h>
 #include <stdlib.h>
-#include "build.h"
-#include "error.h"
-
-#ifndef JA_TEST
+#include "build.c"
+#include "error.c"
 
 int main(int argc, char **argv)
 {
@@ -13,9 +14,12 @@ int main(int argc, char **argv)
 	}
 
 	char *mainfile = argv[1];
-	build(mainfile);
+	Project *project = build(mainfile);
+
+	if(!project)
+		exit(EXIT_FAILURE);
+
+	system(project->progfile);
 
 	return 0;
 }
-
-#endif
