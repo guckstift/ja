@@ -1,15 +1,23 @@
+#include <stdio.h>
+#include <inttypes.h>
 #include "runtime.h"
 
-jastring ja_read_file(jastring filename)
+void print_int(int64_t i)
 {
-	FILE *fs = fopen(filename.string, "rb");
-	if(!fs) return (jastring){0};
-	fseek(fs, 0, SEEK_END);
-	int64_t len = ftell(fs);
-	rewind(fs);
-	char *text = malloc(len + 1);
-	text[len] = 0;
-	fread(text, 1, len, fs);
-	fclose(fs);
-	return (jastring){.length = len, .string = text};
+	printf("%" PRId64, i);
+}
+
+void print_uint(uint64_t u)
+{
+	printf("%" PRIu64, u);
+}
+
+void print_bool(jabool b)
+{
+	printf("%s", b ? "true" : "false");
+}
+
+void print_string(jastring s)
+{
+	fwrite(s.chars, 1, s.length, stdout);
 }

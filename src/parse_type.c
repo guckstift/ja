@@ -1,91 +1,66 @@
+#ifndef parse_type_H
+#define parse_type_H
+
+#ifndef IMPLEMENT_FLAG
+#define IMPLEMENT_FLAG
+#define parse_type_C
+#endif
+
+#include "ast.c"
+
+Type *parse_type();
+
+#endif
+#ifdef parse_type_C
+
+#define IMPLEMENT_FLAG
+
 #include <stdlib.h>
-#include <stdio.h>
-#include <inttypes.h>
-#include <string.h>
-#include "parse.h"
-#include "parse_internal.h"
-#include "build.h"
-#include "array.h"
+#include "parse_impl.c"
+#include "error.c"
 
-static Type *p_type();
-
-static Type *p_primtype()
+Type *parse_type()
 {
-	if(eat(TK_int)) return new_type(INT);
-	if(eat(TK_int8)) return new_type(INT8);
-	if(eat(TK_int16)) return new_type(INT16);
-	if(eat(TK_int32)) return new_type(INT32);
-	if(eat(TK_int64)) return new_type(INT64);
-	if(eat(TK_uint)) return new_type(UINT);
-	if(eat(TK_uint8)) return new_type(UINT8);
-	if(eat(TK_uint16)) return new_type(UINT16);
-	if(eat(TK_uint32)) return new_type(UINT32);
-	if(eat(TK_uint64)) return new_type(UINT64);
-	if(eat(TK_bool)) return new_type(BOOL);
-	if(eat(TK_string)) return new_type(STRING);
-	if(eat(TK_cstring)) return new_type(CSTRING);
-	if(eat(TK_ptr)) return new_ptr_type(new_type(NONE));
+	Token *start = peek();
+
+	switch(advance()->kind) {
+		case KW_void:
+			return create_type(TY_VOID);
+		case KW_int8:
+			return create_type(TY_INT8);
+		case KW_int16:
+			return create_type(TY_INT16);
+		case KW_int32:
+			return create_type(TY_INT32);
+		case KW_int: case KW_int64:
+			return create_type(TY_INT64);
+		case KW_uint8:
+			return create_type(TY_UINT8);
+		case KW_uint16:
+			return create_type(TY_UINT16);
+		case KW_uint32:
+			return create_type(TY_UINT32);
+		case KW_uint: case KW_uint64:
+			return create_type(TY_UINT64);
+		case KW_bool:
+			return create_type(TY_BOOL);
+		case PT_STAR:
+			return create_ptr_type(expect(K_TYPE, "expected pointer target type"));
+		case KW_ptr:
+			return create_ptr_type(create_type(TY_VOID));
+		case KW_string:
+			return create_type(TY_STRING);
+
+		case PT_LBRACK: {
+			Token *length = expect(TK_INT, "expected integer array type length");
+			expect(PT_RBRACK, 0);
+			Type *itemtype = expect(K_TYPE, "expected array item type");
+			return create_array_type(itemtype, length ? length->ival : 0);
+		}
+	}
+
+	setcur(start);
 	return 0;
 }
 
-static Type *p_nametype()
-{
-	Token *ident = eat(TK_IDENT);
-	if(!ident) return 0;
-	return new_named_type(ident->id);
-}
-
-static Type *p_ptrtype()
-{
-	if(!eat(TK_GREATER)) return 0;
-	
-	Type *subtype = p_type();
-	if(!subtype)
-		fatal_at(last, "expected target type");
-	
-	return new_ptr_type(subtype);
-}
-
-static Type *p_arraytype()
-{
-	if(!eat(TK_LBRACK)) return 0;
-	
-	Token *length = eat(TK_INT);
-	
-	if(length && length->ival <= 0)
-		fatal_at(length, "array length must be greater than 0");
-	
-	if(!eat(TK_RBRACK)) {
-		if(length)
-			fatal_after(last, "expected ]");
-		else
-			fatal_after(last, "expected integer literal for array length");
-	}
-	
-	Type *itemtype = p_type();
-	if(!itemtype)
-		fatal_at(last, "expected item type");
-	
-	if(length)
-		return new_array_type(length->ival, itemtype);
-	else
-		return new_slice_type(itemtype);
-}
-
-static Type *p_type()
-{
-	Type *type = 0;
-	(type = p_primtype()) ||
-	(type = p_nametype()) ||
-	(type = p_ptrtype()) ||
-	(type = p_arraytype()) ;
-	return type;
-}
-
-Type *p_type_pub(ParseState *state)
-{
-	unpack_state(state);
-	Type *type = p_type();
-	pack_state(state);
-	return type;
-}
+#endif

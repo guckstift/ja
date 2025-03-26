@@ -1,28 +1,23 @@
-#ifndef JA_RUNTIME_H
-#define JA_RUNTIME_H
+#ifndef runtime_H
+#define runtime_H
 
-#include <stdio.h>
 #include <stdint.h>
-#include <inttypes.h>
-#include <string.h>
-#include <stdlib.h>
-#include <dlfcn.h>
-
-#define jafalse ((jabool)0)
-#define jatrue ((jabool)1)
 
 typedef uint8_t jabool;
 
 typedef struct {
-	int64_t length;
 	void *items;
+	uint64_t length;
 } jaslice;
 
 typedef struct {
-	int64_t length;
-	char *string;
+	char *chars;
+	uint64_t length;
 } jastring;
 
-jastring ja_read(jastring filename);
+void print_int(int64_t i);
+void print_uint(uint64_t u);
+void print_bool(jabool b);
+void print_string(jastring s);
 
 #endif

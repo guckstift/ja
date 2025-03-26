@@ -9,7 +9,7 @@
 * boolean
   * `bool`
   * can be `true` or `false`
-  * stored in a whole byte
+  * stored in 1 byte
 * array
   * `[length] item_type`
   * fixed length
@@ -19,3 +19,8 @@
   * `[] item_type`
   * points to a range of items
   * consists of a pointer and a length (of type `uint`)
+* string
+  * `string`
+* structure
+* union
+* enumeration

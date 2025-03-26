@@ -1,0 +1,33 @@
+-NEWLINE = "\n"
+
+-WHITESPACE = [ \t]+
+
+-SINGLE_LINE_COMMENT = "#" ( [^\n] )*
+
+-MULTI_LINE_COMMENT = "/*" ( [^*] | "*" [^/] )* "*/"
+
+INTEGER = [0-9]+
+
+STRING = ["] [^"]* ["]
+
+IDENTIFIER = IDENTIFIER_SEQUENCE & !KEYWORD
+
+KEYWORD = IDENTIFIER_SEQUENCE & oneof(
+	"as"
+	"bool"
+	"else"
+	"false" "function"
+	"if" "int" "int8" "int16" "int32" "int64"
+	"null"
+	"print" "ptr"
+	"return"
+	"string" "struct"
+	"true"
+	"uint" "uint8" "uint16" "uint32" "uint64"
+	"var" "void"
+	"while"
+)
+
+PUNCTUATION = oneof( "=" ":" ";" "," "{" "}" "[" "]" "(" ")" "*" "&" )
+
+#IDENTIFIER_SEQUENCE = [a-zA-Z_] [a-zA-Z_0-9]*

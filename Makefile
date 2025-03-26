@@ -1,66 +1,60 @@
-PROGNAME = \
-	ja
+#CFILES = $(filter-out src/_%.c,$(wildcard src/*.c))
 
 CFILES = \
-	analyze.c asm.c ast.c build.c cgen.c cgen_expr.c cgen_stmt.c cgen_type.c \
-	elf.c lex.c main.c parse.c parse_expr.c parse_stmt.c parse_type.c print.c \
-	string.c
+	src/analyze.c \
+	src/arena.c \
+	src/array.c \
+	src/ast.c \
+	src/build.c \
+	src/error.c \
+	src/gen.c \
+	src/gen_expr.c \
+	src/gen_impl.c \
+	src/gen_stmt.c \
+	src/gen_type.c \
+	src/lex.c \
+	src/list.c \
+	src/main.c \
+	src/parse.c \
+	src/parse_expr.c \
+	src/parse_impl.c \
+	src/parse_stmt.c \
+	src/parse_type.c \
+	src/print.c \
+	src/string.c \
+	src/table.c \
 
-HFILES = \
-	analyze.h array.h asm.h ast.h build.h cgen.h elf.h lex.h parse.h \
-	parse_internal.h print.h string.h
+OFILES = $(CFILES:src/%.c=build/%.o)
+DEPFILES = $(CFILES:src/%.c=build/%.dep)
 
-RESOURCES = \
-	runtime.h runtime.c
+build/ja: $(OFILES) | build
+	gcc -o $@ $^
 
-BUILDDIR = \
-	build
+build/%.o: src/%.c | build
+	gcc -o $@ -c -I. src/$*.c -std=gnu2x
 
-CFLAGS = \
-	-std=c17 -pedantic-errors -D JA_DEBUG -g
+build/deps: $(DEPFILES) | build
+	cat $(DEPFILES) > $@
 
-LDFLAGS = \
-	 -ldl
+build/%.dep: src/%.c | build
+	gcc -MG -MT build/$*.o -MM -MF $@ $^
 
-PROGTARGET = ./$(BUILDDIR)/$(PROGNAME)
-SRCS = $(patsubst %.c,src/%.c,$(CFILES))
-HDRS = $(patsubst %.h,src/%.h,$(HFILES))
-RESS = $(patsubst %,$(BUILDDIR)/%.res,$(RESOURCES))
-OBJS = $(patsubst %.c,$(BUILDDIR)/%.o,$(CFILES))
-TESTS = $(sort $(wildcard tests/*.ja))
-TESTOKS = $(patsubst tests/%.ja,$(BUILDDIR)/%.ok,$(TESTS))
+build/%.res: src/% | build
+	xxd -i < src/$* > $@
 
-$(PROGTARGET): $(OBJS) | $(BUILDDIR)
-	gcc -o $@ $(OBJS) $(LDFLAGS)
+include build/deps
 
-$(BUILDDIR)/%.o: src/%.c | $(BUILDDIR)
-	gcc -o $@ -c $(CFLAGS) $<
-
-$(BUILDDIR)/jaja: $(PROGTARGET) $(wildcard jasrc/*.ja) | $(BUILDDIR)
-	$(PROGTARGET) -c jaja jasrc/ja.ja
-
-$(BUILDDIR)/%.res: src/% | $(BUILDDIR)
-	echo "#define" $(shell echo $* | tr a-z. A-Z_)_RES "\\" > $@
-	sed -e 's|"|\\"|g' -e 's|.*|\t"&\\n" \\|' < $^ >> $@
-	echo "" >> $@
-
-test: $(TESTOKS)
-
-$(BUILDDIR)/%.ok: tests/%.ja $(PROGTARGET) | $(BUILDDIR)
-	./build/ja $<
-	touch $@
-
-$(BUILDDIR):
-	mkdir -p $(BUILDDIR)
-
-$(BUILDDIR)/deps: $(SRCS) $(HDRS) $(RESS) | $(BUILDDIR)
-	gcc -MM $(SRCS) | sed -e 's|^\([a-z].*\)|$(BUILDDIR)/\1|' > $@
+build:
+	mkdir $@
 
 clean:
-	rm -rf $$(cat .gitignore)
+	rm -rf build/*.o
+	rm -rf build/*.res
+	rm -rf build/ja
 
-.PHONY: test clean
+clean-all:
+	rm -rf build
 
-ifneq (clean,$(findstring clean,$(MAKECMDGOALS)))
-include $(BUILDDIR)/deps
-endif
+rebuild: clean build/ja
+
+.PHONY: clean clean-all rebuild update-deps

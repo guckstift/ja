@@ -1,796 +1,259 @@
+#ifndef parse_stmt_H
+#define parse_stmt_H
+
+#ifndef IMPLEMENT_FLAG
+#define IMPLEMENT_FLAG
+#define parse_stmt_C
+#endif
+
+#include "parse_type.c"
+#include "parse_expr.c"
+#include "ast.c"
+
+Stmt *parse_stmt();
+Stmt **parse_stmts();
+Block *parse_block(Scope *scope);
+
+#endif
+#ifdef parse_stmt_C
+
+#define IMPLEMENT_FLAG
+
 #include <stdio.h>
-#include "parse_internal.h"
-#include "build.h"
-#include "array.h"
+#include "parse_expr.c"
+#include "parse_type.c"
+#include "parse_impl.c"
+#include "error.c"
+#include "array.c"
+#include "arena.c"
 
-static Block *p_block(Scope *scope);
-
-static Expr *p_expr()
-{
-	ParseState state;
-	pack_state(&state);
-	Expr *expr = p_expr_pub(&state);
-	unpack_state(&state);
-	return expr;
-}
-
-static Type *p_type()
-{
-	ParseState state;
-	pack_state(&state);
-	Type *type = p_type_pub(&state);
-	unpack_state(&state);
-	return type;
-}
-
-static int declare(Decl *decl)
-{
-	return declare_in(decl, scope);
-}
-
-static int redeclare(Decl *decl)
-{
-	return redeclare_in(decl, scope);
-}
-
-static void declare_builtins()
-{
-	Token *argv_id = create_id("argv", 0);
-	Type *string_slice_type = new_slice_type(new_type(STRING));
-	
-	Decl *argv = new_var(
-		argv_id, scope, argv_id, 0, 0, string_slice_type, 0
-	);
-	
-	argv->builtin = 1;
-	
-	declare(argv);
-}
-
-static void enter()
-{
-	scope = new_scope(unit_id, scope);
-	if(!scope->parent) declare_builtins();
-}
-
-static Scope *leave()
-{
-	Scope *old_scope = scope;
-	scope = scope->parent;
-	return old_scope;
-}
-
-static Scope *reenter(Scope *new_scope)
-{
-	scope = new_scope;
-}
-
-static Stmt *p_print()
-{
-	if(!eat(TK_print)) return 0;
-	Token *start = last;
-	
-	Expr *expr = p_expr();
-	if(!expr) fatal_after(last, "expected expression to print");
-	
-	if(!eat(TK_SEMICOLON))
-		error_after(last, "expected semicolon after print statement");
-	
-	return (Stmt*)new_print(start, scope, expr);
-}
-
-static Stmt *p_vardecl_core(Token *start, int exported, int param, int foreign)
+static Decl *p_vardecl_core(Token *start)
 {
 	Token *ident = eat(TK_IDENT);
 	if(!ident) return 0;
 	if(!start) start = ident;
-	
 	Type *type = 0;
-	if(eat(TK_COLON)) {
-		type = p_type();
-		if(!type) fatal_after(last, "expected type after colon");
-	}
-	
 	Expr *init = 0;
-	if(!param && eat(TK_ASSIGN)) {
-		if(foreign) {
-			fatal_at(
-				cur,
-				"variables imported from dynamic libraries "
-				"can not have initialization"
-			);
-		}
-		
-		init = p_expr();
-		if(!init) fatal_after(last, "expected initializer after =");
-		
-		Token *init_start = init->start;
-		
-		if(scope->structhost && !init->isconst)
-			fatal_at(
-				init_start,
-				"structure members can only be initialized "
-				"with constant values"
-			);
-	}
-	
-	if(type == 0 && init == 0) {
-		fatal_at(
-			ident, "%s without type declared",
-			param ? "parameter" : "variable"
-		);
-	}
-	
-	Decl *decl = new_var(start, scope, ident->id, exported, param, type, init);
-	
-	if(!declare(decl))
-		fatal_at(ident, "name %t already declared", ident);
-	
-	decl->end = cur;
-	return (Stmt*)decl;
-}
-
-static Stmt *p_vardecl(int exported, int foreign)
-{
-	if(!eat(TK_var)) return 0;
-	Token *start = last;
-	
-	Stmt *core = p_vardecl_core(start, exported, 0, foreign);
-	if(!core) fatal_after(last, "expected identifier after keyword var");
-	
-	if(!eat(TK_SEMICOLON))
-		error_after(last, "expected semicolon after variable declaration");
-	
-	return core;
-}
-
-static Decl *p_funchead(int exported)
-{
-	if(!eat(TK_function)) return 0;
-	Token *start = last;
-	
-	if(scope->parent)
-		fatal_at(last, "functions can only be declared at top level");
-	
-	Token *ident = eat(TK_IDENT);
-	if(!ident)
-		fatal_after(last, "expected identifier after keyword function");
-	
-	if(!eat(TK_LPAREN))
-		fatal_after(last, "expected ( after function name");
-	
-	Decl **params = 0;
-	enter();
-	
-	while(1) {
-		Decl *param = &p_vardecl_core(0, 0, 1, 0)->as_decl;
-		if(!param) break;
-		array_push(params, param);
-		if(!eat(TK_COMMA)) break;
-	}
-	
-	Scope *func_scope = leave();
-	
-	if(!eat(TK_RPAREN))
-		fatal_after(last, "expected ) after parameter list");
-	
-	Type *returntype = new_type(NONE);
-	
-	if(eat(TK_COLON)) {
-		returntype = p_type();
-		if(!returntype) fatal_after(last, "expected return type after colon");
-	}
-	
-	Decl *decl = new_func(
-		start, scope, ident->id, exported, returntype, params, func_scope
-	);
-	
-	func_scope->funchost = decl;
-	
-	if(!declare(decl))
-		fatal_at(ident, "name %t already declared", ident);
-	
+	if(eat(PT_COLON)) type = expect(K_TYPE, "expected a type after ':'");
+	if(eat(PT_ASSIGN)) init = expect(K_EXPR, "expected an initializer expression after '='");
+	if(type == 0 && init == 0) error_at(start, "variable declaration has neither a type nor an initializer");
+	Decl *decl = create_vardecl(ident ? ident->uid : 0, init, type, .stmt.start = start, .stmt.end = peek());
+	if(decl->uid) scope_add_decl(decl);
 	return decl;
 }
 
-static Stmt *p_foreign_func(int exported)
+static Decl *p_vardecl()
 {
-	Decl *decl = p_funchead(exported);
-	if(!decl) return 0;
-	
-	decl->imported = 1;
-	decl->isproto = 1;
-	decl->deps_scanned = 1;
-	
-	if(!eat(TK_SEMICOLON))
-		fatal_after(last, "expected ; after function head");
-	
-	decl->end = cur;
-	return (Stmt*)decl;
+	if(!eat(KW_var)) return 0;
+	Token *start = peek();
+	Decl *decl = p_vardecl_core(start);
+	if(!decl) error_at_cur("expected identifier after keyword var");
+	expect(PT_SEMICOLON, 0);
+	return decl;
 }
 
-static Stmt *p_funcdecl(int exported)
+static Stmt *p_print()
 {
-	Decl *decl = p_funchead(exported);
-	if(!decl) return 0;
-	
-	if(!eat(TK_LCURLY))
-		fatal_after(last, "expected { after function head");
-	
-	decl->body = p_block(decl->func_scope);
-	
-	if(!eat(TK_RCURLY))
-		fatal_after(last, "expected } after function body");
-	
-	decl->end = cur;
-	return (Stmt*)decl;
+	Token *start = peek();
+	if(!eat(KW_print)) return 0;
+	Expr *value = expect(K_EXPR, 0);
+	expect(PT_SEMICOLON, 0);
+	return create_print(value, .start = start, .end = peek());
 }
 
-static Stmt *p_structdecl(int exported)
+static Stmt *p_if()
 {
-	if(!eat(TK_struct)) return 0;
-	Token *start = last;
-	
-	if(scope->parent)
-		fatal_at(last, "structures can only be declared at top level");
-	
-	Token *ident = eat(TK_IDENT);
-	if(!ident)
-		fatal_after(last, "expected identifier after keyword struct");
-	
-	if(!eat(TK_LCURLY))
-		fatal_after(last, "expected {");
-	
-	Decl **members = 0;
-	enter();
-	
-	while(1) {
-		Decl *member = &p_vardecl_core(0, 0, 0, 0)->as_decl;
-		if(!member) break;
-		
-		if(member->init && !member->init->isconst) {
-			fatal_at(
-				member->init->start,
-				"struct members must be constant"
-			);
-		}
-		
-		if(!eat(TK_SEMICOLON))
-			error_after(last, "expected semicolon after struct member");
-		
-		array_push(members, member);
-	}
-	
-	if(!eat(TK_RCURLY))
-		fatal_after(last, "expected } after structure body");
-	
-	if(array_length(members) == 0)
-		fatal_at(start, "empty structure");
-	
-	Scope *struct_scope = leave();
-	Decl *decl = new_struct(start, scope, ident->id, exported, members);
-	
-	if(!declare(decl))
-		fatal_at(ident, "name %t already declared", ident);
-	
-	struct_scope->structhost = decl;
-	decl->end = cur;
-	return (Stmt*)decl;
-}
-
-static Stmt *p_enumdecl(int exported)
-{
-	if(!eat(TK_enum)) return 0;
-	Token *start = last;
-	
-	if(scope->parent)
-		fatal_at(last, "enums can only be declared at top level");
-	
-	Token *ident = eat(TK_IDENT);
-	if(!ident)
-		fatal_after(last, "expected identifier after keyword enum");
-	
-	if(!eat(TK_LCURLY))
-		fatal_after(last, "expected {");
-	
-	EnumItem **items = 0;
-	int64_t num = 0;
-	
-	while(1) {
-		Token *ident = eat(TK_IDENT);
-		if(!ident) break;
-		
-		array_for(items, i) {
-			if(items[i]->id == ident->id) {
-				fatal_at(ident, "enum item already defined");
-			}
-		}
-		
-		EnumItem *item = malloc(sizeof(EnumItem));
-		item->id = ident->id;
-		item->val = 0;
-		
-		if(eat(TK_ASSIGN)) {
-			Expr *val = p_expr();
-			if(!val) fatal_at(last, "expected expression after =");
-			
-			if(!val->isconst)
-				fatal_at(val->start, "expression must be constant");
-			
-			item->val = val;
-		}
-		
-		array_push(items, item);
-		if(!eat(TK_COMMA)) break;
-	}
-	
-	if(!eat(TK_RCURLY))
-		fatal_after(last, "expected } after enum body");
-	
-	if(array_length(items) == 0)
-		fatal_at(start, "empty enum");
-	
-	Decl *decl = new_enum(start, scope, ident->id, items, exported);
-	
-	if(!declare(decl))
-		fatal_at(ident, "name %t already declared", ident);
-	
-	decl->end = cur;
-	return (Stmt*)decl;
-}
-
-static Stmt *p_uniondecl(int exported)
-{
-	if(!eat(TK_union)) return 0;
-	Token *start = last;
-	
-	if(scope->parent)
-		fatal_at(last, "unions can only be declared at top level");
-	
-	Token *ident = eat(TK_IDENT);
-	if(!ident)
-		fatal_after(last, "expected identifier after keyword union");
-	
-	if(!eat(TK_LCURLY))
-		fatal_after(last, "expected {");
-	
-	Decl **members = 0;
-	enter();
-	
-	while(1) {
-		Decl *member = &p_vardecl_core(0, 0, 0, 0)->as_decl;
-		if(!member) break;
-		
-		if(member->init) {
-			fatal_at(
-				member->init->start,
-				"union members can not have default values"
-			);
-		}
-		
-		if(!eat(TK_SEMICOLON))
-			error_after(last, "expected semicolon after union member");
-		
-		array_push(members, member);
-	}
-	
-	if(!eat(TK_RCURLY))
-		fatal_after(last, "expected } after union body");
-	
-	if(array_length(members) == 0)
-		fatal_at(start, "empty union");
-	
-	Scope *struct_scope = leave();
-	Decl *decl = new_union(start, scope, ident->id, exported, members);
-	
-	if(!declare(decl))
-		fatal_at(ident, "name %t already declared", ident);
-	
-	struct_scope->structhost = decl;
-	decl->end = cur;
-	return (Stmt*)decl;
-}
-
-static Stmt *p_ifstmt()
-{
-	if(!eat(TK_if)) return 0;
-	Token *start = last;
-	
-	Expr *cond = p_expr();
-	if(!cond)
-		fatal_at(last, "expected condition after if");
-	
-	if(!eat(TK_LCURLY))
-		fatal_after(last, "expected { after condition");
-	
-	Block *if_body = p_block(0);
-	
-	if(!eat(TK_RCURLY))
-		fatal_after(last, "expected } after if-body");
-	
+	Token *start = peek();
+	if(!eat(KW_if)) return 0;
+	Expr *cond = expect(K_EXPR, "expected if-condition");
+	expect(PT_LCURLY, 0);
+	Block *body = parse_block(0);
+	expect(PT_RCURLY, 0);
 	Block *else_body = 0;
-	if(eat(TK_else)) {
-		if(match(TK_if)) {
+
+	if(eat(KW_else)) {
+		if(match(KW_if)) {
 			enter();
-			Stmt *else_if = p_ifstmt();
-			Stmt **stmts = 0;
-			array_push(stmts, else_if);
-			Scope *block_scope = leave();
-			else_body = new_block(stmts, block_scope);
+			Stmt *else_if = p_if();
+			Stmt **else_stmts = 0;
+			if(else_if) array_push(else_stmts, else_if);
+			Scope *else_scope = leave();
+			else_body = create_block(else_stmts, else_scope);
 		}
 		else {
-			if(!eat(TK_LCURLY))
-				fatal_after(last, "expected { after else");
-			
-			else_body = p_block(0);
-			
-			if(!eat(TK_RCURLY))
-				fatal_after(last, "expected } after else-body");
+			expect(PT_LCURLY, 0);
+			else_body = parse_block(0);
+			expect(PT_RCURLY, 0);
 		}
 	}
-	
-	return (Stmt*)new_if(start, cond, if_body, else_body);
+
+	return create_if(cond, body, else_body, .start = start, .end = peek());
 }
 
-static Stmt *p_whilestmt()
+static Stmt *p_while()
 {
-	if(!eat(TK_while)) return 0;
-	Token *start = last;
-	
-	Expr *cond = p_expr();
-	if(!cond)
-		fatal_at(last, "expected condition after while");
-	
-	if(!eat(TK_LCURLY))
-		fatal_after(last, "expected { after condition");
-	
-	enter();
-	Scope *blockscope = leave();
-	While *stmt = new_while(start, blockscope, cond, 0);
-	blockscope->loophost = (Stmt*)stmt;
-	stmt->body = p_block(blockscope);
-	
-	if(!eat(TK_RCURLY))
-		fatal_after(last, "expected } after if-body");
-	
-	return (Stmt*)stmt;
-}
-
-static Stmt *p_returnstmt()
-{
-	if(!eat(TK_return)) return 0;
-	Token *start = last;
-	Decl *funchost = scope->funchost;
-	
-	if(!funchost)
-		fatal_at(last, "return outside of any function");
-	
-	Expr *result = p_expr();
-	
-	if(!eat(TK_SEMICOLON))
-		error_after(last, "expected semicolon after return statement");
-	
-	Type *functype = funchost->type;
-	Type *returntype = functype->returntype;
-	
-	if(returntype->kind == NONE) {
-		if(result) {
-			fatal_at(result->start, "function should not return values");
-		}
-	}
-	else if(!result) {
-		fatal_after(start, "expected expression to return");
-	}
-	
-	return (Stmt*)new_return(start, scope, result);
+	Token *start = peek();
+	if(!eat(KW_while)) return 0;
+	Expr *cond = expect(K_EXPR, "expected while-condition");
+	expect(PT_LCURLY, 0);
+	Block *body = parse_block(0);
+	expect(PT_RCURLY, 0);
+	return create_while(cond, body, .start = start, .end = peek());
 }
 
 static Stmt *p_import()
 {
-	if(!eat(TK_import)) return 0;
-	Token *start = last;
-	
-	if(scope->parent)
-		fatal_at(last, "imports can only be used at top level");
-	
-	Token *filename = eat(TK_STRING);
-	Token **idents = 0;
-	
-	if(!filename) {
-		while(1) {
-			Token *ident = eat(TK_IDENT);
-			if(!ident) break;
-			array_push(idents, ident);
-			if(!eat(TK_COMMA)) break;
-		}
-		
-		if(idents == 0) {
-			fatal_after(
-				start, "expected identifier list or filename string to import"
-			);
-		}
-		
-		if(!eat(TK_from))
-			error_at(cur, "expected 'from' after identifier list");
-		
-		filename = eat(TK_STRING);
-		if(!filename)
-			fatal_at(cur, "expected filename string to import from");
-	}
-	
-	if(!eat(TK_SEMICOLON))
-		error_after(last, "expected semicolon after import statement");
-	
-	ParseState state;
-	pack_state(&state);
-	Unit *unit = import(filename->string);
-	unpack_state(&state);
-	
-	array_for(scope->imports, i) {
-		if(scope->imports[i]->unit == unit) {
-			fatal_at(start, "unit already imported");
-		}
-	}
-	
-	Scope *unit_scope = unit->block->scope;
-	Decl **decls = 0;
-	
-	array_for(idents, i) {
-		Token *ident = idents[i];
-		Decl *decl = lookup_in(ident->id, unit_scope);
-		
-		if(decl == 0 || decl->exported == 0) {
-			fatal_at(ident, "no exported symbol %t in unit", ident);
-		}
-		
-		if(!declare(decl)) {
-			fatal_at(ident, "name %t already declared", ident);
-		}
-		
-		array_push(decls, decl);
-	}
-	
-	Import *import = new_import(start, scope, unit, decls);
-	array_push(scope->imports, import);
-	return (Stmt*)import;
+	Token *start = peek();
+	if(!eat(KW_import)) return 0;
+	Token *filename = expect(TK_STRING, "expected a module file name to import");
+	expect(PT_SEMICOLON, 0);
+	return create_import(filename->sval, .start = start, .end = peek());
 }
 
-static Stmt *p_foreign()
+static Decl **p_params()
 {
-	if(!eat(TK_foreign)) return 0;
-	Token *start = last;
-	
-	if(scope->parent)
-		fatal_at(last, "foreign imports can only be used at top level");
-	
-	Token *filename = eat(TK_STRING);
-	if(!filename) fatal_at(cur, "expected filename of library to import from");
-	
-	if(!eat(TK_LCURLY))
-		fatal_after(last, "expected { after library name");
-	
-	Decl **decls = 0;
-	
+	Decl *first = 0;
+	Decl *last = 0;
+	int64_t count = 0;
+
 	while(1) {
-		Decl *decl = 0;
-		(decl = &p_foreign_func(0)->as_decl) ||
-		(decl = &p_vardecl(0, 1)->as_decl) ;
-		if(!decl) break;
-		array_push(decls, decl);
+		Decl *param = p_vardecl_core(0);
+		if(!param) break;
+		if(first) last = last->stmt.next = param;
+		else first = last = param;
+		count ++;
+		if(!eat(PT_COMMA)) break;
 	}
-	
-	if(!eat(TK_RCURLY))
-		fatal_after(last, "expected } after library list");
-	
-	Foreign *import = new_foreign(start, scope, filename->string, decls);
-	array_push(scope->foreigns, import);
-	return (Stmt*)import;
+
+	Decl **params = 0;
+	for(Decl *s = first; s; s = s->stmt.next) array_push(params, s);
+	return params;
 }
 
-static Stmt *p_export()
+static Decl *p_funchead()
 {
-	if(!eat(TK_export)) return 0;
-	Token *start = last;
-	
-	if(scope->parent)
-		fatal_at(last, "exports can only be done at top level");
-	
-	Stmt *stmt = 0;
-	(stmt = p_vardecl(1, 0)) ||
-	(stmt = p_funcdecl(1)) ||
-	(stmt = p_structdecl(1)) ||
-	(stmt = p_enumdecl(1)) ;
-	
-	if(!stmt) {
-		fatal_at(
-			cur, "you can only export variables, structures or functions"
-		);
-	}
-	
-	stmt->start = start;
-	return stmt;
-}
-
-static Stmt *p_assign()
-{
-	Expr *target = p_expr();
-	if(!target) return 0;
-	
-	if(target->kind == CALL && eat(TK_SEMICOLON)) {
-		return (Stmt*)new_call(scope, target);
-	}
-	
-	if(!eat(TK_ASSIGN))
-		fatal_after(last, "expected = after left side");
-	
-	Expr *expr = p_expr();
-	
-	if(!expr)
-		fatal_at(last, "expected right side after =");
-	
-	if(!eat(TK_SEMICOLON))
-		error_after(last, "expected semicolon after assignment");
-	
-	return (Stmt*)new_assign(scope, target, expr);
-}
-
-static Stmt *p_break()
-{
-	if(!eat(TK_break)) return 0;
-	Token *start = last;
-	
-	if(!scope->loophost)
-		fatal_at(start, "break can only be used inside loops");
-	
-	if(!eat(TK_SEMICOLON))
-		error_after(last, "expected semicolon after break");
-	
-	return new_stmt(BREAK, start, scope);
-}
-
-static Stmt *p_continue()
-{
-	if(!eat(TK_continue)) return 0;
-	Token *start = last;
-	
-	if(!scope->loophost)
-		fatal_at(start, "continue can only be used inside loops");
-	
-	if(!eat(TK_SEMICOLON))
-		error_after(last, "expected semicolon after continue");
-	
-	return new_stmt(CONTINUE, start, scope);
-}
-
-static Stmt *p_for()
-{
-	if(!eat(TK_for)) return 0;
-	Token *start = last;
-	
-	Token *iter_name = eat(TK_IDENT);
-	if(!iter_name)
-		error_after(last, "expected identifier as iterator");
-	
-	Expr *array = 0;
-	Expr *from = 0;
-	Expr *to = 0;
-	
-	if(eat(TK_in)) {
-		array = p_expr();
-		
-		if(!array)
-			fatal_after(last, "expected iterable");
-	}
-	else if(eat(TK_ASSIGN)) {
-		from = p_expr();
-		if(!from) fatal_at(last, "expected start value after =");
-		
-		if(!eat(TK_DOTDOT))
-			fatal_after(last, "expected .. after start expression");
-		
-		to = p_expr();
-		if(!to) fatal_at(last, "expected end value after ..");
-	}
-	else {
-		error_at(cur, "expected 'in' or '=' after iterator");
-	}
-	
-	if(!eat(TK_LCURLY))
-		fatal_after(last, "expected { after for-in-head");
-	
+	Token *start = peek();
+	if(!eat(KW_function)) return 0;
+	if(getscope()->parent) error_at(start, "functions can only be declared at top level");
+	Token *ident = expect(TK_IDENT, "expected a function name");
+	Token *uid = ident ? ident->uid : 0;
+	Decl **params = 0;
 	enter();
-	Decl *iter = new_var(iter_name, scope, iter_name->id, 0, 0, 0, 0);
-	declare(iter);
-	Scope *blockscope = leave();
-	
-	if(array) {
-		ForEach *foreach = new_foreach(start, blockscope, array, iter, 0);
-		blockscope->loophost = (Stmt*)foreach;
-		foreach->body = p_block(blockscope);
-	
-		if(!eat(TK_RCURLY))
-			fatal_after(last, "expected } after for-body");
-		
-		return (Stmt*)foreach;
+
+	if(expect(PT_LPAREN, "expected parameter list in parenthesis")) {
+		params = p_params();
+		expect(PT_RPAREN, "expected ) after parameter list");
 	}
-	else {
-		For *forstmt = new_for(start, blockscope, iter, from, to, 0);
-		blockscope->loophost = (Stmt*)forstmt;
-		forstmt->body = p_block(blockscope);
-	
-		if(!eat(TK_RCURLY))
-			fatal_after(last, "expected } after for-body");
-		
-		return (Stmt*)forstmt;
+
+	Scope *funcscope = leave();
+	Type *returntype = create_type(TY_VOID);
+	if(eat(PT_COLON)) returntype = expect(K_TYPE, "expected return type after :");
+	Decl *decl = create_funcdecl(uid, returntype, params, funcscope, .stmt.start = start);
+	if(decl->uid) scope_add_decl(decl);
+	return decl;
+}
+
+static Decl *p_funcdecl()
+{
+	Decl *decl = p_funchead();
+	if(!decl) return 0;
+
+	if(expect(PT_LCURLY, "expected a function body in curly braces")) {
+		decl->body = parse_block(decl->funcscope);
+		expect(PT_RCURLY, "expected } after function body");
+	}
+
+	decl->stmt.end = peek();
+	return decl;
+}
+
+static Stmt *p_return()
+{
+	Token *start = peek();
+	if(!eat(KW_return)) return 0;
+	if(!getscope()->parent) error_at(start, "return outside of any function");
+	Expr *value = parse_expr();
+	expect(PT_SEMICOLON, 0);
+	return create_return(value, .start = start, .end = peek());
+}
+
+static Stmt *p_assign_or_call()
+{
+	Token *start = peek();
+	Expr *target = parse_expr();
+	if(!target) return 0;
+
+	if(target->kind == EX_CALL && !match(PT_ASSIGN)) {
+		expect(PT_SEMICOLON, 0);
+		return create_call(target, .start = start, .end = peek());
+	}
+
+	if(!eat(PT_ASSIGN)) {
+		setcur(start);
+		return 0;
+	}
+
+	Expr *value = expect(K_EXPR, "expected expression after '='");
+	expect(PT_SEMICOLON, 0);
+	return create_assign(target, value, .start = start, .end = peek());
+}
+
+Stmt *parse_stmt()
+{
+	switch(peek()->kind) {
+		case KW_function: return (Stmt*)p_funcdecl();
+		case KW_if: return p_if();
+		case KW_print: return p_print();
+		case KW_return: return p_return();
+		case KW_var: return (Stmt*)p_vardecl();
+		case KW_while: return p_while();
+		case KW_import: return p_import();
+		default: return p_assign_or_call();
 	}
 }
 
-static Stmt *p_delete()
+Stmt **parse_stmts()
 {
-	if(!eat(TK_delete)) return 0;
-	Token *start = last;
-	Expr *expr = p_expr();
-	
-	if(!expr)
-		fatal_after(last, "expected object to delete");
-	
-	if(expr->type->kind != PTR)
-		fatal_at(expr->start, "expression to delete is not a pointer");
-	
-	if(!eat(TK_SEMICOLON))
-		error_after(last, "expected semicolon after delete");
-	
-	return (Stmt*)new_delete(start, scope, expr);
-}
-
-static Stmt *p_stmt()
-{
+	Stmt *first = 0;
+	Stmt *last = 0;
 	Stmt *stmt = 0;
-	(stmt = p_print()) ||
-	(stmt = p_vardecl(0, 0)) ||
-	(stmt = p_funcdecl(0)) ||
-	(stmt = p_structdecl(0)) ||
-	(stmt = p_enumdecl(0)) ||
-	(stmt = p_uniondecl(0)) ||
-	(stmt = p_ifstmt()) ||
-	(stmt = p_whilestmt()) ||
-	(stmt = p_returnstmt()) ||
-	(stmt = p_import()) ||
-	(stmt = p_foreign()) ||
-	(stmt = p_export()) ||
-	(stmt = p_break()) ||
-	(stmt = p_continue()) ||
-	(stmt = p_for()) ||
-	(stmt = p_delete()) ||
-	(stmt = p_assign()) ;
-	return stmt;
-}
+	int64_t count = 0;
+	int invalid_error_raised_before = 0;
 
-static Stmt **p_stmts()
-{
-	Stmt **stmts = 0;
 	while(1) {
-		Stmt *stmt = p_stmt();
-		if(!stmt) break;
-		array_push(stmts, stmt);
+		while(stmt = parse_stmt()) {
+			if(first) last = last->next = stmt;
+			else first = last = stmt;
+			count ++;
+			invalid_error_raised_before = 0;
+		}
+
+		if(match(PT_RCURLY) || match(TK_EOF))
+			break;
+
+		if(!invalid_error_raised_before) {
+			error_at_cur("can not find a valid statement");
+			invalid_error_raised_before = 1;
+		}
+
+		advance();
 	}
-	
+
+	Stmt **stmts = 0;
+	for(Stmt *s = first; s; s = s->next) array_push(stmts, s);
 	return stmts;
 }
 
-static Block *p_block(Scope *scope)
+Block *parse_block(Scope *scope)
 {
-	if(scope) reenter(scope);
-	else enter();
-	Stmt **stmts = p_stmts();
-	Scope *block_scope = leave();
-	return new_block(stmts, block_scope);
+	if(scope)
+		setscope(scope);
+	else
+		enter();
+
+	Stmt **stmts = parse_stmts();
+	Scope *blockscope = leave();
+	return create_block(stmts, blockscope);
 }
 
-Block *p_block_pub(ParseState *state, Scope *scope)
-{
-	unpack_state(state);
-	Block *block = p_block(scope);
-	pack_state(state);
-	return block;
-}
+#endif

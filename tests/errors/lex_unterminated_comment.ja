@@ -1,0 +1,7 @@
+var x = 90;
+
+/*
+	hello
+* /
+
+print x;
